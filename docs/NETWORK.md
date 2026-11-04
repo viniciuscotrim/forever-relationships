@@ -42,4 +42,4 @@ The addon computes network bands with the same engine and published parameters, 
    What remains: an attacker who owns several paid Battle.net accounts, which genuinely group with the target and with each other over days, from different guilds. That is costly and visible, and disputes and admin review cover it.
 2. **Character claims.** Characters are self-declared. A GUID claimed by two uploaders is *contested*: neither can see its events or hide it, and an admin must resolve it.
 3. **Moderation.** Disputes need a human reviewer (admin endpoints). Budget time for this.
-4. **Hosting.** Running with daily backups, and moving to https://trustadvisor.gameplaybr.com.br behind Cloudflare. See [DEPLOY.md](DEPLOY.md).
+4. **Hosting.** Live at https://trustadvisor.gameplaybr.com.br behind Cloudflare, with daily backups. See [DEPLOY.md](DEPLOY.md).

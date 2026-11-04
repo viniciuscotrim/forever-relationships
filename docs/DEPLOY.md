@@ -2,7 +2,7 @@
 
 **URL:** https://trustadvisor.gameplaybr.com.br (default in the companion app).
 
-**Status:** waiting for Registro.br to delegate `gameplaybr.com.br` to Cloudflare. Until then the companion falls back to `https://trustadvisor.72-62-142-237.sslip.io`. The Cloudflare section below describes the target setup, which is applied right after delegation.
+**Status:** live behind Cloudflare since 2026-11-04 (proxied, SSL Full (strict), origin locked to Cloudflare's IP ranges). The legacy `https://trustadvisor.72-62-142-237.sslip.io` remains only as the companion's automatic fallback.
 
 The server runs isolated on a shared VPS that also hosts other services. Do not touch anything outside the paths below.
 
@@ -19,7 +19,9 @@ The server runs isolated on a shared VPS that also hosts other services. Do not 
 
 DNS is on Cloudflare (zone `gameplaybr.com.br`). The `trustadvisor` record is **proxied**, with SSL mode **Full (strict)**, so the public sees Cloudflare's IPs. The HTTPS server block for this name accepts connections **only from Cloudflare's IP ranges**, and takes the client IP for rate limiting from `CF-Connecting-IP`. Certificate renewals (HTTP-01) pass through Cloudflare. The local Cloudflare token (`cloudflare.key`, git-ignored) can only edit this zone's DNS and settings.
 
-Legacy `trustadvisor.72-62-142-237.sslip.io` (direct, no Cloudflare) is kept temporarily for early companion installs. Remove it once they have updated.
+Legacy `trustadvisor.72-62-142-237.sslip.io` (direct, no Cloudflare) is kept as a fallback for early companion installs. Remove it, and drop it from `FALLBACK_SERVERS` in the companion, once old installs have updated.
+
+Cloudflare's IP ranges are pinned in the nginx `allow` list. If Cloudflare publishes new ranges (https://www.cloudflare.com/ips), update the list.
 
 ## Update
 ```sh

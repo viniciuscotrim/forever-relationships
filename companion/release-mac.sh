@@ -53,6 +53,6 @@ spctl --assess --type execute -vv "dist/$APP.app"
 (cd dist && ditto -c -k --sequesterRsrc --keepParent "$APP.app" "$OUT/TrustAdvisorCompanion-macos-app.zip")
 echo "Built in $OUT"
 if [ -z "$SKIP_UPLOAD" ]; then
-  gh release upload "companion-v$VERSION" "$OUT/TrustAdvisorCompanion-macos-app.zip" --clobber
+  gh release upload -R viniciuscotrim/trust-advisor "companion-v$VERSION" "$OUT/TrustAdvisorCompanion-macos-app.zip" --clobber
   echo "Published signed + notarized macOS companion $VERSION"
 fi

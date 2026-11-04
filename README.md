@@ -110,7 +110,7 @@ The scoring engine is pure Lua and runs outside the game. `install.sh` runs:
 
 ## Status
 
-- **Addon:** published on CurseForge, which is still reviewing the new project.
+- **Addon:** published on CurseForge (new project, pending CurseForge review).
 - **Companion:** downloads for Mac (signed and notarized app) and Windows on the [Releases](https://github.com/viniciuscotrim/trust-advisor/releases) page.
-- **Network server:** running. It is moving to `trustadvisor.gameplaybr.com.br` behind Cloudflare; the companion falls back to the previous address automatically until the move is done.
+- **Network server:** live at `https://trustadvisor.gameplaybr.com.br`, behind Cloudflare.
 - **Not yet verified on the live game client:** every game API. Any capture whose API is unavailable turns itself off and is listed in Transparency › Captures.
