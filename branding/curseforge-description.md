@@ -68,7 +68,7 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 
 ### Commands
 
-`/fr` opens the window (`/forever` and the old `/ta` work too). Other useful commands:
+`/fr` opens the window (`/forever` works too). Other useful commands:
 - `/fr feedback`: report a bug or suggest an idea, without leaving the game
 - `/fr privacy`: your layers, the companion app and your data
 - `/fr player <name>`: your relationship with a player
@@ -77,10 +77,10 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 ### Good to know
 
 - Made for **WoW: Forever**. The interface is in English.
-- **Formerly Trust Advisor.** Your history carries over automatically when you update.
+- **Formerly Forever Relationships.** Your history carries over automatically when you update.
 - **Early release.** If a game feature isn't available on your client, that part turns itself off safely instead of throwing errors.
 - **Feedback and bug reports: `/fr feedback` in game.** It's the only channel, so please don't use comments for bug reports. That way nothing gets lost.
 - **The companion app also delivers your feedback.** Without it, reports are saved and sent the first time it runs.
 - Unofficial addon, not affiliated with Blizzard Entertainment.
-- Source code and companion downloads: **https://github.com/viniciuscotrim/trust-advisor**
+- Source code and companion downloads: **https://github.com/viniciuscotrim/forever-relationships**
 <!-- PUBLIC-DESCRIPTION:END -->

@@ -6,14 +6,14 @@
 # Terminal users can run the same binary: "Forever Relationships Companion.app/Contents/MacOS/Forever Relationships Companion" --help
 # (a loose CLI binary is not shipped: Gatekeeper rejects those when opened from Finder, even notarized)
 # Needs Xcode, the "Developer ID Application" certificate, and notarization credentials:
-#   xcrun notarytool store-credentials trustadvisor --apple-id <email> --team-id U3H5DHZP65
+#   xcrun notarytool store-credentials forever-relationships --apple-id <email> --team-id U3H5DHZP65
 # SKIP_UPLOAD=1 builds and verifies without publishing.
 set -e
 cd "$(dirname "$0")"
 IDENTITY="${IDENTITY:-Developer ID Application: Vinicius Luciano Menezes Cotrim (U3H5DHZP65)}"
-PROFILE="${PROFILE:-trustadvisor}"
+PROFILE="${PROFILE:-forever-relationships}"
 APP="Forever Relationships Companion"
-VERSION=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' ta_companion.py)
+VERSION=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' fr_companion.py)
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 OUT="${OUT:-$(pwd)/../dist/companion-$VERSION}"
@@ -24,7 +24,7 @@ VENV="$(pwd)/../.venv-server"   # tests start the real server, which needs `cryp
 "$VENV/bin/python" -m unittest discover -s tests 2>&1 | tail -1
 python3 -m venv "$WORK/venv" && "$WORK/venv/bin/pip" install -q pyinstaller==6.11.1
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict></dict></plist>\n' > "$WORK/ent.plist"
-cp ta_companion.py "$WORK/"
+cp fr_companion.py "$WORK/"
 
 # App icon from the Forever Relationships logo
 ICONSET="$WORK/icon.iconset"; mkdir -p "$ICONSET"
@@ -37,8 +37,8 @@ iconutil -c icns "$ICONSET" -o "$WORK/icon.icns"
 cd "$WORK"
 # 1) the .app
 venv/bin/pyinstaller --windowed --target-arch universal2 --name "$APP" --icon icon.icns \
-  --osx-bundle-identifier com.trustadvisor.companion --codesign-identity "$IDENTITY" \
-  --osx-entitlements-file ent.plist --noconfirm --log-level ERROR ta_companion.py
+  --osx-bundle-identifier com.foreverrelationships.companion --codesign-identity "$IDENTITY" \
+  --osx-entitlements-file ent.plist --noconfirm --log-level ERROR fr_companion.py
 for key in CFBundleShortVersionString CFBundleVersion; do
   /usr/libexec/PlistBuddy -c "Set :$key $VERSION" "dist/$APP.app/Contents/Info.plist" 2>/dev/null ||
     /usr/libexec/PlistBuddy -c "Add :$key string $VERSION" "dist/$APP.app/Contents/Info.plist"
@@ -55,6 +55,6 @@ spctl --assess --type execute -vv "dist/$APP.app"
 (cd dist && ditto -c -k --sequesterRsrc --keepParent "$APP.app" "$OUT/ForeverRelationshipsCompanion-macos-app.zip")
 echo "Built in $OUT"
 if [ -z "$SKIP_UPLOAD" ]; then
-  gh release upload -R viniciuscotrim/trust-advisor "companion-v$VERSION" "$OUT/ForeverRelationshipsCompanion-macos-app.zip" --clobber
+  gh release upload -R viniciuscotrim/forever-relationships "companion-v$VERSION" "$OUT/ForeverRelationshipsCompanion-macos-app.zip" --clobber
   echo "Published signed + notarized macOS companion $VERSION"
 fi

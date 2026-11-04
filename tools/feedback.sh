@@ -6,10 +6,10 @@
 # Statuses: received, planned, fixed, done, wontfix, duplicate.
 # Replies reach the player through the companion app on their next sync.
 set -e
-HOST="${TA_HOST:-root@72.62.142.237}"
-KEY="${TA_KEY:-$HOME/.ssh/craft4d_pocketbase}"
+HOST="${FR_HOST:-root@72.62.142.237}"
+KEY="${FR_KEY:-$HOME/.ssh/craft4d_pocketbase}"
 run() { ssh -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes "$HOST" "$1"; }
-API='. /srv/trustadvisor/admin.env; curl -s -H "X-Admin-Token: $TA_ADMIN_TOKEN" http://127.0.0.1:10790'
+API='. /srv/forever-relationships/admin.env; curl -s -H "X-Admin-Token: $FR_ADMIN_TOKEN" http://127.0.0.1:10790'
 case "${1:-new}" in
   new|all)
     Q=$([ "${1:-new}" = all ] && echo "" || echo "?status=received")

@@ -15,11 +15,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from cryptography.hazmat.primitives import hashes  # noqa: E402
 from cryptography.hazmat.primitives.asymmetric import ec  # noqa: E402
 
-from trustnet import admin as admin_mod, demo, totp, webauthn  # noqa: E402
-from trustnet.app import Service, make_handler  # noqa: E402
-from trustnet.store import Store  # noqa: E402
+from frnet import admin as admin_mod, demo, totp, webauthn  # noqa: E402
+from frnet.app import Service, make_handler  # noqa: E402
+from frnet.store import Store  # noqa: E402
 
-ORIGIN, RP = "https://ta.example", "ta.example"
+ORIGIN, RP = "https://fr.example", "fr.example"
 NOW = 1800000000
 
 

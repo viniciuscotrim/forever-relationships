@@ -2,7 +2,7 @@
 
 <h1 align="center">Forever Relationships</h1>
 
-<p align="center"><b>A World of Warcraft: Forever addon</b> · <a href="https://github.com/viniciuscotrim/trust-advisor/releases">Companion app downloads</a> · <a href="CHANGELOG.md">Changelog</a></p>
+<p align="center"><b>A World of Warcraft: Forever addon</b> · <a href="https://github.com/viniciuscotrim/forever-relationships/releases">Companion app downloads</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
 <p align="center"><b>Bug or idea? Type <code>/fr feedback</code> in game.</b> It's the only feedback channel: no account, no leaving the game, and replies come back in game.</p>
 
@@ -61,7 +61,7 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 
 ### Commands
 
-`/fr` opens the window (`/forever` and the old `/ta` work too). Other useful commands:
+`/fr` opens the window (`/forever` works too). Other useful commands:
 - `/fr feedback`: report a bug or suggest an idea, without leaving the game
 - `/fr privacy`: your layers, the companion app and your data
 - `/fr player <name>`: your relationship with a player
@@ -70,12 +70,12 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 ### Good to know
 
 - Made for **WoW: Forever**. The interface is in English.
-- **Formerly Trust Advisor.** Your history carries over automatically when you update.
+- **Formerly Forever Relationships.** Your history carries over automatically when you update.
 - **Early release.** If a game feature isn't available on your client, that part turns itself off safely instead of throwing errors.
 - **Feedback and bug reports: `/fr feedback` in game.** It's the only channel, so please don't use comments for bug reports. That way nothing gets lost.
 - **The companion app also delivers your feedback.** Without it, reports are saved and sent the first time it runs.
 - Unofficial addon, not affiliated with Blizzard Entertainment.
-- Source code and companion downloads: **https://github.com/viniciuscotrim/trust-advisor**
+- Source code and companion downloads: **https://github.com/viniciuscotrim/forever-relationships**
 <!-- PUBLIC-DESCRIPTION:END -->
 
 ---
@@ -84,9 +84,9 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 
 | Part | What it is | Docs |
 |---|---|---|
-| [`TrustAdvisor/`](TrustAdvisor) | The addon (Lua 5.1, no libraries). This is the only part published on CurseForge. | [How it works](docs/HOW-IT-WORKS.md) · [Testing](docs/TESTING.md) |
-| [`companion/`](companion) | Desktop app that connects the addon to the Network (Python, standard library only). | [README](companion/README.md) |
-| [`server/`](server) | Network server: fairness rules, Battle.net identity, in-game feedback, API, and the admin cockpit (Python + SQLite; `cryptography` for passkeys). | [Network design](docs/NETWORK.md) · [Deployment](docs/DEPLOY.md) · [Cockpit](docs/COCKPIT.md) |
+| [`ForeverRelationships/`](ForeverRelationships) | The addon (Lua 5.1, no libraries). This is the only part published on CurseForge. | [How it works](docs/HOW-IT-WORKS.md) · [Testing](docs/TESTING.md) |
+| [`companion/`](companion) | Desktop app for the cloud layers and feedback (Python; `cryptography` for the encrypted backup). | [README](companion/README.md) |
+| [`server/`](server) | Server: consent-gated sync, encrypted backups, profiles, pseudonymized community, Battle.net, `/me`, feedback and the admin cockpit (Python + SQLite). | [Protocol and data](docs/NETWORK.md) · [Deployment](docs/DEPLOY.md) · [Cockpit](docs/COCKPIT.md) |
 | [`branding/`](branding) | Logo and the public description, which is the single source of truth for every store page. | |
 
 ```sh
@@ -96,15 +96,15 @@ python3 tools/sync_docs.py           # copies the public description into this R
 tools/feedback.sh                    # read in-game feedback; tools/feedback.sh reply <id> <status> "message"
 ```
 
-The scoring engine is pure Lua and runs outside the game. `install.sh` runs:
-- the scoring and Questie tests;
+The relationship engine is pure Lua and runs outside the game. `install.sh` runs:
+- the relationship and Questie tests;
 - a simulation of a whole dungeon run on a mock WoW API;
 - the server and companion tests;
 - a check that this README matches the public description.
 
 ## Status
 
-- **Addon:** published on CurseForge (new project, pending CurseForge review).
-- **Companion:** downloads for Mac (signed and notarized app) and Windows on the [Releases](https://github.com/viniciuscotrim/trust-advisor/releases) page.
-- **Network server:** live at `https://trustadvisor.gameplaybr.com.br`, behind Cloudflare.
-- **Not yet verified on the live game client:** every game API. Any capture whose API is unavailable turns itself off and is listed in Transparency › Captures.
+- **Addon:** published on CurseForge.
+- **Companion:** downloads for Mac (signed and notarized app) and Windows on the [Releases](https://github.com/viniciuscotrim/forever-relationships/releases) page.
+- **Server:** live at `https://forever.gameplaybr.com.br`, behind Cloudflare.
+- **Not yet verified on the live game client:** every game API. Any capture whose API is unavailable turns itself off and is listed by `/fr status`.

@@ -1,10 +1,10 @@
-# Trust Advisor — GDD v2: augmented reality of your relationships
+# Forever Relationships — GDD v2: augmented reality of your relationships
 
 Nov 4, 2026 · supersedes the v1 reputation design (scores and witness verification).
 
 ## 1. Vision
 
-Trust Advisor is an **augmented reality of how you relate to the people around you** in WoW: Forever. It answers a question every player asks and forgets: *"where do I know this person from, and how was it playing with them?"*
+Forever Relationships is an **augmented reality of how you relate to the people around you** in WoW: Forever. It answers a question every player asks and forgets: *"where do I know this person from, and how was it playing with them?"*
 
 It does this using **only data the game itself produces** while you play together: time, kills, completed content, trades, help, quests. Three rules follow from that:
 - **It never infers who someone is.** There are no scores, no bands, and no "Concern".
@@ -12,7 +12,7 @@ It does this using **only data the game itself produces** while you play togethe
 - **It never reads conversations.**
 
 ### Information, Knowledge, Wisdom
-| Layer | What it is | In Trust Advisor |
+| Layer | What it is | In Forever Relationships |
 |---|---|---|
 | Information | Facts the game records | Yes |
 | Knowledge | Patterns about *your* relationship, computed for you | Yes |
@@ -24,11 +24,11 @@ It does this using **only data the game itself produces** while you play togethe
 |---|---|---|---|
 | **0 · Local** (everyone) | Your relationship with each player: the tooltip (6 items you choose) and the **Relationship** window | You only | No |
 | **1 · Cloud backup** (opt-in) | A copy of your history, **end-to-end encrypted**. The key stays on your computer, plus a recovery code you keep. You keep your history after reinstalling or changing computers. | You only. The server cannot read it. | **No** |
-| **2 · Public profile** (opt-in, item by item) | What *you* choose to show about *yourself*: hours in groups, dungeons, people helped, achievements… Each item is marked **Official** (Blizzard API, character verified through Battle.net) or **Recorded by the addon** | Other Trust Advisor players | Yes |
+| **2 · Public profile** (opt-in, item by item) | What *you* choose to show about *yourself*: hours in groups, dungeons, people helped, achievements… Each item is marked **Official** (Blizzard API, character verified through Battle.net) or **Recorded by the addon** | Other Forever Relationships players | Yes |
 | **3 · Community** (opt-in) | Anonymous contribution of your group sessions to statistics, plus a separate choice: **"recommend me to other players"** | Nobody individually. Aggregates appear in the admin cockpit. | Yes, pseudonymized |
 
 **For everyone, always:**
-- **Permanent exclusion list.** Anyone can ask to be removed, through `/ta` or the self-service page with Battle.net login. Their data is deleted, and data that arrives about them later is **discarded at ingest**.
+- **Permanent exclusion list.** Anyone can ask to be removed, through `/fr` or the self-service page with Battle.net login. Their data is deleted, and data that arrives about them later is **discarded at ingest**.
 - **Pseudonymization.** Every character identifier on the server is stored as a keyed HMAC, with the key kept outside the database.
 - **Recommendations only involve players who opted in** to being recommended.
 
@@ -64,7 +64,7 @@ Per player you've grouped with:
   - **Event log**;
   - **Privacy:** layers and consents, what is recorded and where, backup status, delete everything.
 - **Welcome:** the four layers, with plain-language consent for each. Everything starts off.
-- **Feedback:** `/ta feedback` remains the single channel.
+- **Feedback:** `/fr feedback` remains the single channel.
 
 ## 6. Companion app
 - Syncs the public profile, the community contribution and the recommendations.

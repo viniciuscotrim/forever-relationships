@@ -1,9 +1,9 @@
 #!/bin/sh
-# Run tests, then copy Trust Advisor into the WoW: Forever AddOns folder.
+# Run tests, then copy Forever Relationships into the WoW: Forever AddOns folder.
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
-DEST="/Applications/World of Warcraft/_forever_/Interface/AddOns/TrustAdvisor"
-cd "$HERE/TrustAdvisor"
+DEST="/Applications/World of Warcraft/_forever_/Interface/AddOns/ForeverRelationships"
+cd "$HERE/ForeverRelationships"
 # Lua suites: one-line summary, stop on any failure
 for t in test_relationship test_questie test_ingame_sim; do
   LOG=$(mktemp)
@@ -31,5 +31,8 @@ for suite in server companion; do
   rm -f "$LOG"
 done
 python3 "$HERE/tools/sync_docs.py" --check
-rsync -a --delete --exclude Tests "$HERE/TrustAdvisor/" "$DEST/"
+rsync -a --delete --exclude Tests "$HERE/ForeverRelationships/" "$DEST/"
+# the addon's previous folder name, so both don't load
+OLD="$(dirname "$DEST")/Trust""Advisor"
+[ -d "$OLD" ] && rm -rf "$OLD" && echo "Removed the previous addon folder"
 echo "Installed to $DEST  (type /reload in game)"

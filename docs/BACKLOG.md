@@ -1,8 +1,8 @@
 # Development backlog
 
-Internal work items. Player feedback arrives through `/ta feedback` (read it with `tools/feedback.sh`).
+Internal work items. Player feedback arrives through `/fr feedback` (read it with `tools/feedback.sh`).
 
-## TA-1 · Credit the helpers who click a summoning portal (raids)
+## FR-1 · Credit the helpers who click a summoning portal (raids)
 
 **Status:** live validation scheduled for 2026-11-05.
 
@@ -15,10 +15,10 @@ Internal work items. Player feedback arrives through `/ta feedback` (read it wit
 4. Whether these unit spellcast events carry secret values in raids out of combat (Midnight restrictions).
 
 **Live test plan:**
-1. Use the current local build (`./install.sh`). Everyone with Trust Advisor types `/ta probe clear`, then `/ta probe on`.
+1. Use the current local build (`./install.sh`). Everyone with Forever Relationships types `/fr probe clear`, then `/fr probe on`.
 2. Warlock + 2 clickers summon a 4th player, once in the open world, then once inside a raid group. If possible, also use a meeting stone.
-3. `/ta probe off`, then `/reload` so SavedVariables are written.
-4. Read `TrustAdvisorDB.probe` from each participant's `WTF/Account/*/SavedVariables/TrustAdvisor.lua`, or use `/ta probe show` and copy the text.
+3. `/fr probe off`, then `/reload` so SavedVariables are written.
+4. Read `ForeverRelationshipsDB.probe` from each participant's `WTF/Account/*/SavedVariables/ForeverRelationships.lua`, or use `/fr probe show` and copy the text.
 
 **Done when:**
 - The spell ids for the ritual, the clicker action and the meeting stone are confirmed and added to `Data/Generosity.lua`, with `verified = true`.
@@ -31,14 +31,14 @@ Internal work items. Player feedback arrives through `/ta feedback` (read it wit
 - `summonAssist` is network-eligible as a positive, with a per-witness kind like other generosity.
 - CHANGELOG entry. Published after the in-game re-test.
 
-## TA-2 · Confirm the first real certificate renewal
+## FR-2 · Confirm the first real certificate renewal
 
 **Status:** watch around 2027-01-03. Certbot renews 30 days before the 2027-02-02 expiry.
 
 `certbot renew --dry-run` fails on this VPS because the server cannot reach Let's Encrypt *staging* (connection reset). It does reach *production*, which issued the certificates on 2026-11-04. So check the real renewal instead:
 
 ```sh
-ssh root@VPS 'certbot certificates | grep -A2 trustadvisor'
+ssh root@VPS 'certbot certificates | grep -A2 forever'
 ```
 
-HTTP-01 for `trustadvisor.gameplaybr.com.br` goes through Cloudflare: the redirect to HTTPS is followed, and the 443 block serves `/.well-known/acme-challenge/` from Cloudflare's ranges.
+HTTP-01 for `forever.gameplaybr.com.br` goes through Cloudflare: the redirect to HTTPS is followed, and the 443 block serves `/.well-known/acme-challenge/` from Cloudflare's ranges.

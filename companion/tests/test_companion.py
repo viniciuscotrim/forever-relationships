@@ -8,18 +8,19 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from http.server import ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "server"))
-import ta_companion as tc  # noqa: E402
-from trustnet.app import Service, make_handler  # noqa: E402
-from trustnet.store import Store  # noqa: E402
+import fr_companion as tc  # noqa: E402
+from frnet.app import Service, make_handler  # noqa: E402
+from frnet.store import Store  # noqa: E402
 
 WOW_STYLE = '''
-TrustAdvisorDB = {
+ForeverRelationshipsDB = {
 \t["params"] = {
 \t\t["consent.network"] = true,
 \t},
@@ -46,7 +47,7 @@ next line",
 \t["debug"] = false,
 \t["active"] = nil,
 }
-TrustAdvisorCharDB = {
+ForeverRelationshipsCharDB = {
 }
 '''
 
@@ -54,7 +55,7 @@ TrustAdvisorCharDB = {
 class Parser(unittest.TestCase):
     def test_wow_saved_variables(self):
         sv = tc.parse_saved_variables(WOW_STYLE)
-        db = sv["TrustAdvisorDB"]
+        db = sv["ForeverRelationshipsDB"]
         self.assertIs(db["params"]["consent.network"], True)
         ev = db["events"][0]
         self.assertEqual(ev["details"]["lootTimes"][0]["q"], 3)
@@ -63,12 +64,12 @@ class Parser(unittest.TestCase):
         self.assertEqual(ev["details"]["neg"], -2)
         self.assertEqual(ev["details"]["big"], 1e15)
         self.assertIs(db["debug"], False)
-        self.assertEqual(sv["TrustAdvisorCharDB"], {})
+        self.assertEqual(sv["ForeverRelationshipsCharDB"], {})
 
     def test_lua_literal_roundtrip(self):
         data = {"players": {"Player-1-0A": {"incidents": [{"d": "finish", "x": 0, "m": 3, "t": 5}]}}, "s": 'a"b\\c\nd'}
-        text = "TrustAdvisorNetData = " + tc.lua_literal(data)
-        back = tc.parse_saved_variables(text)["TrustAdvisorNetData"]
+        text = "ForeverRelationshipsNetData = " + tc.lua_literal(data)
+        back = tc.parse_saved_variables(text)["ForeverRelationshipsNetData"]
         self.assertEqual(back["players"]["Player-1-0A"]["incidents"][0]["m"], 3)
         self.assertEqual(back["s"], 'a"b\\c\nd')
 
@@ -95,10 +96,10 @@ class Feedback(unittest.TestCase):
             wow = os.path.join(tmp, "_forever_")
             svdir = os.path.join(wow, "WTF", "Account", "X", "SavedVariables")
             os.makedirs(svdir)
-            os.makedirs(os.path.join(wow, "Interface", "AddOns", "TrustAdvisor", "Cloud"))
-            sv = os.path.join(svdir, "TrustAdvisor.lua")
+            os.makedirs(os.path.join(wow, "Interface", "AddOns", "ForeverRelationships", "Cloud"))
+            sv = os.path.join(svdir, "ForeverRelationships.lua")
             with open(sv, "w") as f:
-                f.write('TrustAdvisorDB = { ["feedback"] = { ["installId"] = "%s", ["outbox"] = { '
+                f.write('ForeverRelationshipsDB = { ["feedback"] = { ["installId"] = "%s", ["outbox"] = { '
                         '{ ["id"] = "aaaaaaaa-1-beef", ["kind"] = "bug", ["text"] = "it broke", ["version"] = "0.3.0", '
                         '["diag"] = { ["addon"] = "0.3.0" }, ["t"] = 1800000000 } } } }' % ("a" * 32))
             svc = Service(Store(":memory:"))
@@ -110,7 +111,7 @@ class Feedback(unittest.TestCase):
             self.assertEqual(len(svc.store.list_feedback()), 1)
             svc.store.update_feedback("aaaaaaaa-1-beef", "fixed", "Thanks!", 1)
             tc.sync_file(sv, client, wow, state, log=lambda *_: None)
-            nd = tc.parse_saved_variables(open(tc.netdata_path(wow), encoding="utf-8").read())["TrustAdvisorNetData"]
+            nd = tc.parse_saved_variables(open(tc.netdata_path(wow), encoding="utf-8").read())["ForeverRelationshipsNetData"]
             self.assertEqual(nd["feedback"]["aaaaaaaa-1-beef"], {"status": "fixed", "reply": "Thanks!"})
             self.assertNotIn("profiles", nd)                          # no cloud layer data without consent
             self.assertTrue(nd["companion"]["syncedAt"] > 0)
@@ -127,8 +128,8 @@ class Link(unittest.TestCase):
         try:
             svdir = os.path.join(tmp, "WTF", "Account", "X", "SavedVariables")
             os.makedirs(svdir)
-            with open(os.path.join(svdir, "TrustAdvisor.lua"), "w") as f:
-                f.write('TrustAdvisorDB = { ["net"] = { ["uploaderId"] = "%s" } }' % ("a" * 32))
+            with open(os.path.join(svdir, "ForeverRelationships.lua"), "w") as f:
+                f.write('ForeverRelationshipsDB = { ["net"] = { ["uploaderId"] = "%s" } }' % ("a" * 32))
 
             class FakeClient:
                 calls = 0
@@ -160,15 +161,15 @@ class Link(unittest.TestCase):
 class Autostart(unittest.TestCase):
     def test_mac_plist_is_valid_and_keeps_running(self):
         import plistlib
-        xml = tc.mac_plist(["/usr/bin/python3", "/path with space/ta_companion.py", "--wow", "A&B"], "/tmp/log")
+        xml = tc.mac_plist(["/usr/bin/python3", "/path with space/fr_companion.py", "--wow", "A&B"], "/tmp/log")
         d = plistlib.loads(xml.encode("utf-8"))
         self.assertEqual(d["Label"], tc.LABEL)
         self.assertEqual(d["ProgramArguments"][3], "A&B")
         self.assertTrue(d["RunAtLoad"] and d["KeepAlive"])
 
     def test_windows_script_quotes_paths(self):
-        s = tc.windows_startup_script([r"C:\Program Files\TA\TrustAdvisorCompanion.exe", "--wow", r"D:\Games\WoW"])
-        self.assertIn('"C:\\Program Files\\TA\\TrustAdvisorCompanion.exe"', s)
+        s = tc.windows_startup_script([r"C:\Program Files\FR\ForeverRelationshipsCompanion.exe", "--wow", r"D:\Games\WoW"])
+        self.assertIn('"C:\\Program Files\\FR\\ForeverRelationshipsCompanion.exe"', s)
         self.assertTrue(s.startswith("@echo off"))
 
     def test_autostart_runs_in_watch_mode(self):
@@ -195,7 +196,7 @@ class Autostart(unittest.TestCase):
 
     def test_launch_command_points_at_this_script(self):
         cmd = tc.launch_command(["--once"])
-        self.assertTrue(cmd[-2].endswith("ta_companion.py") and cmd[-1] == "--once")
+        self.assertTrue(cmd[-2].endswith("fr_companion.py") and cmd[-1] == "--once")
 
 
 class Backup(unittest.TestCase):
@@ -207,10 +208,10 @@ class Backup(unittest.TestCase):
         self.char = os.path.join(self.wow, "WTF", "Account", "ACC", "Realm", "Char", "SavedVariables")
         os.makedirs(self.acct)
         os.makedirs(self.char)
-        with open(os.path.join(self.acct, "TrustAdvisor.lua"), "w") as f:
-            f.write('TrustAdvisorDB = { ["cloud"] = { ["uploaderId"] = "%s" }, ["events"] = { { ["signal"] = "session" } } }' % ("a" * 32))
-        with open(os.path.join(self.char, "TrustAdvisor.lua"), "w") as f:
-            f.write("TrustAdvisorCharDB = { }")
+        with open(os.path.join(self.acct, "ForeverRelationships.lua"), "w") as f:
+            f.write('ForeverRelationshipsDB = { ["cloud"] = { ["uploaderId"] = "%s" }, ["events"] = { { ["signal"] = "session" } } }' % ("a" * 32))
+        with open(os.path.join(self.char, "ForeverRelationships.lua"), "w") as f:
+            f.write("ForeverRelationshipsCharDB = { }")
         self.svc = Service(Store(":memory:"), hash_salt="k")
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.svc))
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -241,7 +242,7 @@ class Backup(unittest.TestCase):
         self.assertTrue(code and info["size"] > 0)
         self.assertTrue(any("recovery code" in l.lower() for l in logs))
         stored = list(self.svc.store._mem_blobs.values())[0]
-        self.assertNotIn(b"TrustAdvisorDB", stored)          # the server only holds ciphertext
+        self.assertNotIn(b"ForeverRelationshipsDB", stored)          # the server only holds ciphertext
         # second sync without changes uploads nothing new
         _, code2 = tc.sync_backup(self.wow, "a" * 32, self.client, {"backup-aaaaaaaa": {"digest": "x"}}, self.ks, log=lambda *_: None)
         self.assertIsNone(code2)
@@ -250,8 +251,8 @@ class Backup(unittest.TestCase):
         self.ks.delete("a" * 32)
         n = tc.restore_backup(code, self.wow, self.client, self.ks, log=lambda *_: None)
         self.assertEqual(n, 2)
-        with open(os.path.join(self.char, "TrustAdvisor.lua")) as f:
-            self.assertIn("TrustAdvisorCharDB", f.read())
+        with open(os.path.join(self.char, "ForeverRelationships.lua")) as f:
+            self.assertIn("ForeverRelationshipsCharDB", f.read())
         self.assertIsNotNone(self.ks.load("a" * 32))           # future backups use the same key
         with self.assertRaises(RuntimeError):
             tc.restore_backup(tc.recovery_code(os.urandom(32)), self.wow, self.client, self.ks, log=lambda *_: None)
@@ -264,7 +265,7 @@ class EndToEnd(unittest.TestCase):
         self.wow = os.path.join(self.tmp, "_forever_")
         self.svdir = os.path.join(self.wow, "WTF", "Account", "TEST", "SavedVariables")
         os.makedirs(self.svdir)
-        os.makedirs(os.path.join(self.wow, "Interface", "AddOns", "TrustAdvisor", "Cloud"))
+        os.makedirs(os.path.join(self.wow, "Interface", "AddOns", "ForeverRelationships", "Cloud"))
         tc.STATE_PATH = os.path.join(self.tmp, "state.json")
         # same clock as the LuaJIT mock client (Tests/test_ingame_sim.lua)
         self.service = Service(Store(":memory:"), clock=lambda: 1800000000 + 7200, hash_salt="k")
@@ -279,14 +280,14 @@ class EndToEnd(unittest.TestCase):
 
     def run_sim(self, **env):
         e = dict(os.environ, **env)
-        r = subprocess.run(["luajit", "Tests/test_ingame_sim.lua"], cwd=os.path.join(ROOT, "TrustAdvisor"), env=e, capture_output=True, text=True)
+        r = subprocess.run(["luajit", "Tests/test_ingame_sim.lua"], cwd=os.path.join(ROOT, "ForeverRelationships"), env=e, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout[-2000:] + r.stderr[-2000:])
         return r.stdout
 
     def test_full_loop(self):
-        sv = os.path.join(self.svdir, "TrustAdvisor.lua")
-        self.run_sim(TA_DUMP_SV=sv)
-        db = tc.parse_saved_variables(open(sv, encoding="utf-8").read())["TrustAdvisorDB"]
+        sv = os.path.join(self.svdir, "ForeverRelationships.lua")
+        self.run_sim(FR_DUMP_SV=sv)
+        db = tc.parse_saved_variables(open(sv, encoding="utf-8").read())["ForeverRelationshipsDB"]
         self.assertTrue(db["cloud"]["outbox"]["consents"]["community"])
         client = tc.Client(self.url)
         # Tanky also uses the addon and publishes a profile
@@ -297,12 +298,54 @@ class EndToEnd(unittest.TestCase):
         self.assertGreaterEqual(stored, 1)
         dump = "\n".join(str(tuple(r)) for r in self.service.store.q("SELECT * FROM community_members"))
         self.assertNotIn("Player-1-", dump)                     # pseudonymized on arrival
-        nd = tc.parse_saved_variables(open(tc.netdata_path(self.wow), encoding="utf-8").read())["TrustAdvisorNetData"]
+        nd = tc.parse_saved_variables(open(tc.netdata_path(self.wow), encoding="utf-8").read())["ForeverRelationshipsNetData"]
         self.assertIn("Player-1-0000000A", nd["profiles"])
         self.assertEqual(nd["companion"]["version"], tc.VERSION)
-        out = self.run_sim(TA_NETDATA=tc.netdata_path(self.wow))
+        out = self.run_sim(FR_NETDATA=tc.netdata_path(self.wow))
         self.assertIn("ok   NetData: public profile", out)
 
+
+
+class Legacy(unittest.TestCase):
+    def test_migrates_old_name_when_game_closed(self):
+        old = "Trust" + "Advisor"
+        with tempfile.TemporaryDirectory() as wow, tempfile.TemporaryDirectory() as home:
+            sv = os.path.join(wow, "WTF", "Account", "ACC", "SavedVariables")
+            ch = os.path.join(wow, "WTF", "Account", "ACC", "Realm", "Char", "SavedVariables")
+            os.makedirs(sv); os.makedirs(ch)
+            with open(os.path.join(sv, old + ".lua"), "w") as f:
+                f.write(old + 'DB = {\n["events"] = {\n{\n["signal"] = "trade",\n},\n},\n}\n')
+            with open(os.path.join(ch, old + ".lua"), "w") as f:
+                f.write(old + 'CharDB = {\n["ui"] = {},\n}\n')
+            # the new addon already ran once and wrote an empty file: it gets replaced
+            with open(os.path.join(sv, "ForeverRelationships.lua"), "w") as f:
+                f.write('ForeverRelationshipsDB = {\n["events"] = {},\n}\n')
+            for d in (old, "ForeverRelationships"):
+                os.makedirs(os.path.join(wow, "Interface", "AddOns", d))
+            with mock.patch.object(tc, "wow_running", return_value=False), \
+                 mock.patch.object(tc, "STATE_PATH", os.path.join(home, ".forever-relationships", "companion.json")), \
+                 mock.patch.dict(os.environ, {"HOME": home, "APPDATA": home}), \
+                 mock.patch.object(tc.subprocess, "run"):
+                done = tc.migrate_legacy(wow)
+                self.assertEqual(tc.migrate_legacy(wow), [], "second run is a no-op")
+            with open(os.path.join(sv, "ForeverRelationships.lua")) as f:
+                db = tc.parse_saved_variables(f.read())["ForeverRelationshipsDB"]
+            self.assertEqual(db["events"][0]["signal"], "trade")
+            with open(os.path.join(ch, "ForeverRelationships.lua")) as f:
+                self.assertIn("ForeverRelationshipsCharDB", tc.parse_saved_variables(f.read()))
+            self.assertTrue(os.path.exists(os.path.join(sv, old + ".lua.migrated")))
+            self.assertFalse(os.path.isdir(os.path.join(wow, "Interface", "AddOns", old)))
+            self.assertIn("old addon folder", done)
+
+    def test_leaves_files_alone_while_game_runs(self):
+        old = "Trust" + "Advisor"
+        with tempfile.TemporaryDirectory() as wow:
+            sv = os.path.join(wow, "WTF", "Account", "ACC", "SavedVariables"); os.makedirs(sv)
+            with open(os.path.join(sv, old + ".lua"), "w") as f:
+                f.write(old + "DB = {}\n")
+            with mock.patch.object(tc, "wow_running", return_value=True), mock.patch.object(tc.subprocess, "run"):
+                tc.migrate_legacy(wow)
+            self.assertTrue(os.path.exists(os.path.join(sv, old + ".lua")))
 
 if __name__ == "__main__":
     unittest.main()

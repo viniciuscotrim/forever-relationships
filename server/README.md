@@ -4,8 +4,8 @@ Python 3.8+ standard library + SQLite, plus `cryptography` (admin passkeys). Pro
 
 ```sh
 python3 -m unittest discover -s tests -v
-TA_HASH_SALT=change-me python3 -m trustnet.app          # http://localhost:8080
-docker build -t trustadvisor-net . && docker run -p 8080:8080 -v ta-data:/data -e TA_HASH_SALT=... trustadvisor-net
+FR_HASH_SALT=change-me python3 -m frnet.app          # http://localhost:8080
+docker build -t forever-relationships . && docker run -p 8080:8080 -v fr-data:/data -e FR_HASH_SALT=... forever-relationships
 ```
 
-Put it behind HTTPS. Env: `TA_DB`, `TA_PORT`, `TA_HASH_SALT` (keys the pseudonyms; never change it), `TA_ADMIN_ORIGIN`, `TA_PUBLIC_URLS`, `TA_BNET_CLIENT_ID`, `TA_BNET_CLIENT_SECRET`. Production: `../docs/DEPLOY.md`. Admin cockpit: `../docs/COCKPIT.md`.
+Put it behind HTTPS. Env: `FR_DB`, `FR_PORT`, `FR_HASH_SALT` (keys the pseudonyms; never change it), `FR_ADMIN_ORIGIN`, `FR_PUBLIC_URLS`, `FR_BNET_CLIENT_ID`, `FR_BNET_CLIENT_SECRET`. Production: `../docs/DEPLOY.md`. Admin cockpit: `../docs/COCKPIT.md`.

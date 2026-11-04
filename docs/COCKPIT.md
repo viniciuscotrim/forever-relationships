@@ -20,18 +20,18 @@ Session security:
 
 ## Enrollment (one time, or to add a device)
 ```sh
-ssh root@VPS 'docker exec trustadvisor-net python -m trustnet.admin_cli setup-link'
+ssh root@VPS 'docker exec forever-relationships python -m frnet.admin_cli setup-link'
 ```
 This prints a single-use link that's valid for 30 minutes. Open it in Safari on the Mac:
 1. Create the passkey with Touch ID.
 2. Click **Add to Passwords**, or enter the setup key in Passwords.
 3. Type the current code.
 
-To start over: `python -m trustnet.admin_cli revoke-all`, then create a new setup link.
+To start over: `python -m frnet.admin_cli revoke-all`, then create a new setup link.
 
 ## Demo data
 ```sh
-ssh root@VPS 'docker exec trustadvisor-net python -m trustnet.demo seed'    # fills every view
-ssh root@VPS 'docker exec trustadvisor-net python -m trustnet.demo clean'   # removes every demo row
+ssh root@VPS 'docker exec forever-relationships python -m frnet.demo seed'    # fills every view
+ssh root@VPS 'docker exec forever-relationships python -m frnet.demo clean'   # removes every demo row
 ```
 Demo rows are marked (ids starting with `demo-`, characters on the fictional realm `9999`). The cockpit shows a banner while any exist.

@@ -4,17 +4,17 @@
 
 WoW addons cannot use the internet, so this small program does it for them:
 
-1. Reads the addon's SavedVariables (`TrustAdvisor.lua`, written on logout or `/reload`).
+1. Reads the addon's SavedVariables (`ForeverRelationships.lua`, written on logout or `/reload`).
 2. Sends only what the layers you turned on allow: the encrypted backup, your chosen profile items, pseudonymized community sessions, feedback and deletion requests.
-3. Writes public profiles, suggestions and status into `Interface/AddOns/TrustAdvisor/Cloud/NetData.lua`. Type `/reload` in game to see them.
+3. Writes public profiles, suggestions and status into `Interface/AddOns/ForeverRelationships/Cloud/NetData.lua`. Type `/reload` in game to see them.
 
 **Cloud backup** is encrypted on your computer with AES-256-GCM before upload. The key stays on your computer (macOS Keychain, or a private file), and you get a **recovery code** once: save it in your Passwords app. Nobody else, including the developer, can read the backup. Without the code, it can't be restored.
 
 ## Install
-Download from **[Releases](https://github.com/viniciuscotrim/trust-advisor/releases)**:
+Download from **[Releases](https://github.com/viniciuscotrim/forever-relationships/releases)**:
 - Mac: `ForeverRelationshipsCompanion-macos-app.zip`. Open **Forever Relationships Companion.app**: it installs the background service, shows your recovery code and offers the Battle.net link, no Terminal needed. Universal, signed, notarized and stapled by Apple.
 - Windows: `ForeverRelationshipsCompanion-windows.exe`. It isn't code-signed yet, so SmartScreen may warn: choose *More info › Run anyway*. Put it somewhere permanent, then run it once with `--install`.
-- Any OS: `ta_companion.py` (needs Python 3.8+ and the `cryptography` package for the backup).
+- Any OS: `fr_companion.py` (needs Python 3.8+ and the `cryptography` package for the backup).
 
 ```sh
 ForeverRelationshipsCompanion-windows.exe --install        # starts with Windows (Startup folder, no admin)

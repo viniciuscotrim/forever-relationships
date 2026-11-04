@@ -6,8 +6,8 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from trustnet.app import BadRequest, Service  # noqa: E402
-from trustnet.store import Store  # noqa: E402
+from frnet.app import BadRequest, Service  # noqa: E402
+from frnet.store import Store  # noqa: E402
 
 NOW = 1800000000
 ME, A, B, C = "Player-1-000000E0", "Player-1-000000A0", "Player-1-000000B0", "Player-1-000000C0"
