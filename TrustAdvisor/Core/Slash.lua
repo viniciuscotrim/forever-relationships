@@ -86,6 +86,7 @@ local HELP = {
   "/ta network - network status and companion app setup",
   "/ta welcome - show the welcome and privacy choices again",
   "/ta status - client, interface and capture status",
+  "Help, companion app and bug reports: github.com/viniciuscotrim/trust-advisor",
 }
 
 local function Handle(msg)

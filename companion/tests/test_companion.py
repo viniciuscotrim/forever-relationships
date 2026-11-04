@@ -146,7 +146,10 @@ class Autostart(unittest.TestCase):
             tc.autostart_paths = lambda: {"file": os.path.join(tmp, "x.plist"), "log": os.path.join(tmp, "log")}
             tc.subprocess.run = lambda *a, **k: captured.setdefault("run", a)
             tc.subprocess.Popen = lambda *a, **k: captured.setdefault("popen", a)
-            tc.install_autostart(["--wow", "/x"])
+            import contextlib
+            import io
+            with contextlib.redirect_stdout(io.StringIO()):
+                tc.install_autostart(["--wow", "/x"])
             text = open(os.path.join(tmp, "x.plist")).read()
             self.assertIn("--watch", text)   # never re-enters the double-click app mode
         finally:

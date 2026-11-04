@@ -1,6 +1,8 @@
 # Network server deployment (production)
 
-**URL:** https://trustadvisor.gameplaybr.com.br (default in the companion app)
+**URL:** https://trustadvisor.gameplaybr.com.br (default in the companion app).
+
+**Status:** waiting for Registro.br to delegate `gameplaybr.com.br` to Cloudflare. Until then the companion falls back to `https://trustadvisor.72-62-142-237.sslip.io`. The Cloudflare section below describes the target setup, which is applied right after delegation.
 
 The server runs isolated on a shared VPS that also hosts other services. Do not touch anything outside the paths below.
 
@@ -32,7 +34,7 @@ ssh root@VPS 'source /srv/trustadvisor/admin.env; curl -s -X POST -H "X-Admin-To
 
 ## Remove completely
 ```sh
-docker rm -f trustadvisor-net; docker rmi trustadvisor-net:0.2.0
+docker rm -f trustadvisor-net; docker rmi $(docker images -q trustadvisor-net)
 rm /etc/nginx/sites-enabled/trustadvisor-net /etc/nginx/sites-available/trustadvisor-net && nginx -t && systemctl reload nginx
 certbot delete --cert-name trustadvisor.72-62-142-237.sslip.io; certbot delete --cert-name trustadvisor.gameplaybr.com.br; rm /etc/cron.d/trustadvisor-backup; rm -rf /srv/trustadvisor /var/www/trustadvisor-acme
 ```

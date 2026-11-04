@@ -1,4 +1,4 @@
-# Trust Advisor Network (GDD Phase 3)
+# Trust Advisor Network
 
 ## Architecture
 ```
@@ -36,11 +36,10 @@ The addon computes network bands with the same engine and published parameters, 
 1. **Identity / sockpuppets.** Encrypting SavedVariables would not help: the addon is open Lua code on the player's machine, so any key in it is public. Defense therefore lives on the server, where it is layered:
    - a negative needs two eligible witnesses from two guild groups;
    - each witness must be mutually present with another in their group histories, and the subject must be in those histories;
-   - witnesses need 2+ days and 3+ corroborated reports, which can only be earned by actually grouping with *other, independent* uploaders, so copying public incidents earns nothing.
-
+   - witnesses need 2+ days and 3+ corroborated reports, which can only be earned by actually grouping with *other, independent* uploaders, so copying public incidents earns nothing;
    - each witness must be a distinct, linked Battle.net account (OAuth on the server; the client secret never ships in the companion; only a salted SHA-256 of the account id is stored, and the access token is discarded after one use).
 
    What remains: an attacker who owns several paid Battle.net accounts, which genuinely group with the target and with each other over days, from different guilds. That is costly and visible, and disputes and admin review cover it.
 2. **Character claims.** Characters are self-declared. A GUID claimed by two uploaders is *contested*: neither can see its events or hide it, and an admin must resolve it.
 3. **Moderation.** Disputes need a human reviewer (admin endpoints). Budget time for this.
-4. **Hosting.** Deployed at https://trustadvisor.gameplaybr.com.br with daily backups. See `DEPLOY.md`.
+4. **Hosting.** Running with daily backups, and moving to https://trustadvisor.gameplaybr.com.br behind Cloudflare. See [DEPLOY.md](DEPLOY.md).
