@@ -11,6 +11,7 @@ WoW addons cannot use the internet, so this small program does it for them:
 Usage:
   python3 ta_companion.py --install       # start automatically with the computer (recommended)
   python3 ta_companion.py --uninstall     # stop starting automatically
+  python3 ta_companion.py --link --region eu   # link Battle.net (needed for your negatives to count)
   python3 ta_companion.py                 # watch mode, official network
   python3 ta_companion.py --once          # one sync
   python3 ta_companion.py --server https://other.example.com   # another server
@@ -28,8 +29,9 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import webbrowser
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 PROTOCOL = 1
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",
@@ -274,6 +276,12 @@ class Client:
     def self_events(self, uploader_id):
         return self._req("POST", "/v1/self", {"uploaderId": uploader_id}).get("events", [])
 
+    def auth_begin(self, uploader_id, region):
+        return self._req("POST", "/v1/auth/begin", {"uploaderId": uploader_id, "region": region})["url"]
+
+    def auth_status(self, uploader_id):
+        return self._req("POST", "/v1/auth/status", {"uploaderId": uploader_id})
+
 
 # ---------------------------------------------------------------------------
 # Sync
@@ -345,10 +353,48 @@ def sync_file(sv_path, client, wow, state, log=print):
     guids = [g for g in (db.get("players") or {}) if isinstance(g, str)]
     players = client.players(guids) if guids else {}
     me = {"events": client.self_events(uploader)}
+    try:
+        status = client.auth_status(uploader)
+        me["linked"] = bool(status.get("linked"))
+        me["verifiedCharacters"] = int(status.get("characters") or 0)
+    except RuntimeError:
+        pass
     write_netdata(netdata_path(wow), {"protocol": PROTOCOL, "generatedAt": int(time.time()), "players": players, "me": me,
                                       "companion": {"version": VERSION}})
     log("  network view: %d players with network data, %d events about you -> %s" % (len(players), len(me["events"]), netdata_path(wow)))
     return True
+
+
+# ---------------------------------------------------------------------------
+# Battle.net link (--link): proves each network witness is a unique, real account
+# ---------------------------------------------------------------------------
+def find_uploader_id(wow):
+    for sv in find_saved_variables(wow):
+        with open(sv, encoding="utf-8", errors="replace") as f:
+            db = parse_saved_variables(f.read()).get("TrustAdvisorDB") or {}
+        uid = (db.get("net") or {}).get("uploaderId")
+        if uid:
+            return uid
+    return None
+
+
+def link_battlenet(client, wow, region, open_browser=webbrowser.open, wait=300, poll=5, log=print):
+    uid = find_uploader_id(wow)
+    if not uid:
+        log("Join the network in game first (Transparency > Network), then log out or /reload once.")
+        return False
+    url = client.auth_begin(uid, region)
+    log("Opening Battle.net login in your browser. If it does not open, visit:\n  " + url)
+    open_browser(url)
+    deadline = time.time() + wait
+    while time.time() < deadline:
+        st = client.auth_status(uid)
+        if st.get("linked"):
+            log("Linked to Battle.net. Verified Forever characters: %d. /reload in game to see it." % st.get("characters", 0))
+            return True
+        time.sleep(poll)
+    log("Not linked yet. You can run --link again anytime.")
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -443,6 +489,8 @@ def main(argv=None):
     ap.add_argument("--interval", type=int, default=30, help="seconds between checks in watch mode")
     ap.add_argument("--install", action="store_true", help="start the companion automatically with your computer")
     ap.add_argument("--uninstall", action="store_true", help="remove the automatic start")
+    ap.add_argument("--link", action="store_true", help="link your Battle.net account (needed for your negatives to count)")
+    ap.add_argument("--region", default="us", choices=["us", "eu", "kr", "tw"], help="Battle.net region for --link")
     ap.add_argument("--version", action="version", version="Trust Advisor companion " + VERSION)
     args = ap.parse_args(argv)
     if args.uninstall:
@@ -462,6 +510,8 @@ def main(argv=None):
     if not wow:
         ap.error("WoW: Forever folder not found; pass --wow")
     client = Client(args.server, fallbacks=FALLBACK_SERVERS if args.server == DEFAULT_SERVER else ())
+    if args.link:
+        return 0 if link_battlenet(client, wow, args.region) else 1
     state = load_state()
     seen = {}
     print("Trust Advisor companion %s - %s - server %s" % (VERSION, wow, args.server))

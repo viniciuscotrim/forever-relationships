@@ -225,6 +225,13 @@ function Net:CompanionStatus()
   return "ok"
 end
 
+-- Battle.net link status as last reported by the companion (nil = unknown)
+function Net:Linked()
+  local d = Data()
+  if not (d and d.me) then return nil end
+  return d.me.linked, d.me.verifiedCharacters or 0
+end
+
 function Net:CompanionVersion()
   local d = Data()
   return d and d.companion and d.companion.version
@@ -238,6 +245,13 @@ Net.STATUS_TEXT = {
   ok = "Companion app is syncing.",
 }
 
+function Net:LinkText()
+  local linked, chars = self:Linked()
+  if linked == nil then return "unknown until the companion syncs" end
+  if not linked then return "not linked (your positives count, your negatives do not; run --link)" end
+  return string.format("linked, %d Forever character(s) verified", chars)
+end
+
 function Net:SetupText()
   return {
     "|cffffd100Trust Advisor Network - companion app setup|r",
@@ -249,9 +263,13 @@ function Net:SetupText()
     "     Windows: TrustAdvisorCompanion.exe     Mac: TrustAdvisorCompanion (or run ta_companion.py with Python 3)",
     "2. Run it once with --install to start it automatically with your computer:",
     "     TrustAdvisorCompanion.exe --install",
-    "3. In game, /reload. The network column appears on player cards after the next sync.",
+    "3. Link your Battle.net account so your reports can count as a witness:",
+    "     TrustAdvisorCompanion.exe --link --region us      (eu / kr / tw for other regions)",
+    "   This proves you are one real player. Only a one-way hash of your account id is stored.",
+    "4. In game, /reload. The network column appears on player cards after the next sync.",
     "",
     "Status: " .. Net.STATUS_TEXT[self:CompanionStatus()],
+    "Battle.net: " .. Net:LinkText(),
     "Without the companion, everything else in Trust Advisor works normally.",
   }
 end

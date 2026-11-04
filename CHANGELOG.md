@@ -4,6 +4,7 @@
 - **Welcome screen** on first login. It explains what Trust Advisor does and gathers every sharing choice in one place, all **off** until you turn them on. Reopen it with `/ta welcome`.
 - **Companion app detection.** If you joined the Network but the companion app isn't syncing, Trust Advisor tells you in game and shows the setup steps (`/ta network`). `/ta status` and Transparency › Network show the companion's status and version.
 - **Companion app downloads:** ready-made Windows and Mac versions, no Python needed. Run once with `--install` and it starts with your computer. Get them from the project's GitHub Releases.
+- **Battle.net verification for the Network.** Run the companion once with `--link` and log in with Battle.net. A negative now only counts from witnesses linked to a real Battle.net account, and several installs on the same account count as one witness. Once Blizzard lists WoW: Forever characters, reports must also come from a character you own. Only a one-way hash of your account id is stored. Without linking, your positive reports still count.
 - The network now has its own address: `trustadvisor.gameplaybr.com.br`, protected by Cloudflare.
 
 # Trust Advisor 0.2.0

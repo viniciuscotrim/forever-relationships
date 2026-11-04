@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS presence (
   uploader TEXT, a INTEGER, b INTEGER, member TEXT, UNIQUE (uploader, a, member)
 );
 CREATE INDEX IF NOT EXISTS presence_u ON presence (uploader);
+CREATE TABLE IF NOT EXISTS links (uploader TEXT PRIMARY KEY, account TEXT, region TEXT, linked_at INTEGER);
+CREATE TABLE IF NOT EXISTS owned (guid TEXT PRIMARY KEY, account TEXT, verified_at INTEGER);
+CREATE TABLE IF NOT EXISTS oauth_states (state TEXT PRIMARY KEY, uploader TEXT, redirect TEXT, region TEXT, created_at INTEGER);
 """
 
 
@@ -98,6 +101,52 @@ class Store:
                                    (r["s"], r["d"], r["k"], r["t"] - window, r["t"] + window, exclude_uploader)).fetchall()
         return [dict(x) for x in rows]
 
+    # -- Battle.net identity ---------------------------------------------------
+    def create_state(self, state, uploader, redirect, region, now):
+        with self.lock:
+            self.db.execute("DELETE FROM oauth_states WHERE created_at < ?", (now - 900,))
+            self.db.execute("INSERT INTO oauth_states (state, uploader, redirect, region, created_at) VALUES (?, ?, ?, ?, ?)",
+                            (state, uploader, redirect, region, now))
+            self.db.commit()
+
+    def pop_state(self, state, now):
+        with self.lock:
+            r = self.db.execute("SELECT uploader, redirect, region, created_at FROM oauth_states WHERE state = ?", (state,)).fetchone()
+            self.db.execute("DELETE FROM oauth_states WHERE state = ?", (state,))
+            self.db.commit()
+        if not r or now - r[3] > 900:
+            return None
+        return {"uploader": r[0], "redirect": r[1], "region": r[2]}
+
+    def link(self, uploader, account, region, guids, now):
+        with self.lock:
+            self.db.execute("INSERT OR REPLACE INTO links (uploader, account, region, linked_at) VALUES (?, ?, ?, ?)",
+                            (uploader, account, region, now))
+            for g in guids:
+                self.db.execute("INSERT OR REPLACE INTO owned (guid, account, verified_at) VALUES (?, ?, ?)", (g, account, now))
+            self.db.commit()
+
+    def identity_map(self):
+        with self.lock:
+            return {r[0]: r[1] for r in self.db.execute("SELECT uploader, account FROM links")}
+
+    def owned_map(self):
+        out = {}
+        with self.lock:
+            for g, a in self.db.execute("SELECT guid, account FROM owned"):
+                out.setdefault(a, set()).add(g)
+        return out
+
+    def owner_of(self, guid):
+        with self.lock:
+            r = self.db.execute("SELECT account FROM owned WHERE guid = ?", (guid,)).fetchone()
+        return r[0] if r else None
+
+    def link_of(self, uploader):
+        with self.lock:
+            r = self.db.execute("SELECT account, region, linked_at FROM links WHERE uploader = ?", (uploader,)).fetchone()
+        return {"account": r[0], "region": r[1], "linked_at": r[2]} if r else None
+
     def add_dispute(self, uploader, inc, reason, now=None):
         now = now or int(time.time())
         with self.lock:
@@ -129,6 +178,10 @@ class Store:
             self.db.execute("DELETE FROM characters WHERE uploader = ?", (uploader,))
             self.db.execute("DELETE FROM disputes WHERE uploader = ?", (uploader,))
             self.db.execute("DELETE FROM uploaders WHERE id = ?", (uploader,))
+            acct = self.db.execute("SELECT account FROM links WHERE uploader = ?", (uploader,)).fetchone()
+            self.db.execute("DELETE FROM links WHERE uploader = ?", (uploader,))
+            if acct and not self.db.execute("SELECT 1 FROM links WHERE account = ?", (acct[0],)).fetchone():
+                self.db.execute("DELETE FROM owned WHERE account = ?", (acct[0],))
             self.db.commit()
             return guids
 

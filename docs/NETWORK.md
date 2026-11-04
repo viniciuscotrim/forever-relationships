@@ -23,6 +23,7 @@ Addons cannot reach the internet, so the companion reads SavedVariables and writ
 | Positive counts with | 1 witness |
 | Negative or partial counts with | ≥ `net.minWitnesses` (2) **eligible** witnesses from ≥ `net.minGuilds` (2) guild groups; all unguilded witnesses form one group |
 | Eligible witness (negatives) | in good standing **and** had the subject in their own group at that moment **and** is *mutually present* with another witness: each lists the other as a group member then (`net.presenceSlackSeconds` = 300 s tolerance) |
+| Battle.net identity | witnesses of negatives must be linked to a Battle.net account (`net.requireBattlenet`); uploaders sharing one account count as **one** witness; if Blizzard lists the account's Forever characters (`profile-forever-<region>`), the witness character must be one of them. Verified ownership also beats self-declared character claims for self view, disputes and deletion |
 | Good standing | account ≥ `net.minUploaderAgeDays` (2) days old **and** ≥ `net.minCorroborated` (3) past shared reports matched by another uploader with mutual presence |
 | Self-reports | ignored (witness = subject, or subject among the uploader's own characters) |
 | Disputes | open or upheld: excluded; rejected: counts. Only about your own characters |
@@ -37,7 +38,9 @@ The addon computes network bands with the same engine and published parameters, 
    - each witness must be mutually present with another in their group histories, and the subject must be in those histories;
    - witnesses need 2+ days and 3+ corroborated reports, which can only be earned by actually grouping with *other, independent* uploaders, so copying public incidents earns nothing.
 
-   A determined attacker with several real accounts that genuinely group together over days can still pass these checks. **Remaining mitigation:** Battle.net OAuth to bind uploaders to real characters, which needs a Blizzard developer account (not done yet).
+   - each witness must be a distinct, linked Battle.net account (OAuth on the server; the client secret never ships in the companion; only a salted SHA-256 of the account id is stored, and the access token is discarded after one use).
+
+   What remains: an attacker who owns several paid Battle.net accounts, which genuinely group with the target and with each other over days, from different guilds. That is costly and visible, and disputes and admin review cover it.
 2. **Character claims.** Characters are self-declared. A GUID claimed by two uploaders is *contested*: neither can see its events or hide it, and an admin must resolve it.
 3. **Moderation.** Disputes need a human reviewer (admin endpoints). Budget time for this.
 4. **Hosting.** Deployed at https://trustadvisor.gameplaybr.com.br with daily backups. See `DEPLOY.md`.

@@ -5,21 +5,28 @@
   POST /v1/upload                         companion upload (reports, disputes, deletion)
   GET  /v1/players?guids=a,b,c            verified, undisputed incidents (public view)
   POST /v1/self                           every incident about your own characters
+  POST /v1/auth/begin                     {uploaderId, region} -> Battle.net login URL
+  GET  /v1/auth/callback                  Battle.net redirect target (HTML page)
+  POST /v1/auth/status                    {uploaderId} -> linked?, verified characters
   GET  /v1/admin/disputes                 X-Admin-Token
   POST /v1/admin/disputes/<id>            X-Admin-Token, {"status": "upheld"|"rejected"}
 
-Env: TA_DB (sqlite path), TA_ADMIN_TOKEN, TA_PORT (default 8080).
+Env: TA_DB (sqlite path), TA_ADMIN_TOKEN, TA_PORT (default 8080), TA_HASH_SALT,
+     TA_BNET_CLIENT_ID, TA_BNET_CLIENT_SECRET, TA_PUBLIC_URLS (comma list of public base URLs).
 """
+import hashlib
+import html
 import json
 import os
 import re
+import secrets
 import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import aggregate
+from . import aggregate, bnet as bnet_mod
 from .store import Store, hash_id
 
 GUID_RE = re.compile(r"^Player-\d+-[0-9A-Fa-f]+$")
@@ -76,10 +83,14 @@ def validate_presence(raw, now):
 class Service:
     """Transport-independent API logic (tested directly)."""
 
-    def __init__(self, store, admin_token=None, clock=time.time, params=None):
+    def __init__(self, store, admin_token=None, clock=time.time, params=None, bnet=None,
+                 public_urls=(), hash_salt=""):
         self.store = store
         self.admin_token = admin_token
         self.clock = clock
+        self.bnet = bnet
+        self.public_urls = [u.rstrip("/") for u in public_urls if u]
+        self.hash_salt = hash_salt
         self.params = dict(aggregate.PARAMS)
         if params:  # tests only; production always uses the published protocol
             self.params.update(params)
@@ -97,6 +108,53 @@ class Service:
             raise BadRequest("bad uploaderId")
         return hash_id(uid)
 
+    # -- Battle.net identity ---------------------------------------------------
+    def account_hash(self, account_id):
+        return hashlib.sha256(("%s:%s" % (self.hash_salt, account_id)).encode("utf-8")).hexdigest()
+
+    def auth_begin(self, body, host=None):
+        if not self.bnet or not self.public_urls:
+            raise BadRequest("Battle.net login is not configured on this server")
+        uploader = self._uploader(body)
+        region = str(body.get("region") or "us").lower()
+        if region not in bnet_mod.REGIONS:
+            raise BadRequest("region must be one of us, eu, kr, tw")
+        base = self.public_urls[0]
+        for u in self.public_urls:
+            if host and u.split("://", 1)[-1] == host:
+                base = u
+        redirect = base + "/v1/auth/callback"
+        state = secrets.token_urlsafe(24)
+        self.store.create_state(state, uploader, redirect, region, self.now())
+        return {"url": self.bnet.authorize_url(redirect, state), "expiresIn": 900}
+
+    def auth_callback(self, query):
+        """Returns (http_status, title, message) for a small HTML page."""
+        if query.get("error"):
+            return 400, "Login cancelled", "Battle.net login was cancelled. You can close this window and run --link again."
+        st = self.store.pop_state(query.get("state", ""), self.now())
+        if not st or not query.get("code"):
+            return 400, "Link expired", "This login link expired or was already used. Run the companion with --link again."
+        try:
+            token = self.bnet.exchange(query["code"], st["redirect"])
+            account = self.account_hash(self.bnet.account_id(token))
+            guids = [g for g in self.bnet.forever_characters(token, st["region"]) if GUID_RE.match(g)]
+        except Exception:
+            return 502, "Battle.net error", "Battle.net did not answer correctly. Please try again in a few minutes."
+        self.store.link(st["uploader"], account, st["region"], guids, self.now())
+        chars = ("%d WoW: Forever character(s) verified." % len(guids)) if guids else \
+            "No WoW: Forever characters were listed by Battle.net yet; your account is linked and characters will be verified when available."
+        return 200, "Linked", "Your Trust Advisor network identity is now linked to your Battle.net account. " + chars + \
+            " Only a one-way hash of your account id is stored. You can close this window."
+
+    def auth_status(self, body):
+        uploader = self._uploader(body)
+        link = self.store.link_of(uploader)
+        if not link:
+            return {"linked": False}
+        owned = self.store.owned_map().get(link["account"], set())
+        return {"linked": True, "region": link["region"], "linkedAt": link["linked_at"], "characters": len(owned)}
+
     def _contested(self):
         claims = self.store.self_claims()
         owners = {}
@@ -111,9 +169,11 @@ class Service:
         if body.get("protocol") != aggregate.PROTOCOL_VERSION:
             raise BadRequest("unsupported protocol version")
         if body.get("deleteRequested"):
-            contested = self._contested()
-            guids = self.store.delete_uploader(uploader, now, skip=contested)
-            return {"deleted": True, "hidden": [g for g in guids if g not in contested]}
+            mine = self._own_guids(uploader)
+            claimed = self.store.claimed_by(uploader)
+            skip = claimed - mine
+            guids = self.store.delete_uploader(uploader, now, skip=skip)
+            return {"deleted": True, "hidden": sorted(g for g in guids if g not in skip)}
         witness = body.get("witness")
         if not (isinstance(witness, str) and GUID_RE.match(witness)):
             raise BadRequest("bad witness guid")
@@ -134,7 +194,7 @@ class Service:
             self.store.add_presence(uploader, presence)
 
         disputed = 0
-        own = self.store.claimed_by(uploader) - self._contested()
+        own = self._own_guids(uploader)
         if body.get("disputes"):
             incs = self._incidents(list(own))
             by_id = {i["id"]: i for lst in incs.values() for i in lst}
@@ -183,6 +243,7 @@ class Service:
             opted_out=self.store.optouts(),
             self_claims=self.store.self_claims(),
             presence=presence_cache, trusted=trusted,
+            identity=self.store.identity_map(), owned=self.store.owned_map(),
         )
 
     def players(self, guids):
@@ -195,9 +256,27 @@ class Service:
                 players[g] = {"incidents": view}
         return {"protocol": aggregate.PROTOCOL_VERSION, "generatedAt": self.now(), "players": players}
 
+    def _own_guids(self, uploader):
+        """Characters this uploader may act for (self view, disputes, deletion).
+        A character verified through Battle.net belongs only to that account;
+        otherwise self-declared claims count unless contested."""
+        acct = self.store.identity_map().get(uploader)
+        contested = self._contested()
+        out = set()
+        for g in self.store.claimed_by(uploader):
+            owner = self.store.owner_of(g)
+            if owner:
+                if owner == acct:
+                    out.add(g)
+            elif g not in contested:
+                out.add(g)
+        if acct:
+            out |= self.store.owned_map().get(acct, set())
+        return out
+
     def self_events(self, body):
         uploader = self._uploader(body)
-        own = self.store.claimed_by(uploader) - self._contested()
+        own = self._own_guids(uploader)
         incs = self._incidents(sorted(own))
         events = []
         for g in own:
@@ -239,6 +318,20 @@ def make_handler(service):
             self.end_headers()
             self.wfile.write(data)
 
+        def _send_html(self, code, title, message):
+            page = ("<!doctype html><html><head><meta charset='utf-8'><title>Trust Advisor - %s</title>"
+                    "<style>body{font-family:system-ui,sans-serif;background:#0f1a30;color:#eee;display:flex;"
+                    "align-items:center;justify-content:center;height:100vh;margin:0}main{max-width:520px;padding:32px;"
+                    "background:#16294d;border:2px solid #e8b94a;border-radius:16px}h1{color:#e8b94a}</style></head>"
+                    "<body><main><h1>%s</h1><p>%s</p></main></body></html>") % (html.escape(title), html.escape(title), html.escape(message))
+            data = page.encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+
         def _body(self):
             n = int(self.headers.get("Content-Length") or 0)
             if n <= 0 or n > MAX_BODY:
@@ -264,6 +357,13 @@ def make_handler(service):
                     return self._send(200, service.upload(self._body()))
                 if method == "POST" and url.path == "/v1/self":
                     return self._send(200, service.self_events(self._body()))
+                if method == "POST" and url.path == "/v1/auth/begin":
+                    return self._send(200, service.auth_begin(self._body(), self.headers.get("Host")))
+                if method == "POST" and url.path == "/v1/auth/status":
+                    return self._send(200, service.auth_status(self._body()))
+                if method == "GET" and url.path == "/v1/auth/callback":
+                    q = {k: v[0] for k, v in parse_qs(url.query).items()}
+                    return self._send_html(*service.auth_callback(q))
                 if url.path.startswith("/v1/admin/disputes"):
                     service.check_admin(self.headers.get("X-Admin-Token"))
                     if method == "GET":
@@ -290,7 +390,12 @@ def make_handler(service):
 
 def main():
     store = Store(os.environ.get("TA_DB", "trustnet.sqlite3"))
-    service = Service(store, admin_token=os.environ.get("TA_ADMIN_TOKEN"))
+    cid, csec = os.environ.get("TA_BNET_CLIENT_ID"), os.environ.get("TA_BNET_CLIENT_SECRET")
+    service = Service(store, admin_token=os.environ.get("TA_ADMIN_TOKEN"),
+                      bnet=bnet_mod.BattleNet(cid, csec) if cid and csec else None,
+                      public_urls=(os.environ.get("TA_PUBLIC_URLS") or "").split(","),
+                      hash_salt=os.environ.get("TA_HASH_SALT", ""))
+    print("Battle.net login: %s" % ("enabled" if service.bnet else "NOT configured"))
     port = int(os.environ.get("TA_PORT", "8080"))
     server = ThreadingHTTPServer(("0.0.0.0", port), make_handler(service))
     print("Trust Advisor network listening on :%d" % port)

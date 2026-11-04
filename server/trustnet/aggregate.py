@@ -12,6 +12,9 @@ The fairness rules ARE the product, so they live here, small and tested:
     Witnesses without a guild form ONE group ("no guild"), so unguilded
     sockpuppets cannot satisfy the guild-diversity rule on their own.
   * An eligible witness of a negative must:
+      - be linked to a Battle.net account (net.requireBattlenet); several
+        uploaders linked to the SAME Battle.net account count as ONE witness,
+      - if Blizzard lists that account's Forever characters, report from one of them,
       - be in good standing (account age and corroborated history, see standing()),
       - have the subject in their own group at that time (presence), and
       - be mutually present with at least one other witness: each lists the
@@ -34,6 +37,7 @@ PARAMS = {
     "net.presenceSlackSeconds": 300,
     "net.minUploaderAgeDays": 2,
     "net.minCorroborated": 3,
+    "net.requireBattlenet": True,
 }
 
 # Dimensions whose incidents are shared by a group (presence applies)
@@ -97,7 +101,7 @@ def standing(age_days, corroborations, params=None):
 
 
 def build_incidents(reports, params=None, disputes=(), opted_out=(), self_claims=None,
-                    presence=None, trusted=None):
+                    presence=None, trusted=None, identity=None, owned=None):
     """reports: dicts with uploader, witness, wguild, s, d, x, m, t, k.
     self_claims: {uploader: set(guids)} characters each uploader claims as their own.
     presence: {uploader: [(a, b, frozenset(member guids))]} group history per uploader.
@@ -110,6 +114,9 @@ def build_incidents(reports, params=None, disputes=(), opted_out=(), self_claims
     slack = p["net.presenceSlackSeconds"]
     presence = presence or {}
     trusted = trusted or set()
+    identity = identity if identity is not None else {}
+    owned = owned or {}
+    require_bnet = p["net.requireBattlenet"]
     opted_out = set(opted_out)
     self_claims = self_claims or {}
     clean = []
@@ -140,16 +147,23 @@ def build_incidents(reports, params=None, disputes=(), opted_out=(), self_claims
             inc["g"] = len(guilds)
             inc["verified"] = inc["w"] >= 1
         else:
-            eligible = []
+            eligible = {}
             for u, r in uploaders.items():
                 if u not in trusted:
                     continue
+                acct = identity.get(u)
+                if require_bnet and not acct:
+                    continue
+                if acct and owned.get(acct) and r["witness"] not in owned[acct]:
+                    continue  # reporting from a character this Battle.net account does not own
                 pu = presence.get(u)
                 if first["d"] in SHARED and not present(pu, first["s"], t_mid, slack):
                     continue
-                if any(v != u and mutually_present(pu, r["witness"], presence.get(v), rv["witness"], t_mid, slack)
+                if any(v != u and (identity.get(v) or v) != (acct or u)
+                       and mutually_present(pu, r["witness"], presence.get(v), rv["witness"], t_mid, slack)
                        for v, rv in uploaders.items()):
-                    eligible.append(r)
+                    eligible.setdefault(acct or u, r)   # one witness per Battle.net account
+            eligible = list(eligible.values())
             guilds = {(r.get("wguild") or NO_GUILD) for r in eligible}
             inc["c"] = len(eligible)
             inc["g"] = len(guilds)

@@ -9,7 +9,8 @@ The server runs isolated on a shared VPS that also hosts other services. Do not 
 | Code and Docker build context | `/srv/trustadvisor/app` |
 | SQLite database (volume) | `/srv/trustadvisor/data/trustnet.sqlite3` |
 | Daily backups (keep 14) | `/srv/trustadvisor/data/backups/`, cron `/etc/cron.d/trustadvisor-backup` (04:17) |
-| Admin token (dispute review) | `/srv/trustadvisor/admin.env` (root, 600) |
+| Admin token + account-hash salt | `/srv/trustadvisor/admin.env` (root, 600). **Never change `TA_HASH_SALT`**, or every Battle.net link breaks |
+| Battle.net OAuth client | `/srv/trustadvisor/blizzard.env` (root, 600): `TA_BNET_CLIENT_ID`, `TA_BNET_CLIENT_SECRET`, `TA_PUBLIC_URLS`. Redirect URLs registered at develop.battle.net: `https://trustadvisor.gameplaybr.com.br/v1/auth/callback` and the sslip.io one |
 | Container | `trustadvisor-net`: `127.0.0.1:10790` only, 256 MB, 0.5 CPU, read-only, no capabilities, uid 65534, restart unless-stopped |
 | nginx | its own file `/etc/nginx/sites-available/trustadvisor-net` (HTTP: ACME + redirect; HTTPS: proxy) |
 | TLS | Let's Encrypt via webroot `/var/www/trustadvisor-acme`, auto-renew with nginx reload |

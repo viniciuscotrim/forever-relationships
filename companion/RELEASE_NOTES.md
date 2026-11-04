@@ -10,6 +10,8 @@ WoW addons cannot use the internet. This small app syncs Trust Advisor's network
   `chmod +x TrustAdvisorCompanion-macos && xattr -d com.apple.quarantine TrustAdvisorCompanion-macos; ./TrustAdvisorCompanion-macos --install`
 - **Any OS with Python 3.8+:** `python3 ta_companion.py --install`
 
+Then link Battle.net once (opens your browser): `--link --region us` (or `eu`, `kr`, `tw`). Only a one-way hash of your account id is stored.
+
 If your game is not in the default folder, add `--wow "<path to _forever_>"`. Remove the autostart with `--uninstall`.
 
 In game: `/reload`, then check `/ta network`.

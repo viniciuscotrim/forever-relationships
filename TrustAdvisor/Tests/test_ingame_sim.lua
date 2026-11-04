@@ -276,6 +276,9 @@ TA.loginAt = TA.Now() + 1                       -- simulate a later login with n
 assert(TA.Network:CompanionStatus() == "missing", "companion missing after relog")
 TrustAdvisorNetData = { protocol = 1, generatedAt = TA.Now() + 2, players = {}, companion = { version = "0.3.0" } }
 assert(TA.Network:CompanionStatus() == "ok" and TA.Network:CompanionVersion() == "0.3.0", "companion syncing")
+assert(TA.Network:LinkText():find("unknown"), "link unknown without companion data")
+TrustAdvisorNetData.me = { events = {}, linked = true, verifiedCharacters = 2 }
+assert(TA.Network:LinkText():find("linked, 2"), "battle.net link shown")
 TA.HandleSlash("network")
 TrustAdvisorNetData = { protocol = 1, generatedAt = 0, players = {} }
 TA.Params:Set("consent.network", false)

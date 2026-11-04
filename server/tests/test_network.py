@@ -5,7 +5,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from trustnet import aggregate  # noqa: E402
+from trustnet import aggregate, bnet  # noqa: E402
 from trustnet.app import BadRequest, Service  # noqa: E402
 from trustnet.store import Store  # noqa: E402
 
@@ -25,12 +25,14 @@ def group(*members, a=NOW - 7200, b=NOW):
 # u1 (A), u2 (B), u3 (C) all grouped with T; everyone trusted unless a test says otherwise
 PRESENCE = {"u1": group(A, B, C, T), "u2": group(A, B, C, T), "u3": group(A, B, C, T)}
 TRUSTED = {"u1", "u2", "u3"}
+IDENTITY = {"u1": "acct1", "u2": "acct2", "u3": "acct3"}   # each linked to its own Battle.net account
 
 
 class Aggregate(unittest.TestCase):
     def one(self, reports, **kw):
         kw.setdefault("presence", PRESENCE)
         kw.setdefault("trusted", TRUSTED)
+        kw.setdefault("identity", IDENTITY)
         incs = aggregate.build_incidents(reports, **kw).get(T, [])
         self.assertEqual(len(incs), 1)
         return incs[0]
@@ -56,6 +58,25 @@ class Aggregate(unittest.TestCase):
     def test_one_way_presence_is_not_enough(self):
         pres = {"u1": group(A, B, T), "u2": group(B, T)}   # u2 does not list A
         self.assertFalse(self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], presence=pres)["verified"])
+
+    # --- Battle.net identity ---
+    def test_unlinked_witness_does_not_count(self):
+        inc = self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], identity={"u1": "acct1"})
+        self.assertFalse(inc["verified"])
+
+    def test_two_uploaders_same_battlenet_account_are_one_witness(self):
+        inc = self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], identity={"u1": "same", "u2": "same"})
+        self.assertFalse(inc["verified"])
+        self.assertLessEqual(inc["c"], 1)
+
+    def test_witness_must_report_from_an_owned_character(self):
+        owned = {"acct1": {A}, "acct2": {"Player-1-0000BEEF"}}   # acct2 does not own B
+        self.assertFalse(self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], owned=owned)["verified"])
+        owned["acct2"] = {B}
+        self.assertTrue(self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], owned=owned)["verified"])
+
+    def test_guid_from_battlenet_character(self):
+        self.assertEqual(bnet.forever_guid(6794, 0x0ABC12), "Player-6794-000ABC12")
 
     def test_standing_rule(self):
         self.assertFalse(aggregate.standing(1.9, 10))
@@ -109,10 +130,39 @@ class Aggregate(unittest.TestCase):
         self.assertEqual(aggregate.build_incidents([rep("u1", A, "G1", x=1)], opted_out={T}), {})
 
 
+class FakeBattleNet:
+    """Stands in for Blizzard: code 'code-<account>' logs in as <account>."""
+    def __init__(self):
+        self.characters = {}
+
+    def authorize_url(self, redirect, state):
+        return "https://oauth.battle.net/authorize?redirect_uri=%s&state=%s" % (redirect, state)
+
+    def exchange(self, code, redirect):
+        if not code.startswith("code-"):
+            raise RuntimeError("bad code")
+        return "token-" + code[5:]
+
+    def account_id(self, token):
+        return token[6:]
+
+    def forever_characters(self, token, region):
+        return self.characters.get(token[6:], [])
+
+
 class Api(unittest.TestCase):
     def setUp(self):
         self.clock = [NOW]
-        self.svc = Service(Store(":memory:"), admin_token="adm", clock=lambda: self.clock[0])
+        self.bn = FakeBattleNet()
+        self.svc = Service(Store(":memory:"), admin_token="adm", clock=lambda: self.clock[0], bnet=self.bn,
+                           public_urls=["https://ta.example"], hash_salt="pepper")
+
+    def link(self, uid, account, chars=()):
+        self.bn.characters[account] = list(chars)
+        url = self.svc.auth_begin({"uploaderId": uid, "region": "us"}, "ta.example")["url"]
+        state = url.rsplit("state=", 1)[1]
+        code, _, _ = self.svc.auth_callback({"state": state, "code": "code-" + account})
+        self.assertEqual(code, 200)
 
     def session(self, *members, a=NOW - 7200, b=NOW):
         return {"a": a, "b": b, "m": list(members)}
@@ -130,8 +180,10 @@ class Api(unittest.TestCase):
         return {"s": T, "n": "Target", "d": "finish", "x": x, "m": 1, "t": t, "k": "finish:%.2f:1.00" % x}
 
     def build_standing(self, uids_witnesses):
-        """Give uploaders a corroborated history: 3 past group runs they all reported,
-        then let 3 days pass."""
+        """Link each uploader to its own Battle.net account, give them a corroborated
+        history (3 past group runs they all reported), then let 3 days pass."""
+        for uid, (w, g) in uids_witnesses.items():
+            self.link(uid, "bnet-" + uid[:1], [w])
         for i in range(3):
             t = NOW - 86400 * 10 + i * 3600
             other = "Player-1-0000%04X" % (100 + i)
@@ -169,6 +221,48 @@ class Api(unittest.TestCase):
         self.upload("b" * 32, B, "G2", [self.r()], presence=[self.session(B, T, a=NOW - 100000, b=NOW - 90000)])
         # their earlier shared sessions do not cover the incident time either
         self.assertEqual(self.svc.players([T])["players"], {})
+
+    def test_battlenet_login_flow(self):
+        self.upload("a" * 32, A, "G1", [])
+        self.assertEqual(self.svc.auth_status({"uploaderId": "a" * 32}), {"linked": False})
+        url = self.svc.auth_begin({"uploaderId": "a" * 32, "region": "eu"}, "ta.example")["url"]
+        self.assertIn("redirect_uri=https://ta.example/v1/auth/callback", url)
+        state = url.rsplit("state=", 1)[1]
+        self.bn.characters["acctA"] = [A]
+        code, title, msg = self.svc.auth_callback({"state": state, "code": "code-acctA"})
+        self.assertEqual((code, title), (200, "Linked"))
+        self.assertIn("1 WoW: Forever character", msg)
+        st = self.svc.auth_status({"uploaderId": "a" * 32})
+        self.assertTrue(st["linked"])
+        self.assertEqual((st["region"], st["characters"]), ("eu", 1))
+        # the state is single use
+        self.assertEqual(self.svc.auth_callback({"state": state, "code": "code-acctA"})[0], 400)
+        # the raw account id is never stored
+        self.assertNotIn("acctA", str(self.svc.store.identity_map()))
+
+    def test_battlenet_login_cancelled_or_expired(self):
+        self.assertEqual(self.svc.auth_callback({"error": "access_denied"})[1], "Login cancelled")
+        url = self.svc.auth_begin({"uploaderId": "a" * 32}, None)["url"]
+        state = url.rsplit("state=", 1)[1]
+        self.clock[0] += 1000
+        self.assertEqual(self.svc.auth_callback({"state": state, "code": "code-x"})[1], "Link expired")
+
+    def test_verified_owner_beats_impostor_claim(self):
+        self.upload("a" * 32, A, "G1", [dict(self.r(x=1), k="finish:1.00:1.00")])
+        self.upload("e" * 32, T, "G9", [])                 # impostor claims T first
+        self.upload("c" * 32, T, "G3", [])                 # real owner claims T too -> contested
+        self.assertEqual(self.svc.self_events({"uploaderId": "c" * 32})["events"], [])
+        self.link("c" * 32, "real-owner", [T])             # Battle.net proves c owns T
+        self.assertEqual(len(self.svc.self_events({"uploaderId": "c" * 32})["events"]), 1)
+        self.assertEqual(self.svc.self_events({"uploaderId": "e" * 32})["events"], [])
+        res = self.svc.upload({"uploaderId": "e" * 32, "protocol": 1, "deleteRequested": True})
+        self.assertNotIn(T, res["hidden"])                 # the impostor cannot hide T
+        self.assertIn(T, self.svc.players([T])["players"])
+
+    def test_auth_requires_configuration(self):
+        svc = Service(Store(":memory:"))
+        with self.assertRaises(BadRequest):
+            svc.auth_begin({"uploaderId": "a" * 32})
 
     def test_presence_validation(self):
         with self.assertRaises(BadRequest):

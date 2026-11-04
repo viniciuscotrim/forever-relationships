@@ -88,6 +88,42 @@ class Fallback(unittest.TestCase):
             httpd.server_close()
 
 
+class Link(unittest.TestCase):
+    def test_link_opens_browser_and_waits_for_confirmation(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            svdir = os.path.join(tmp, "WTF", "Account", "X", "SavedVariables")
+            os.makedirs(svdir)
+            with open(os.path.join(svdir, "TrustAdvisor.lua"), "w") as f:
+                f.write('TrustAdvisorDB = { ["net"] = { ["uploaderId"] = "%s" } }' % ("a" * 32))
+
+            class FakeClient:
+                calls = 0
+
+                def auth_begin(self, uid, region):
+                    assert uid == "a" * 32 and region == "eu"
+                    return "https://oauth.battle.net/authorize?x"
+
+                def auth_status(self, uid):
+                    self.calls += 1
+                    return {"linked": self.calls >= 2, "characters": 1}
+
+            opened, logs = [], []
+            ok = tc.link_battlenet(FakeClient(), tmp, "eu", open_browser=opened.append, wait=5, poll=0, log=logs.append)
+            self.assertTrue(ok)
+            self.assertEqual(opened, ["https://oauth.battle.net/authorize?x"])
+            self.assertIn("Linked to Battle.net", logs[-1])
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_link_without_network_join(self):
+        tmp = tempfile.mkdtemp()
+        logs = []
+        self.assertFalse(tc.link_battlenet(object(), tmp, "us", log=logs.append))
+        self.assertIn("Join the network", logs[0])
+        shutil.rmtree(tmp)
+
+
 class Autostart(unittest.TestCase):
     def test_mac_plist_is_valid_and_keeps_running(self):
         import plistlib
@@ -119,7 +155,8 @@ class EndToEnd(unittest.TestCase):
         # same clock as the LuaJIT mock client (Tests/test_ingame_sim.lua). Standing thresholds are
         # zeroed here only because a fresh test database has no history; server tests cover them.
         self.service = Service(Store(":memory:"), clock=lambda: 1800000000 + 7200,
-                               params={"net.minUploaderAgeDays": 0, "net.minCorroborated": 0})
+                               params={"net.minUploaderAgeDays": 0, "net.minCorroborated": 0,
+                                       "net.requireBattlenet": False})
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.service))
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.url = "http://127.0.0.1:%d" % self.httpd.server_address[1]

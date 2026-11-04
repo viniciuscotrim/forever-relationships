@@ -17,6 +17,12 @@ TrustAdvisorCompanion-windows.exe --install       # Windows: starts with Windows
 python3 ta_companion.py --install                 # any OS with Python
 ```
 
+Then link your Battle.net account once (it opens your browser). This is needed for your negative reports to count as a witness:
+
+```sh
+TrustAdvisorCompanion-windows.exe --link --region us    # or eu / kr / tw
+```
+
 Other options:
 - `--wow "<path to _forever_>"` if WoW isn't in the default folder.
 - `--once` for a single sync.
