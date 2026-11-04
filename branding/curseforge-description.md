@@ -44,4 +44,4 @@ Everything works even if nobody else has the addon. If your group mates also run
 
 **Type `/ta` to open it.** Made for **WoW: Forever**.
 
-*Alpha release: feedback and bug reports are very welcome. If a game API isn't available on your client, that feature turns itself off safely and shows as "unavailable" instead of throwing errors.*
+*Early release: feedback and bug reports are very welcome. If a game API isn't available on your client, that feature turns itself off safely and shows as "unavailable" instead of throwing errors.*

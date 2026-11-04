@@ -1,4 +1,8 @@
-# Trust Advisor 0.1.0 (alpha)
+# Trust Advisor 0.1.1
+
+Now on the **Release** channel, so it shows up for everyone in the CurseForge app. Same features as 0.1.0.
+
+# Trust Advisor 0.1.0
 
 First public release for **WoW: Forever**. Type `/ta` to open.
 
@@ -33,7 +37,7 @@ First public release for **WoW: Forever**. Type `/ta` to open.
 - "Delete everything" wipes all addon data in one click.
 
 ### Known limitations
-- This is an alpha and has not been tested on every live API yet. A capture whose API is unavailable turns itself off and shows as "unavailable" in Transparency › Captures instead of throwing errors.
+- Early release: not every live-client API has been verified yet. A capture whose API is unavailable turns itself off and shows as "unavailable" in Transparency › Captures instead of throwing errors.
 - Portals and gifts of crafted items are not tracked yet. Only enchants count as crafting.
 - Consumable, attunement and buff spell IDs are still being verified on the live client.
 

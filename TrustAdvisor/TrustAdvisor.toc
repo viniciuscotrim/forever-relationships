@@ -2,7 +2,7 @@
 ## Title: Trust Advisor
 ## Notes: Fair, forgiving, transparent reputation for the people you group with. Type /ta
 ## Author: Vinicius
-## Version: 0.1.0
+## Version: 0.1.1
 ## Category: Social
 ## SavedVariables: TrustAdvisorDB
 ## SavedVariablesPerCharacter: TrustAdvisorCharDB

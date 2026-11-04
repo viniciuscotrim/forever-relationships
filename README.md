@@ -22,4 +22,4 @@ luajit Tests/test_ingame_sim.lua  # all files on a mock WoW API, replaying a dun
 `./install.sh` runs the tests and copies the addon into the Forever AddOns folder. `./publish.sh <projectId> [alpha|beta|release]` uploads a release to CurseForge (reads the author token from a local, git-ignored file).
 
 ## Status
-Alpha (0.1.0). Not yet verified on every live-client API; unavailable captures disable themselves safely.
+Released (0.1.1). Not yet verified on every live-client API; unavailable captures disable themselves safely.
