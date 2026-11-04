@@ -1,0 +1,39 @@
+## Interface: 16001
+## Title: Trust Advisor
+## Notes: Fair, forgiving, transparent reputation for the people you group with. Type /ta
+## Author: Vinicius
+## Version: 0.1.0
+## Category: Social
+## SavedVariables: TrustAdvisorDB
+## SavedVariablesPerCharacter: TrustAdvisorCharDB
+## IconTexture: Interface\Icons\INV_Misc_Note_02
+
+Core\Init.lua
+Core\Params.lua
+Data\Consumables.lua
+Data\Attunements.lua
+Data\Generosity.lua
+Core\EventLog.lua
+Scoring\Engine.lua
+Scoring\Dimensions.lua
+Core\Sessions.lua
+Capture\Group.lua
+Capture\Loot.lua
+Capture\Trade.lua
+Capture\Ready.lua
+Capture\Generosity.lua
+Capture\Questie.lua
+Capture\Raid.lua
+Comms\Protocol.lua
+Comms\Endorse.lua
+Comms\Presence.lua
+UI\Widgets.lua
+UI\MainWindow.lua
+UI\PlayersView.lua
+UI\PlayerCard.lua
+UI\ProfileView.lua
+UI\EventLogView.lua
+UI\Transparency.lua
+UI\Tooltip.lua
+UI\Prompts.lua
+Core\Slash.lua

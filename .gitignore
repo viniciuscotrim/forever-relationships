@@ -1,0 +1,14 @@
+# Secrets: never commit
+CurseForge API.rtf
+*.rtf
+*.key
+.env
+
+# Build output
+dist/
+
+# Internal design doc (kept local)
+Trust Advisor — Game Design Document.md
+
+# OS
+.DS_Store
