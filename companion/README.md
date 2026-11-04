@@ -11,14 +11,14 @@ WoW addons cannot use the internet, so this small program does it for them:
 ## Install
 Download from **[Releases](https://github.com/viniciuscotrim/trust-advisor/releases)**:
 - Windows: `.exe`
-- Mac: `TrustAdvisorCompanion-macos-app.zip`. Open **Trust Advisor Companion.app**: it installs the background service and offers the Battle.net link, no Terminal needed. It is universal and signed + notarized + stapled. There is also a command-line build, `TrustAdvisorCompanion-macos.zip`.
+- Mac: `TrustAdvisorCompanion-macos-app.zip`. Open **Trust Advisor Companion.app**: it installs the background service and offers the Battle.net link, no Terminal needed. It is universal and signed + notarized + stapled. From Terminal, the same program is at `"/Applications/Trust Advisor Companion.app/Contents/MacOS/Trust Advisor Companion"`.
 - any OS: `ta_companion.py` (needs Python 3.8+)
 
 Then run it once with `--install`:
 
 ```sh
 TrustAdvisorCompanion-windows.exe --install       # Windows: starts with Windows (Startup folder, no admin)
-./TrustAdvisorCompanion-macos --install           # Mac: LaunchAgent, restarts if it stops
+# Mac: just open Trust Advisor Companion.app (LaunchAgent, restarts if it stops)
 python3 ta_companion.py --install                 # any OS with Python
 ```
 
@@ -38,4 +38,4 @@ In game, `/ta network` shows whether the companion is syncing.
 
 Nothing is sent unless `consent.network` is ON in the addon. Notes, affinity and chat are never read.
 
-Tests: `python3 -m unittest discover -s tests -v` (the end-to-end test needs `luajit`). Releases: push a `companion-v*` tag. CI tests both platforms and publishes the Windows build. Then run `companion/release-mac.sh` on a Mac to attach the signed and notarized macOS build.
+Tests: `python3 -m unittest discover -s tests -v` (the end-to-end test needs `luajit`). Releases: push a `companion-v*` tag. CI tests both platforms and publishes the Windows build. Then run `companion/release-mac.sh` on a Mac to attach the signed, notarized and stapled macOS app.

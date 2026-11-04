@@ -1,9 +1,10 @@
 #!/bin/sh
 # Build the macOS companion, sign it with the Developer ID, notarize it with Apple,
 # staple the ticket and attach it to the GitHub release companion-v<VERSION>.
-#   * "Trust Advisor Companion.app" (double-click: installs the background service,
-#     offers the Battle.net link) -> TrustAdvisorCompanion-macos-app.zip
-#   * TrustAdvisorCompanion-macos (command line, for Terminal users)
+#   "Trust Advisor Companion.app" (double-click: installs the background service,
+#   offers the Battle.net link) -> TrustAdvisorCompanion-macos-app.zip
+# Terminal users can run the same binary: "Trust Advisor Companion.app/Contents/MacOS/Trust Advisor Companion" --help
+# (a loose CLI binary is not shipped: Gatekeeper rejects those when opened from Finder, even notarized)
 # Needs Xcode, the "Developer ID Application" certificate, and notarization credentials:
 #   xcrun notarytool store-credentials trustadvisor --apple-id <email> --team-id U3H5DHZP65
 # SKIP_UPLOAD=1 builds and verifies without publishing.
@@ -42,26 +43,16 @@ for key in CFBundleShortVersionString CFBundleVersion; do
 done
 codesign --force --options runtime --timestamp --entitlements ent.plist --sign "$IDENTITY" "dist/$APP.app"
 codesign --verify --deep --strict "dist/$APP.app"
-# 2) the command-line binary
-venv/bin/pyinstaller --onefile --target-arch universal2 --name TrustAdvisorCompanion-macos \
-  --codesign-identity "$IDENTITY" --osx-entitlements-file ent.plist --noconfirm --log-level ERROR ta_companion.py
-codesign --force --options runtime --timestamp --entitlements ent.plist --sign "$IDENTITY" dist/TrustAdvisorCompanion-macos
-
-# notarize both in one submission, staple the app (plain binaries cannot be stapled)
-mkdir -p submit && cp -R "dist/$APP.app" dist/TrustAdvisorCompanion-macos submit/
-ditto -c -k --keepParent submit submit.zip
+# notarize, staple the ticket into the app, verify the Finder (execute) assessment
+(cd dist && ditto -c -k --keepParent "$APP.app" ../submit.zip)
 xcrun notarytool submit submit.zip --keychain-profile "$PROFILE" --wait
 xcrun stapler staple "dist/$APP.app"
 spctl --assess --type execute -vv "dist/$APP.app"
 "dist/$APP.app/Contents/MacOS/$APP" --version
-dist/TrustAdvisorCompanion-macos --version
 
 (cd dist && ditto -c -k --sequesterRsrc --keepParent "$APP.app" "$OUT/TrustAdvisorCompanion-macos-app.zip")
-cp dist/TrustAdvisorCompanion-macos "$OUT/"
-(cd "$OUT" && ditto -c -k TrustAdvisorCompanion-macos TrustAdvisorCompanion-macos.zip)
 echo "Built in $OUT"
 if [ -z "$SKIP_UPLOAD" ]; then
-  gh release upload "companion-v$VERSION" "$OUT/TrustAdvisorCompanion-macos-app.zip" \
-    "$OUT/TrustAdvisorCompanion-macos" "$OUT/TrustAdvisorCompanion-macos.zip" --clobber
+  gh release upload "companion-v$VERSION" "$OUT/TrustAdvisorCompanion-macos-app.zip" --clobber
   echo "Published signed + notarized macOS companion $VERSION"
 fi
