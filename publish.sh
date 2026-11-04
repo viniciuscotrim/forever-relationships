@@ -31,6 +31,6 @@ print(json.dumps({
 PY
 )
 RESP=$(curl -s -w "\nHTTP %{http_code}" -H "X-Api-Token: $TOKEN" \
-  -F "metadata=$META" -F "file=@$ZIP" \
+  --form-string "metadata=$META" -F "file=@$ZIP" \
   "https://wow.curseforge.com/api/projects/$PROJECT/upload-file")
 echo "$RESP"
