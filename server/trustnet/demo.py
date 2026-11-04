@@ -1,9 +1,6 @@
-"""Demo data for the admin cockpit, clearly marked and fully removable.
-  python -m trustnet.demo seed     # adds coherent fake data (realm 9999, ids starting with demo-)
-  python -m trustnet.demo clean    # removes every demo row
-  python -m trustnet.demo count
-Demo uploaders/accounts/feedback ids start with "demo-"; demo characters and
-players use the fictional realm id 9999 (Player-9999-...).
+"""Demo data for the admin cockpit (protocol v2), clearly marked and fully removable.
+  python -m trustnet.demo seed | clean | count
+Every demo row is identifiable: uploaders/accounts/characters/feedback start with "demo-".
 """
 import json
 import os
@@ -25,122 +22,120 @@ FACTIONS = {
 }
 REALMS = ["Forever US-1 PvE", "Forever US-1 PvP", "Forever US-2 PvE", "Forever EU-4 PvE", "Forever EU-4 PvP", "Forever BR-1 PvE"]
 LOCALES = ["enUS"] * 6 + ["ptBR"] * 3 + ["esMX", "deDE", "frFR", "enGB"]
-GUILDS = ["Demo Steadfast", "Demo Lantern", "Demo Ironbark", "Demo Last Light", "Demo Moonfall", "Demo Ashen Pact",
-          "Demo Thornwatch", "Demo Bloodhoof", "Demo Silver Oath", "Demo Nightshade", ""]
+PLACES = {"dungeon": ["Deadmines", "Wailing Caverns", "Shadowfang Keep", "Scarlet Monastery", "Uldaman", "Zul'Farrak", "Maraudon",
+                      "Blackrock Depths", "Stratholme", "Scholomance"],
+          "raid": ["Molten Core", "Onyxia's Lair", "Blackwing Lair"],
+          "quest": ["Westfall", "Stranglethorn Vale", "The Barrens", "Duskwood", "Arathi Highlands", "Tanaris", "Feralas", "Un'Goro Crater"]}
 SYL = ["ka", "ri", "do", "mel", "thar", "ion", "va", "lor", "eth", "an", "gra", "mo", "sil", "dra", "nia", "bek"]
-DIMS_POS = ["finish", "finish", "finish", "ready", "generosity", "teach", "help", "craft", "loot", "carry", "hc"]
-BUGS = ["Tooltip line missing on LFG listings for some leaders", "Ready check rows not recorded in my raid",
+BUGS = ["Tooltip shows nothing for a groupmate I played with yesterday", "Relationship window empty after /reload",
         "Error after /reload while in a dungeon", "Companion says not detected even though it runs",
-        "Questie completion not picked up from a ptBR partner", "Endorsement prompt appeared during a boss pull",
-        "Trade with enchant didn't count as crafting", ""]
-IDEAS = ["A minimap button would be great", "Show the network band directly on the tooltip",
-         "Portuguese translation please!", "Let me export a player's card as text", "Add a filter for Exemplary players",
-         "Weekly summary of who I grouped with", "Credit warlock summon helpers in raids", "Color-blind friendly band colors"]
+        "Questie completion not picked up from a ptBR partner", "Backup restore asked for the code twice", ""]
+IDEAS = ["A minimap button would be great", "Show 'last seen together' in LFG", "Portuguese translation please!",
+         "Let me export a Relationship card as text", "Weekly summary of who I grouped with",
+         "Credit warlock summon helpers in raids", "Color-blind friendly colors", "Show achievements on profiles"]
 ERRORS = ["TrustAdvisor/UI/Tooltip.lua:41: attempt to index a nil value", "TrustAdvisor/Capture/Ready.lua:58: bad argument #1 to 'pairs'",
           "TrustAdvisor/Core/Sessions.lua:212: attempt to compare number with nil"]
 
 
-def name(r):
-    return "".join(r.choice(SYL) for _ in range(r.randint(2, 3))).capitalize()
+def _char(r):
+    fac = r.choice(["Alliance", "Horde"])
+    race = r.choice(list(FACTIONS[fac]))
+    return fac, race, r.choice(FACTIONS[fac][race]), (60 if r.random() < 0.28 else max(1, min(59, int(r.gauss(32, 15)))))
 
 
-def seed(store, now=None, n_uploaders=140, n_players=420):
+def seed(store, now=None, n_uploaders=140, n_population=620):
     r = random.Random(42)
     now = int(now or time.time())
     day = 86400
-    db = store.db
-    with store.lock:
-        uploaders = []
-        for i in range(n_uploaders):
-            uid = "demo-u%03d" % i
-            created = now - int((r.random() ** 1.6) * 30 * day) - 3 * day
-            last = min(now, created + r.randint(0, 33 * day))
-            fac = r.choice(["Alliance", "Horde"])
-            race = r.choice(list(FACTIONS[fac]))
-            cls = r.choice(FACTIONS[fac][race])
-            lvl = 60 if r.random() < 0.28 else max(1, min(59, int(r.gauss(32, 15))))
-            guid = "Player-9999-%08X" % (0x10000 + i)
-            guild = r.choice(GUILDS)
-            db.execute("INSERT OR REPLACE INTO uploaders (id, created_at, last_seen) VALUES (?, ?, ?)", (uid, created, last))
-            db.execute("INSERT OR REPLACE INTO characters (uploader, guid, name, guild, seen_at, class, race, faction, level, realm, locale) "
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       (uid, guid, name(r), guild, last, cls, race, fac, lvl, r.choice(REALMS), r.choice(LOCALES)))
-            if r.random() < 0.62:
-                acct = "demo-acct%03d" % i
-                db.execute("INSERT OR REPLACE INTO links (uploader, account, region, linked_at) VALUES (?, ?, ?, ?)",
-                           (uid, acct, "eu" if "EU" in guild + str(r.random() < 0.3) else r.choice(["us", "us", "us", "eu"]), created + 600))
-                db.execute("INSERT OR REPLACE INTO owned (guid, account, verified_at) VALUES (?, ?, ?)", (guid, acct, created + 600))
-            uploaders.append((uid, guid, guild))
-        players = ["Player-9999-%08X" % (0x200000 + j) for j in range(n_players)]
-        # group sessions: 3-5 uploaders + 1-3 strangers, with presence and reports
-        for g in range(900):
-            t0 = now - r.randint(0, 29 * day) - r.randint(0, day)
-            crew = r.sample(uploaders, r.randint(3, 5))
-            strangers = r.sample(players, r.randint(1, 3))
-            members = [c[1] for c in crew] + strangers
-            for uid, _, _ in crew:
-                for m in members:
-                    db.execute("INSERT OR IGNORE INTO presence (uploader, a, b, member) VALUES (?, ?, ?, ?)", (uid, t0, t0 + 5400, m))
-            last_kill = t0 + 5000
-            for s in strangers:
-                bad = r.random() < 0.07
-                dim = "finish" if bad else r.choice(DIMS_POS)
-                x, k = (0.0, "finish:0.00:3.00") if bad else (1.0, "%s:1.00:1.00" % dim)
-                m = 3.0 if bad else 1.0
-                t = last_kill - 1200 if bad else last_kill
-                for uid, wguid, wguild in crew:
-                    if r.random() < 0.8:
-                        db.execute("INSERT OR IGNORE INTO reports (uploader, witness, wguild, s, d, x, m, t, k, received_at) "
-                                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                   (uid, wguid, wguild, s, dim, x, m, t + r.randint(0, 40), k, min(now, t + r.randint(600, 2 * day))))
-        statuses = ["received"] * 5 + ["planned", "fixed", "done", "wontfix", "duplicate"]
-        for i in range(48):
-            kind = "bug" if r.random() < 0.45 else "idea"
-            text = r.choice(BUGS if kind == "bug" else IDEAS)
-            st = r.choice(statuses)
-            fac = r.choice(["Alliance", "Horde"])
-            diag = {"addon": r.choice(["0.2.0", "0.3.0", "0.3.0", "0.3.0"]), "build": "70755", "interface": "16001",
-                    "locale": r.choice(LOCALES), "companion": r.choice(["ok", "ok", "missing", "off"]),
-                    "companionVersion": r.choice(["0.3.3", "0.3.2", None]), "network": r.random() < 0.6,
-                    "players": r.randint(5, 400), "events": r.randint(100, 20000),
-                    "unavailable": ["ready: auras are secret values on this client"] if r.random() < 0.2 else [],
-                    "errors": ["x%d %s" % (r.randint(1, 9), r.choice(ERRORS))] if kind == "bug" and r.random() < 0.6 else []}
-            rec = now - r.randint(0, 25 * day)
-            db.execute("INSERT OR REPLACE INTO feedback (id, install, kind, text, version, diag, t, received_at, status, reply, updated_at) "
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       ("demo-fb%03d" % i, "demo-install%02d" % (i % 30), kind, text, diag["addon"], json.dumps(diag), rec - 300, rec, st,
-                        {"planned": "On the roadmap, thanks!", "fixed": "Fixed in the next version.",
-                         "wontfix": "Not planned, but thanks for the idea."}.get(st), rec + 3600))
-        for i in range(5):
-            db.execute("INSERT OR REPLACE INTO disputes (id, uploader, subject, d, k, t, reason, status, created_at, reviewed_at) "
-                       "VALUES (?, ?, ?, 'finish', 'finish:0.00:3.00', ?, ?, ?, ?, NULL)",
-                       ("demo-dsp%02d" % i, "demo-u%03d" % i, players[i], now - (i + 1) * day,
-                        ["I disconnected, the group knows", "Leader kicked me", "We agreed I'd leave early", "Wrong person", "Lag"][i],
-                        "open" if i < 3 else "rejected", now - i * day))
-        db.commit()
+    q = []
+    parts = []
+    for i in range(n_uploaders):
+        uid, gh = "demo-u%03d" % i, "demo-g%03d" % i
+        created = now - int((r.random() ** 1.6) * 30 * day) - 3 * day
+        last = min(now, created + r.randint(0, 33 * day))
+        fac, race, cls, lvl = _char(r)
+        cons = {"b": r.random() < 0.55, "p": r.random() < 0.6, "c": r.random() < 0.75, "r": r.random() < 0.4}
+        name = "".join(r.choice(SYL) for _ in range(r.randint(2, 3))).capitalize()
+        realm = r.choice(REALMS)
+        q.append(("INSERT OR REPLACE INTO uploaders (id, created_at, last_seen) VALUES (?, ?, ?)", (uid, created, last)))
+        q.append(("INSERT OR REPLACE INTO participants (uploader, guid_h, name, class, race, faction, level, realm, locale, c_backup, c_profile, "
+                  "c_community, c_recommend, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  (uid, gh, name if (cons["p"] or cons["r"]) else None, cls, race, fac, lvl, realm, r.choice(LOCALES),
+                   int(cons["b"]), int(cons["p"]), int(cons["c"]), int(cons["r"]), last)))
+        if cons["p"]:
+            q.append(("INSERT OR REPLACE INTO profiles (guid_h, uploader, items, official, official_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                      (gh, uid, json.dumps({"hours": r.randint(5, 400), "dungeons": r.randint(0, 120)}),
+                       json.dumps({"level": lvl, "achievementPoints": r.randint(100, 4000)}) if r.random() < 0.5 else None, last, last)))
+        if cons["b"]:
+            q.append(("INSERT OR REPLACE INTO backups (id, token_hash, size, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                      ("demo-b%03d" % i, "x", r.randint(80000, 4000000), created, last)))
+        if r.random() < 0.62:
+            acct = "demo-acct%03d" % i
+            q.append(("INSERT OR REPLACE INTO links (uploader, account, region, linked_at) VALUES (?, ?, ?, ?)",
+                      (uid, acct, "eu" if "EU" in realm else "us", created + 600)))
+            q.append(("INSERT OR REPLACE INTO owned (guid_h, account, name, realm_slug, region, verified_at) VALUES (?, ?, ?, ?, ?, ?)",
+                      (gh, acct, name, realm.lower().replace(" ", "-"), "us", created + 600)))
+        parts.append((uid, gh, fac, cls, race, lvl, cons["c"]))
+    population = []
+    for j in range(n_population):
+        fac, race, cls, lvl = _char(r)
+        population.append(("demo-m%04d" % j, fac, cls, race, lvl))
+    store.ex(q)
+    sharers = [p for p in parts if p[6]]
+    for g in range(950):
+        uid, gh, fac, cls, race, lvl, _ = r.choice(sharers)
+        gtype = r.choices(["quest", "dungeon", "raid"], weights=[5, 4, 1])[0]
+        a = now - r.randint(0, 29 * day) - r.randint(0, day)
+        b = a + r.randint(900, 3 * 3600)
+        size = {"quest": r.randint(2, 3), "dungeon": 5, "raid": r.randint(15, 40)}[gtype]
+        same_faction = [m for m in population if m[1] == fac]
+        others = r.sample(same_faction, min(size - 1, len(same_faction)))
+        members = [{"h": gh, "class": cls, "race": race, "faction": fac, "level": lvl, "j": a, "l": b}] + \
+                  [{"h": m[0], "class": m[2], "race": m[3], "faction": m[1], "level": m[4], "j": a, "l": b} for m in others]
+        store.add_session(uid, {"a": a, "b": b, "type": gtype, "place": r.choice(PLACES[gtype]),
+                                "kills": 0 if gtype == "quest" else r.randint(1, 10)}, members, min(now, b + 600))
+    fq = []
+    statuses = ["received"] * 5 + ["planned", "fixed", "done", "wontfix", "duplicate"]
+    for i in range(48):
+        kind = "bug" if r.random() < 0.45 else "idea"
+        st = r.choice(statuses)
+        diag = {"addon": r.choice(["0.3.0", "0.4.0", "0.4.0"]), "build": "70755", "interface": "16001", "locale": r.choice(LOCALES),
+                "companion": r.choice(["ok", "ok", "missing", "off"]), "companionVersion": r.choice(["0.4.0", "0.3.4", None]),
+                "layers": r.choice(["", "C", "PC", "BPC"]), "players": r.randint(5, 400), "events": r.randint(100, 20000),
+                "unavailable": ["ready: auras are secret values on this client"] if r.random() < 0.2 else [],
+                "errors": ["x%d %s" % (r.randint(1, 9), r.choice(ERRORS))] if kind == "bug" and r.random() < 0.6 else []}
+        rec = now - r.randint(0, 25 * day)
+        fq.append(("INSERT OR REPLACE INTO feedback (id, install, kind, text, version, diag, t, received_at, status, reply, updated_at) "
+                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   ("demo-fb%03d" % i, "demo-install%02d" % (i % 30), kind, r.choice(BUGS if kind == "bug" else IDEAS), diag["addon"],
+                    json.dumps(diag), rec - 300, rec, st,
+                    {"planned": "On the roadmap, thanks!", "fixed": "Fixed in the next version.",
+                     "wontfix": "Not planned, but thanks for the idea."}.get(st), rec + 3600)))
+    for i in range(6):
+        fq.append(("INSERT OR REPLACE INTO optout (guid_h, at) VALUES (?, ?)", ("demo-o%02d" % i, now - i * day)))
+    store.ex(fq)
     return count(store)
 
 
 def clean(store):
-    with store.lock:
-        db = store.db
-        for sql in ("DELETE FROM reports WHERE uploader LIKE 'demo-%'", "DELETE FROM presence WHERE uploader LIKE 'demo-%'",
-                    "DELETE FROM characters WHERE uploader LIKE 'demo-%' OR guid LIKE 'Player-9999-%'",
-                    "DELETE FROM links WHERE uploader LIKE 'demo-%'", "DELETE FROM owned WHERE account LIKE 'demo-%'",
-                    "DELETE FROM uploaders WHERE id LIKE 'demo-%'", "DELETE FROM feedback WHERE id LIKE 'demo-%'",
-                    "DELETE FROM disputes WHERE id LIKE 'demo-%'", "DELETE FROM optout WHERE guid LIKE 'Player-9999-%'"):
-            db.execute(sql)
-        db.commit()
+    store.forget_sessions("uploader LIKE 'demo-%'", ())
+    store.ex([("DELETE FROM community_members WHERE member_h LIKE 'demo-%'", ()),
+              ("DELETE FROM participants WHERE uploader LIKE 'demo-%'", ()),
+              ("DELETE FROM profiles WHERE uploader LIKE 'demo-%'", ()),
+              ("DELETE FROM backups WHERE id LIKE 'demo-%'", ()),
+              ("DELETE FROM links WHERE uploader LIKE 'demo-%'", ()),
+              ("DELETE FROM owned WHERE account LIKE 'demo-%'", ()),
+              ("DELETE FROM uploaders WHERE id LIKE 'demo-%'", ()),
+              ("DELETE FROM feedback WHERE id LIKE 'demo-%'", ()),
+              ("DELETE FROM optout WHERE guid_h LIKE 'demo-%'", ())])
     return count(store)
 
 
 def count(store):
-    q = lambda sql: store.db.execute(sql).fetchone()[0]
-    with store.lock:
-        return {"uploaders": q("SELECT count(*) FROM uploaders WHERE id LIKE 'demo-%'"),
-                "reports": q("SELECT count(*) FROM reports WHERE uploader LIKE 'demo-%'"),
-                "feedback": q("SELECT count(*) FROM feedback WHERE id LIKE 'demo-%'"),
-                "disputes": q("SELECT count(*) FROM disputes WHERE id LIKE 'demo-%'")}
+    c = lambda sql: store.q(sql, one=True)[0]
+    return {"participants": c("SELECT count(*) FROM participants WHERE uploader LIKE 'demo-%'"),
+            "communitySessions": c("SELECT count(*) FROM community_sessions WHERE uploader LIKE 'demo-%'"),
+            "feedback": c("SELECT count(*) FROM feedback WHERE id LIKE 'demo-%'")}
 
 
 def main(argv):

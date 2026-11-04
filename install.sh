@@ -5,7 +5,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 DEST="/Applications/World of Warcraft/_forever_/Interface/AddOns/TrustAdvisor"
 cd "$HERE/TrustAdvisor"
 # Lua suites: one-line summary, stop on any failure
-for t in test_scoring test_questie test_ingame_sim; do
+for t in test_relationship test_questie test_ingame_sim; do
   LOG=$(mktemp)
   if luajit "Tests/$t.lua" >"$LOG" 2>&1; then
     tail -1 "$LOG"

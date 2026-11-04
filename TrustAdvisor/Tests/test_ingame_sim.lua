@@ -117,8 +117,8 @@ end
 function UnitGUID(u) local x = U(u); return x and x.guid end
 function UnitName(u) local x = U(u); return x and x.name, nil end
 function UnitClass(u) local x = U(u); return x and x.class, x and x.class end
-function UnitRace(u) if u == "player" then return "Undead", "Scourge" end end
-function UnitFactionGroup(u) if u == "player" then return "Horde", "Horde" end end
+function UnitRace(u) if u == "player" then return "Undead", "Scourge" elseif U(u) then return "Orc", "Orc" end end
+function UnitFactionGroup(u) if U(u) then return "Horde", "Horde" end end
 function GetRealmName() return "Forever" end
 function GetLocale() return "ptBR" end
 function UnitLevel(u) local x = U(u); return x and x.level end
@@ -231,62 +231,61 @@ end
 scan(TrustAdvisorDB); scan(TrustAdvisorCharDB)
 print("  ok   no chat text in SavedVariables")
 
--- scoring outcomes
-local leafy = TA.Dimensions.Profile("Player-1-0000000B")
-local f = leafy.dims.finish.items[1]
-assert(f and f.x == 0 and f.w == 3, "Leafy loot-and-leave weighted x3")
-print("  ok   loot-and-leave detected for Leafy")
-local tanky = TA.Dimensions.Profile("Player-1-0000000A")
-assert(tanky.dims.finish.items[1].x == 1, "Tanky completed")
-assert(#tanky.dims.craft.items == 1, "Tanky crafted for me")
-assert(#tanky.dims.teach.items == 1, "Tanky higher-level partner")
-print("  ok   Tanky: completed, crafted, higher-level partner")
-assert(TA.cdb.affinity["Player-1-0000000A"].sessions[1].chat >= 1, "chat counted")
-print("  ok   affinity counted chat without text")
+
+-- Relationship (Information + Knowledge): facts and sums only, no scores
+local rt = TA.Rel:Compute("Player-1-0000000A")
+assert(rt.sessions == 1 and rt.kills == 2 and rt.dungeons == 1, "Tanky: 1 session, 2 kills together, dungeon completed together")
+assert(rt.seconds > 2400 and rt.days == 1 and rt.trades == 1 and rt.craftsByThem == 1, "time together, trade with enchant by them")
+assert(rt.quests == 0 and rt.levelGap == 8, "level gap: Tanky 8 above")
+local rl = TA.Rel:Compute("Player-1-0000000B")
+assert(rl.kills == 1 and rl.dungeons == 0 and rl.loot == 1 and rl.quests == 1, "Leafy left before the last boss: 1 kill together, no completion, 1 loot, 1 quest")
+local circle = TA.Rel:Circle()
+assert(circle[1].guid == "Player-1-0000000A" and circle[1].rank == 1, "circle sorted by time together")
+local lines = TA.UI.TooltipLines("Player-1-0000000A")
+assert(#lines == 6 and lines[1][1] == "Time together", "tooltip shows the 6 default items")
+TA.UI.SetTooltipFields({ "kills", "zones" })
+lines = TA.UI.TooltipLines("Player-1-0000000A")
+assert(#lines == 2 and lines[1][2] == "2", "tooltip follows the player's choice")
+TA.UI.SetTooltipFields(TA.Rel.DEFAULT_TOOLTIP)
+assert(TA.UI.TooltipLines("Player-1-DEADBEEF") == nil, "nothing for strangers")
+local mine = TA.Rel:Mine()
+assert(mine.people == 2 and mine.dungeons == 1 and mine.kills == 2, "my own numbers")
+print("  ok   relationship stats: time, kills, completions, loot, quests, trades, level gap, circle, tooltip choice")
+
+-- no opinions, no scores anywhere
+for _, ev in ipairs(TA.Log:All()) do
+  assert(ev.signal ~= "endorse" and ev.signal ~= "obligation" and ev.signal ~= "lootNeed", "no v1 opinion/manual events")
+end
+assert(TA.Dimensions == nil and TA.Engine == nil and TA.Endorse == nil, "scoring modules removed")
+print("  ok   no scores, no opinions, no manual inputs")
 
 -- UI and slash commands
-TA.UI:Open("players")
+TA.UI:Open("circle")
 for _, t in ipairs(TA.UI.TABS) do TA.UI.SelectTab(t.key) end
 TA.UI:OpenPlayer("Player-1-0000000A")
-TA.UI.views.card.tab = "affinity"; TA.UI.views.card:Refresh()
-TA.UI.views.transparency.sub = "Formulas"; TA.UI.views.transparency:Refresh()
-for _, s in ipairs({ "Captures", "Change log", "Data inventory", "Parameters" }) do TA.UI.views.transparency.sub = s; TA.UI.views.transparency:Refresh() end
-print("  line " .. TA.UI.TooltipLine("Player-1-0000000A"))
-for _, cmd in ipairs({ "help", "why Leafy finish", "player Tanky", "status", "owe Tanky 10", "iowe Tanky 2", "signup add Tanky Leafy",
-  "signup start 0", "signup show", "signup close", "invisible", "invisible", "lfg", "export", "debug", "debug", "reset params", "sr clear" }) do
+TA.UI.ShowSettings()
+for _, cmd in ipairs({ "help", "player Tanky", "status", "privacy", "cloud", "welcome", "invisible", "invisible", "export", "debug", "debug" }) do
   TA.HandleSlash(cmd)
 end
--- endorsement flow
-local ok = TA.Endorse:Give("Player-1-0000000A", "Tanky-Forever")
-assert(ok, "endorse ok")
-assert(not TA.Endorse:Give("Player-1-0000000A", "Tanky-Forever"), "cooldown blocks second endorsement")
--- param edit rescoring
-TA.Params:Set("finish.lootLeaveWeight", 5)
-TA.Dimensions.Invalidate()
-assert(TA.Dimensions.Profile("Player-1-0000000B").dims.finish.items[1].w == 5, "retroactive rescoring")
-print("  ok   parameter edit rescored retroactively")
 -- malformed / spoofed peer messages are dropped
 fire("CHAT_MSG_ADDON", "TrustAdv", "garbage", "PARTY", "Tanky")
 fire("CHAT_MSG_ADDON", "TrustAdv", "1|QUEST|Player-1-DEADBEEF;5", "WHISPER", "Stranger")
 advance(10)
-print(string.format("  ok   %d malformed/spoofed messages dropped", TA.Protocol.dropped or 0))
--- Welcome screen and companion detection
-assert(TA.db.welcomed, "welcome shown on first login")
-TA.UI.ShowWelcome()
-assert(TA.Network:CompanionStatus() == "off", "network off by default")
-TA.Params:Set("consent.network", true)
-assert(TA.Network:CompanionStatus() == "waiting", "just joined: waiting for first sync")
-TA.loginAt = TA.Now() + 1                       -- simulate a later login with no NetData
-assert(TA.Network:CompanionStatus() == "missing", "companion missing after relog")
-TrustAdvisorNetData = { protocol = 1, generatedAt = TA.Now() + 2, players = {}, companion = { version = "0.3.0" } }
-assert(TA.Network:CompanionStatus() == "ok" and TA.Network:CompanionVersion() == "0.3.0", "companion syncing")
-assert(TA.Network:LinkText():find("unknown"), "link unknown without companion data")
-TrustAdvisorNetData.me = { events = {}, linked = true, verifiedCharacters = 2 }
-assert(TA.Network:LinkText():find("linked, 2"), "battle.net link shown")
-TA.HandleSlash("network")
-TrustAdvisorNetData = { protocol = 1, generatedAt = 0, players = {} }
-TA.Params:Set("consent.network", false)
-print("  ok   welcome screen, companion detection (off/waiting/missing/ok), /ta network")
+print(string.format("  ok   UI tabs, settings and commands; %d malformed/spoofed messages dropped", TA.Protocol.dropped or 0))
+
+-- Welcome + companion detection (cloud layers)
+assert(TA.db.welcomed == "v2", "v2 welcome shown on first login")
+assert(TA.Cloud:CompanionStatus() == "off", "all cloud layers off by default")
+TA.Params:Set("consent.backup", true)
+assert(TA.Cloud:CompanionStatus() == "waiting", "just turned on: waiting for first sync")
+TA.loginAt = TA.Now() + 1
+assert(TA.Cloud:CompanionStatus() == "missing", "companion missing after relog")
+TrustAdvisorNetData = { protocol = 2, players = {}, companion = { version = "0.4.0", syncedAt = TA.Now() + 2 }, me = { linked = true, verifiedCharacters = 2 } }
+assert(TA.Cloud:CompanionStatus() == "ok" and TA.Cloud:CompanionVersion() == "0.4.0", "companion syncing")
+assert(TA.Cloud:LinkText():find("linked, 2"), "battle.net link shown")
+TrustAdvisorNetData = { protocol = 2 }
+TA.Params:Set("consent.backup", false)
+print("  ok   welcome v2 and companion detection (off/waiting/missing/ok)")
 
 -- Warlock summons, both directions
 party = { { guid = "Player-1-0000000A", name = "Tanky", class = "WARRIOR", level = 38 } }
@@ -333,8 +332,8 @@ local diagText = table.concat(TA.Feedback:DiagnosticsText(), "\n")
 assert(not diagText:find("Tanky") and not diagText:find("Leafy"), "diagnostics never include player names")
 assert(TA.Feedback:StatusText(report):find("Waiting"), "waiting until the companion sends it")
 assert(TA.Feedback:DeliveryNote():find("companion app runs here"), "explains delivery without companion")
-TrustAdvisorNetData.companion = { version = "0.3.3", syncedAt = TA.Now() }
-assert(TA.Feedback:DeliveryNote():find("Sent automatically"), "companion seen (even with network off)")
+TrustAdvisorNetData.companion = { version = "0.4.0", syncedAt = TA.Now() }
+assert(TA.Feedback:DeliveryNote():find("Sent automatically"), "companion seen (even with every cloud layer off)")
 TrustAdvisorNetData.feedback = { [report.id] = { status = "planned", reply = "Coming in 0.4" } }
 local st, reply = TA.Feedback:StatusText(report)
 assert(st:find("Planned") and reply == "Coming in 0.4", "status and reply shown in game")
@@ -357,13 +356,6 @@ assert(table.concat(TA.Feedback:DiagnosticsText(), "\n"):find("boom"), "recent e
 for i = #errors, 1, -1 do if tostring(errors[i]):find("boom from a test handler") then table.remove(errors, i) end end -- the deliberate one
 print("  ok   in-game feedback (diagnostics without names, status/reply), error capture + one-click report prompt")
 
--- Ledger import (GDKP) parsing
-local rows = TA.Trade.ParseLedger("Tanky 1,500g\nLeafy: 200\n|cffffffffJosé|r - 75.5 gold\njunk line")
-assert(#rows == 3 and rows[1].gold == 1500 and rows[2].name == "Leafy" and rows[3].gold == 75.5, "ledger parse")
-local msg = TA.Trade:ImportLedger("Tanky 100\nNobody 5", "owedToMe")
-assert(msg:find("Imported 1") and msg:find("Nobody"), "ledger import skips unknown players: " .. msg)
-print("  ok   ledger import (GDKP) parses and skips unknown players")
-
 -- Crafted item gift: Tanky hands me an item he made
 C_TooltipInfo = { GetTradeTargetItem = function(i) if i == 1 then return { lines = { { leftText = "<Made by Tanky>" } } } end end,
   GetTradePlayerItem = function() end }
@@ -371,32 +363,36 @@ ITEM_CREATED_BY = "<Made by %s>"
 GetTargetTradeMoney = function() return 0 end
 GetTradePlayerItemInfo = function() end
 units.npc = { guid = "Player-1-0000000A", name = "Tanky", class = "WARRIOR", level = 38 }
+local before = TA.Rel:Compute("Player-1-0000000A").craftsByThem
 fire("TRADE_SHOW"); fire("TRADE_TARGET_ITEM_CHANGED"); fire("UI_INFO_MESSAGE", 0, "Trade complete.")
-TA.Dimensions.Invalidate()
-local crafts = TA.Dimensions.Profile("Player-1-0000000A").dims.craft.items
-assert(crafts[#crafts].label:find("crafted item") and crafts[#crafts].mult == 2, "free crafted gift counted at-cost x2")
-print("  ok   crafted item gift detected from tooltip, free = x2")
+TA.Rel.Invalidate()
+assert(TA.Rel:Compute("Player-1-0000000A").craftsByThem == before + 1, "crafted item gift counted")
+print("  ok   crafted item gift detected from the tooltip")
 
--- Network (Phase 3): outbox built at logout with published parameters only
-TA.Params:Set("finish.lootLeaveWeight", 9) -- a local edit must NOT leak into network reports
-TA.Params:Set("consent.network", true)
+-- Cloud outbox: nothing without consent; with consent only what was chosen
 fire("PLAYER_LOGOUT")
-local outbox = TA.db.net.outbox
-assert(outbox and #outbox.reports > 0, "network outbox built")
-local sawLeafyNeg = false
-for _, r in ipairs(outbox.reports) do
-  assert(r.d ~= "pay" and r.d ~= "attend", "human-declared dimensions never uploaded")
-  assert(r.s ~= TA.playerGUID, "no reports about yourself")
-  if r.s == "Player-1-0000000B" and r.d == "finish" and r.x == 0 then sawLeafyNeg = true; assert(r.m == 3, "published weight, not local edit") end
+local ob = TA.db.cloud.outbox
+assert(ob and not ob.profile and not ob.community and not ob.me, "no consent: nothing to send")
+TA.Params:Set("consent.profile", true)
+TA.Cloud:State().profileItems.dungeons = true
+TA.Cloud:State().profileItems.hours = true
+TA.Params:Set("consent.community", true)
+fire("PLAYER_LOGOUT")
+ob = TA.db.cloud.outbox
+assert(ob.profile.dungeons == 1 and ob.profile.hours ~= nil and ob.profile.kills == nil, "profile: only ticked items")
+assert(ob.me.race == "Undead" and ob.me.faction == "Horde" and ob.me.class == "Priest" and ob.me.locale == "ptBR", "own character")
+local sawDungeon = false
+for _, sess in ipairs(ob.community) do
+  for _, m in ipairs(sess.m) do assert(m.name == nil, "community members carry no names") end
+  if #sess.m == 3 and sess.type == "dungeon" then
+    sawDungeon = true
+    for _, m in ipairs(sess.m) do if m.g == "Player-1-0000000A" then assert(m.race == "Orc" and m.faction == "Horde" and m.class == "Warrior", "member attributes") end end
+  end
 end
-assert(sawLeafyNeg, "Leafy's loot-and-leave reported")
-local dungeonSession = false
-for _, sess in ipairs(outbox.presence) do if #sess.m == 3 then dungeonSession = true end end
-assert(dungeonSession, "group history uploaded, including the dungeon with all 3 members")
-local me = TA.db.net.characters[TA.playerGUID]
-assert(me.race == "Undead" and me.faction == "Horde" and me.class == "Priest" and me.level == 30 and me.locale == "ptBR", "own character demographics")
-for guid in pairs(TA.db.net.characters) do assert(guid == TA.playerGUID, "only your own characters are listed") end
-print(string.format("  ok   network outbox: %d reports, published parameters only, own-character demographics", #outbox.reports))
+assert(sawDungeon, "community includes the dungeon session with its 3 members")
+assert(#ob.lookups >= 2, "profile lookups for players in my circle")
+print(string.format("  ok   cloud outbox: consent-gated profile (%d items) and community (%d sessions, no names)",
+  (function() local n = 0 for _ in pairs(ob.profile) do n = n + 1 end return n end)(), #ob.community))
 
 -- optional: dump SavedVariables for the cross-language end-to-end test
 if os.getenv("TA_DUMP_SV") then
@@ -420,20 +416,14 @@ if os.getenv("TA_DUMP_SV") then
   print("  dumped SavedVariables to " .. os.getenv("TA_DUMP_SV"))
 end
 
--- optional: load companion-written NetData and check the network view
+-- optional: load companion-written NetData and check profiles / suggestions
 if os.getenv("TA_NETDATA") then
   dofile(os.getenv("TA_NETDATA"))
-  local np = TA.Network:Profile("Player-1-0000000B")
-  assert(np, "network data present for Leafy")
-  print("  network view for Leafy: finish " .. np.dims.finish.band .. string.format(" (S=%.3f, N=%.1f, %d incidents)", np.dims.finish.score, np.dims.finish.evidence, np.incidents))
-  -- the verified negative (2 witnesses, 2 guilds, weight 3) is counted and pulls the score below band.concern;
-  -- the band itself is Unknown until evidence reaches conf.minEvidence (decay makes N just under 3 here)
-  assert(#np.dims.finish.items == 1 and np.dims.finish.items[1].x == 0, "verified multi-witness negative counted")
-  assert(np.dims.finish.score < 0.5, "score in Concern territory")
-  TA.UI:OpenPlayer("Player-1-0000000B")
-  TA.UI.SelectTab("profile")
-  TA.UI.views.transparency.sub = "Network"; TA.UI.views.transparency:Refresh()
-  print("  ok   network view rendered in card, profile and Transparency")
+  local prof = TA.Cloud:Profile(os.getenv("TA_EXPECT_PROFILE") or "Player-1-0000000A")
+  assert(prof and prof.items and #prof.items > 0, "public profile delivered")
+  TA.UI:OpenPlayer("Player-1-0000000A")
+  TA.UI.SelectTab("circle")
+  print(string.format("  ok   NetData: public profile with %d item(s), %d suggestion(s)", #prof.items, #TA.Cloud:Suggestions()))
 end
 
 TA:WipeEverything()

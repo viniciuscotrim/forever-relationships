@@ -15,7 +15,7 @@ import json
 import secrets
 import time
 
-from . import aggregate, totp, webauthn
+from . import totp, webauthn
 
 SESSION_TTL = 12 * 3600
 SETUP_TTL = 30 * 60
@@ -204,46 +204,61 @@ class Admin:
             self._q("DELETE FROM admin_sessions WHERE token_hash = ?", (_h(token),), commit=True)
 
     # ------------------------------------------------------------------ cockpit data
+    # Aggregates only: no identifiers ever leave this method, and any group with
+    # fewer than MIN_GROUP distinct people is folded into "Other (small groups)".
+    MIN_GROUP = 10
+
+    def _fold(self, rows, distinct=True):
+        out, small = [], 0
+        for k, n in rows:
+            if distinct and n < self.MIN_GROUP:
+                small += n
+            else:
+                out.append({"k": k if k is not None else "unknown", "n": n})
+        if small:
+            out.append({"k": "Other (small groups)", "n": small})
+        return out
+
     def overview(self):
         now = self.now()
-        q = self._q
+        q = self.store.q
         day = 86400
 
         def count(sql, args=()):
-            return q(sql, args, one=True)[0]
+            return q(sql, args, one=True)[0] or 0
 
-        def series(table, col, days=30):
+        def series(table, col, days=30, where=""):
             start = (now // day - days + 1) * day
-            rows = q("SELECT (%s / 86400) * 86400 AS d, count(*) FROM %s WHERE %s >= ? GROUP BY d" % (col, table, col), (start,))
+            rows = q("SELECT (%s / 86400) * 86400 AS d, count(*) FROM %s WHERE %s >= ? %s GROUP BY d" % (col, table, col, where), (start,))
             got = {r[0]: r[1] for r in rows}
             return [{"t": start + i * day, "n": got.get(start + i * day, 0)} for i in range(days)]
 
-        def dist(sql, args=()):
-            return [{"k": r[0] if r[0] is not None else "unknown", "n": r[1]} for r in q(sql, args)]
+        # observed population: one row per distinct (pseudonymous) character, latest attributes
+        pop = "(SELECT member_h, max(class) AS class, max(race) AS race, max(faction) AS faction, max(level) AS level " \
+              "FROM community_members GROUP BY member_h)"
+        levels = lambda src: self._fold([("%d-%d" % (r[0], r[0] + 9), r[1]) for r in
+                                         q("SELECT ((level - 1) / 10) * 10 + 1 AS b, count(*) FROM %s WHERE level IS NOT NULL GROUP BY b ORDER BY b" % src)])
 
-        # network verification funnel (live rules, same code as the public API)
-        subjects = [r[0] for r in q("SELECT DISTINCT s FROM reports LIMIT 5000")]
-        incs = self.service._incidents(subjects) if subjects else {}
-        all_incs = [i for lst in incs.values() for i in lst]
-        verified = [i for i in all_incs if i["verified"]]
-        by_dim = {}
-        for i in all_incs:
-            d = by_dim.setdefault(i["d"], {"k": i["d"], "incidents": 0, "verified": 0, "negatives": 0, "verifiedNegatives": 0})
-            d["incidents"] += 1
-            d["verified"] += 1 if i["verified"] else 0
-            if i["x"] < 1:
-                d["negatives"] += 1
-                d["verifiedNegatives"] += 1 if i["verified"] else 0
+        # community map: which classes play together (pairs inside the same group)
+        pairs = {}
+        for sid, classes in q("SELECT session_id, group_concat(class, '|') FROM community_members WHERE class IS NOT NULL GROUP BY session_id"):
+            cl = sorted(set((classes or "").split("|")) - {""})
+            for i in range(len(cl)):
+                for j in range(i, len(cl)):
+                    key = cl[i] + " + " + cl[j] if i != j else cl[i] + " + " + cl[i]
+                    pairs[key] = pairs.get(key, 0) + 1
+        top_pairs = sorted(pairs.items(), key=lambda kv: -kv[1])[:15]
 
-        # feedback diagnostics: versions, locales, top errors
+        sizes = q("SELECT n, count(*) FROM (SELECT count(*) AS n FROM community_members GROUP BY session_id) GROUP BY n ORDER BY n")
+        hours = {r[0]: r[1] for r in q("SELECT (a % 86400) / 3600 AS h, count(*) FROM community_sessions GROUP BY h")}
+
         versions, companions, locales, errors = {}, {}, {}, {}
         for (diag,) in q("SELECT diag FROM feedback WHERE diag IS NOT NULL"):
             try:
                 d = json.loads(diag)
             except ValueError:
                 continue
-            for bucket, key in ((versions, d.get("addon")), (companions, d.get("companionVersion") or d.get("companion")),
-                                (locales, d.get("locale"))):
+            for bucket, key in ((versions, d.get("addon")), (companions, d.get("companionVersion") or d.get("companion")), (locales, d.get("locale"))):
                 if key:
                     bucket[key] = bucket.get(key, 0) + 1
             for e in d.get("errors") or []:
@@ -253,23 +268,23 @@ class Admin:
         def top(d, n=12):
             return [{"k": k, "n": v} for k, v in sorted(d.items(), key=lambda kv: -kv[1])[:n]]
 
-        level_buckets = q("SELECT ((level - 1) / 10) * 10 + 1 AS b, count(*) FROM characters WHERE level IS NOT NULL GROUP BY b ORDER BY b")
-        demo = (count("SELECT count(*) FROM uploaders WHERE id LIKE 'demo-%'") + count("SELECT count(*) FROM feedback WHERE id LIKE 'demo-%'"))
+        demo = count("SELECT count(*) FROM uploaders WHERE id LIKE 'demo-%'") + count("SELECT count(*) FROM feedback WHERE id LIKE 'demo-%'")
         return {
-            "generatedAt": now, "protocol": aggregate.PARAMS,
-            "demoRows": demo,
+            "generatedAt": now, "minGroup": self.MIN_GROUP, "demoRows": demo,
             "kpis": {
-                "participants": count("SELECT count(*) FROM uploaders"),
-                "active24h": count("SELECT count(*) FROM uploaders WHERE last_seen >= ?", (now - day,)),
+                "participants": count("SELECT count(*) FROM participants"),
                 "active7d": count("SELECT count(*) FROM uploaders WHERE last_seen >= ?", (now - 7 * day,)),
+                "layerBackup": count("SELECT count(*) FROM participants WHERE c_backup = 1"),
+                "layerProfile": count("SELECT count(*) FROM participants WHERE c_profile = 1"),
+                "layerCommunity": count("SELECT count(*) FROM participants WHERE c_community = 1"),
+                "layerRecommend": count("SELECT count(*) FROM participants WHERE c_recommend = 1"),
+                "backups": count("SELECT count(*) FROM backups"),
+                "backupMB": round(count("SELECT sum(size) FROM backups") / 1048576.0, 1),
+                "profiles": count("SELECT count(*) FROM profiles"),
                 "linkedAccounts": count("SELECT count(DISTINCT account) FROM links"),
                 "verifiedCharacters": count("SELECT count(*) FROM owned"),
-                "characters": count("SELECT count(*) FROM characters"),
-                "reports": count("SELECT count(*) FROM reports"),
-                "playersObserved": len(subjects),
-                "incidents": len(all_incs), "verifiedIncidents": len(verified),
-                "verifiedNegatives": len([i for i in verified if i["x"] < 1]),
-                "openDisputes": count("SELECT count(*) FROM disputes WHERE status = 'open'"),
+                "communitySessions": count("SELECT count(*) FROM community_sessions"),
+                "observedCharacters": count("SELECT count(DISTINCT member_h) FROM community_members"),
                 "optedOut": count("SELECT count(*) FROM optout"),
                 "feedbackNew": count("SELECT count(*) FROM feedback WHERE status = 'received'"),
                 "feedbackTotal": count("SELECT count(*) FROM feedback"),
@@ -278,30 +293,36 @@ class Admin:
             },
             "series": {
                 "newParticipants": series("uploaders", "created_at"),
-                "reports": series("reports", "received_at"),
+                "communitySessions": series("community_sessions", "a"),
                 "feedback": series("feedback", "received_at"),
             },
-            "demographics": {
-                "faction": dist("SELECT faction, count(*) FROM characters GROUP BY faction ORDER BY count(*) DESC"),
-                "race": dist("SELECT race, count(*) FROM characters GROUP BY race ORDER BY count(*) DESC"),
-                "class": dist("SELECT class, count(*) FROM characters GROUP BY class ORDER BY count(*) DESC"),
-                "levels": [{"k": "%d-%d" % (r[0], r[0] + 9), "n": r[1]} for r in level_buckets],
-                "realm": dist("SELECT realm, count(*) FROM characters GROUP BY realm ORDER BY count(*) DESC LIMIT 15"),
-                "locale": dist("SELECT locale, count(*) FROM characters GROUP BY locale ORDER BY count(*) DESC"),
-                "region": dist("SELECT region, count(*) FROM links GROUP BY region ORDER BY count(*) DESC"),
-                "guilds": count("SELECT count(DISTINCT guild) FROM characters WHERE guild != ''"),
+            "participants": {
+                "faction": self._fold(q("SELECT faction, count(*) FROM participants GROUP BY faction ORDER BY count(*) DESC")),
+                "race": self._fold(q("SELECT race, count(*) FROM participants GROUP BY race ORDER BY count(*) DESC")),
+                "class": self._fold(q("SELECT class, count(*) FROM participants GROUP BY class ORDER BY count(*) DESC")),
+                "levels": levels("participants"),
+                "realm": self._fold(q("SELECT realm, count(*) FROM participants GROUP BY realm ORDER BY count(*) DESC LIMIT 15")),
+                "locale": self._fold(q("SELECT locale, count(*) FROM participants GROUP BY locale ORDER BY count(*) DESC")),
+                "region": self._fold(q("SELECT region, count(*) FROM links GROUP BY region ORDER BY count(*) DESC")),
             },
-            "network": {
-                "byDimension": sorted(by_dim.values(), key=lambda d: -d["incidents"]),
-                "witnessHistogram": dist("SELECT w, count(*) FROM (SELECT count(DISTINCT uploader) AS w FROM reports GROUP BY s, d, k, t / 600) GROUP BY w ORDER BY w"),
+            "population": {
+                "faction": self._fold(q("SELECT faction, count(*) FROM %s GROUP BY faction ORDER BY count(*) DESC" % pop)),
+                "race": self._fold(q("SELECT race, count(*) FROM %s GROUP BY race ORDER BY count(*) DESC" % pop)),
+                "class": self._fold(q("SELECT class, count(*) FROM %s GROUP BY class ORDER BY count(*) DESC" % pop)),
+                "levels": levels(pop),
+            },
+            "community": {
+                "classPairs": self._fold(top_pairs, distinct=False),
+                "places": self._fold(q("SELECT place, count(*) FROM community_sessions GROUP BY place ORDER BY count(*) DESC LIMIT 12"), distinct=False),
+                "byType": self._fold(q("SELECT type, count(*) FROM community_sessions GROUP BY type ORDER BY count(*) DESC"), distinct=False),
+                "byHour": [{"k": "%02d" % h, "n": hours.get(h, 0)} for h in range(24)],
+                "groupSizes": [{"k": str(r[0]), "n": r[1]} for r in sizes],
             },
             "feedback": {
-                "byStatus": dist("SELECT status, count(*) FROM feedback GROUP BY status ORDER BY count(*) DESC"),
-                "addonVersions": top(versions), "companions": top(companions), "locales": top(locales),
-                "topErrors": top(errors, 8),
+                "byStatus": [{"k": r[0], "n": r[1]} for r in q("SELECT status, count(*) FROM feedback GROUP BY status ORDER BY count(*) DESC")],
+                "addonVersions": top(versions), "companions": top(companions), "locales": top(locales), "topErrors": top(errors, 8),
             },
         }
 
-    def disputes(self):
-        rows = self._q("SELECT id, subject, d, t, reason, status, created_at FROM disputes ORDER BY created_at DESC LIMIT 200")
-        return [dict(zip(("id", "subject", "d", "t", "reason", "status", "created_at"), r)) for r in rows]
+    def feedback_list(self, status=None):
+        return self.store.list_feedback(status or None, 500)

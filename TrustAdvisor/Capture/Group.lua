@@ -1,6 +1,5 @@
--- Group captures: hardcore deaths (5.13), quest turn-ins for "stayed to help"
--- (5.12), questing session facts (5.11). Showing up / finishing / teaching /
--- guild stability are captured by Core/Sessions.lua as raw session facts.
+-- Group captures (Information): Hardcore deaths in your group, quests finished
+-- together (yours while grouped, partners' via Questie or peer messages).
 local _, TA = ...
 
 local Group = {}
@@ -43,6 +42,11 @@ end
 TA:On("QUEST_TURNED_IN", function(_, questID)
   questID = TA.Clean(questID)
   if not questID then return end
+  local s = TA.Sessions:Active()
+  if s then   -- only quests finished while grouped: "quests completed together"
+    TA.Log:Append({ signal = "questDone", subjectGUID = TA.playerGUID, subjectName = TA.playerName, sessionId = s.id,
+      api = "QUEST_TURNED_IN", details = { questID = questID } })
+  end
   TA:Fire("OWN_QUEST_TURNED_IN", questID)
 end, "quests")
 

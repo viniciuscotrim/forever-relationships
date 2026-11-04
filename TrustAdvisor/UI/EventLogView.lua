@@ -3,8 +3,7 @@
 local _, TA = ...
 local UI = TA.UI
 
-local SIGNALS = { "all", "session", "member", "ready", "trade", "obligation", "lootNeed", "generosity",
-  "quest", "hcDeath", "endorse", "attendance", "capture" }
+local SIGNALS = { "all", "session", "member", "ready", "trade", "generosity", "quest", "questDone", "hcDeath", "capture" }
 local SOURCES = { "all", "game", "peer", "human", "questie" }
 
 local function Summary(ev)
@@ -28,18 +27,12 @@ local function Summary(ev)
     if d.enchantByThem then bits[#bits + 1] = "they enchanted" end
     if d.enchantByMe then bits[#bits + 1] = "you enchanted" end
     return table.concat(bits, ", ")
-  elseif s == "obligation" then
-    return "owes " .. (d.creditorName or "?") .. " " .. TA.FormatGold(d.copper)
-  elseif s == "lootNeed" then
-    return string.format("Need on item %s%s", tostring(d.itemID), d.selfReserved and " (own reserve)" or (d.reservedBy and #d.reservedBy > 0 and (" reserved by " .. table.concat(d.reservedBy, ",")) or ""))
   elseif s == "generosity" then
     return (d.kind or "act") .. (d.recipientName and (" for " .. d.recipientName) or "")
   elseif s == "quest" then
     return string.format("finished quest %s%s", tostring(d.questID), d.myOpen and " (yours still open)" or "")
-  elseif s == "endorse" then
-    return "endorsed by " .. (d.endorserName or "?")
-  elseif s == "attendance" then
-    return d.joinedAt and string.format("joined %+dm vs start", ((d.joinedAt - d.startAt) / 60)) or "did not join"
+  elseif s == "questDone" then
+    return "you turned in quest " .. tostring(d.questID) .. " while grouped"
   elseif s == "capture" then
     return (d.capture or "?") .. " unavailable: " .. (d.reason or "")
   end

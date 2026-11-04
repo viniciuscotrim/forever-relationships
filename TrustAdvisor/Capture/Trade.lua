@@ -1,5 +1,5 @@
--- Trade capture: paying what's owed (5.5), carry payment (5.7), crafting for
--- others (5.10). Only trades your own client takes part in are witnessed.
+-- Trade capture (Information): gold, items, enchants and crafted items you
+-- exchanged with someone. Only trades your own client takes part in.
 local _, TA = ...
 
 local Trade = {}
@@ -94,20 +94,6 @@ local function Commit()
   TA.Log:Append({ signal = "trade", subjectGUID = c.guid, subjectName = c.name, sessionId = s and s.id,
     api = "TRADE_ACCEPT_UPDATE + ERR_TRADE_COMPLETE", details = details })
 
-  -- 5.7: gold trade inside an instance session marks the recipient as carrier.
-  if s and TA.Sessions:InInstanceSession() then
-    local payer, carrier, copper
-    if (c.givenCopper or 0) > 0 then payer, carrier, copper = TA.playerGUID, c.guid, c.givenCopper
-    elseif (c.receivedCopper or 0) > 0 then payer, carrier, copper = c.guid, TA.playerGUID, c.receivedCopper end
-    local m = carrier and s.members[carrier]
-    if m and s.members[payer] then
-      if m.carry then
-        m.carry.copper = m.carry.copper + copper
-      else
-        m.carry = { paidAt = TA.Now(), copper = copper, payerGUID = payer }
-      end
-    end
-  end
   TA:Fire("DATA_CHANGED")
 end
 
@@ -139,51 +125,3 @@ TA:On("TRADE_CLOSED", function()
   C_Timer.After(1, function() if current == c then current = nil end end)
 end, "trades")
 
--------------------------------------------------------------------------------
--- Obligation ledger (GDKP / debts). "<name> owes <creditor> <gold>".
--------------------------------------------------------------------------------
-function Trade:AddObligation(debtorGUID, debtorName, creditorGUID, creditorName, gold)
-  local copper = math.floor((tonumber(gold) or 0) * 10000)
-  if copper <= 0 or not debtorGUID or not creditorGUID then return false, "need a known player and an amount" end
-  TA.Log:Append({ signal = "obligation", subjectGUID = debtorGUID, subjectName = debtorName, source = "human",
-    api = "/ta owe", details = { creditorGUID = creditorGUID, creditorName = creditorName, copper = copper } })
-  TA:Fire("DATA_CHANGED")
-  return true
-end
-
--- Bulk ledger import (GDKP pots, cuts, spreadsheets). One "Name amount" per line.
--- direction "owedToMe": Name owes me; "iOwe": I owe Name. Unknown players are skipped.
-function Trade.ParseLedger(text)
-  local out = {}
-  for line in (text or ""):gmatch("[^\r\n]+") do
-    local clean = line:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-    local name = clean:match("([%a\128-\255][%a\128-\255%-']+)")
-    local amount = clean:match("(%d[%d,%.]*)%s*[gG]?")
-    if name and amount then
-      amount = tonumber((amount:gsub(",", "")))
-      if amount and amount > 0 then out[#out + 1] = { name = name, gold = amount } end
-    end
-  end
-  return out
-end
-
-function Trade:ImportLedger(text, direction)
-  local ok, skipped = 0, {}
-  for _, row in ipairs(Trade.ParseLedger(text)) do
-    local guid = TA.Sessions:GUIDByName(row.name)
-    if guid then
-      local pname = TA.db.players[guid].name
-      if direction == "iOwe" then
-        self:AddObligation(TA.playerGUID, TA.playerName, guid, pname, row.gold)
-      else
-        self:AddObligation(guid, pname, TA.playerGUID, TA.playerName, row.gold)
-      end
-      ok = ok + 1
-    else
-      skipped[#skipped + 1] = row.name
-    end
-  end
-  local msg = string.format("Imported %d debts (deadline %dh).", ok, TA.Params:Get("pay.deadlineHours"))
-  if #skipped > 0 then msg = msg .. " Skipped (never grouped with, unknown GUID): " .. table.concat(skipped, ", ") end
-  return msg
-end

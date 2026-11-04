@@ -18,7 +18,10 @@ Usage:
   python3 ta_companion.py --wow "/Applications/World of Warcraft/_forever_" --server ...
 """
 import argparse
+import base64
 import glob
+import gzip
+import hashlib
 import platform
 import shutil
 import subprocess
@@ -31,8 +34,8 @@ import urllib.error
 import urllib.request
 import webbrowser
 
-VERSION = "0.3.4"
-PROTOCOL = 1
+VERSION = "0.4.0"
+PROTOCOL = 2
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",
     r"C:\Program Files (x86)\World of Warcraft\_forever_",
@@ -230,6 +233,7 @@ def lua_literal(v, indent=0):
 
 
 def write_netdata(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         f.write("-- Written by the Trust Advisor companion app %s. Do not edit by hand.\n" % VERSION)
@@ -246,35 +250,31 @@ class Client:
         self.server = self.servers[0]
         self.timeout = timeout
 
-    def _req(self, method, path, body=None):
-        data = json.dumps(body).encode("utf-8") if body is not None else None
+    def _raw(self, method, path, data=None, headers=None):
         last = None
         for server in [self.server] + [s for s in self.servers if s != self.server]:
-            req = urllib.request.Request(server + path, data=data, method=method,
-                                         headers={"Content-Type": "application/json", "User-Agent": "TrustAdvisorCompanion/" + VERSION})
+            h = {"User-Agent": "ForeverRelationshipsCompanion/" + VERSION}
+            h.update(headers or {})
+            req = urllib.request.Request(server + path, data=data, method=method, headers=h)
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as r:
                     self.server = server  # stick with the one that works
-                    return json.loads(r.read().decode("utf-8"))
+                    return r.status, r.read(), dict(r.headers)
             except urllib.error.HTTPError as e:
-                raise RuntimeError("%s %s -> HTTP %d: %s" % (method, path, e.code, e.read().decode("utf-8", "replace")[:300]))
+                return e.code, e.read(), dict(e.headers)
             except (urllib.error.URLError, OSError) as e:  # DNS or connection failure: try the next address
                 last = e
         raise RuntimeError("%s %s -> no server reachable (%s)" % (method, path, last))
 
-    def upload(self, body):
-        return self._req("POST", "/v1/upload", body)
+    def _req(self, method, path, body=None):
+        data = json.dumps(body).encode("utf-8") if body is not None else None
+        code, raw, _ = self._raw(method, path, data, {"Content-Type": "application/json"})
+        if code >= 400:
+            raise RuntimeError("%s %s -> HTTP %d: %s" % (method, path, code, raw.decode("utf-8", "replace")[:300]))
+        return json.loads(raw.decode("utf-8"))
 
-    def players(self, guids):
-        out = {}
-        for i in range(0, len(guids), 200):
-            chunk = guids[i:i + 200]
-            res = self._req("GET", "/v1/players?guids=" + ",".join(chunk))
-            out.update(res.get("players", {}))
-        return out
-
-    def self_events(self, uploader_id):
-        return self._req("POST", "/v1/self", {"uploaderId": uploader_id}).get("events", [])
+    def sync(self, body):
+        return self._req("POST", "/v1/sync", body)
 
     def feedback(self, install_id, items):
         return self._req("POST", "/v1/feedback", {"installId": install_id, "items": items})
@@ -284,6 +284,182 @@ class Client:
 
     def auth_status(self, uploader_id):
         return self._req("POST", "/v1/auth/status", {"uploaderId": uploader_id})
+
+    def backup_put(self, bid, token, blob):
+        code, raw, _ = self._raw("PUT", "/v1/backup/" + bid, blob, {"X-Write-Token": token, "Content-Type": "application/octet-stream"})
+        if code >= 400:
+            raise RuntimeError("backup upload -> HTTP %d: %s" % (code, raw.decode("utf-8", "replace")[:200]))
+        return json.loads(raw.decode("utf-8"))
+
+    def backup_get(self, bid):
+        code, raw, headers = self._raw("GET", "/v1/backup/" + bid)
+        if code == 404:
+            return None, None
+        if code >= 400:
+            raise RuntimeError("backup download -> HTTP %d" % code)
+        return raw, headers.get("X-Backup-At")
+
+    def backup_delete(self, bid, token):
+        code, raw, _ = self._raw("DELETE", "/v1/backup/" + bid, None, {"X-Write-Token": token})
+        return code < 400
+
+
+# ---------------------------------------------------------------------------
+# End-to-end encrypted backup (AES-256-GCM). The key never leaves this computer;
+# the player keeps a recovery code. The server stores an opaque blob.
+# ---------------------------------------------------------------------------
+BACKUP_MAGIC = b"FRB1"
+KEYCHAIN_SERVICE = "Forever Relationships backup"
+
+
+def _aesgcm():
+    try:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    except ImportError:
+        raise RuntimeError("cloud backup needs the 'cryptography' package: pip install cryptography (the downloadable apps include it)")
+    return AESGCM
+
+
+def recovery_code(key):
+    b32 = base64.b32encode(key).decode("ascii").rstrip("=")
+    return "-".join(b32[i:i + 4] for i in range(0, len(b32), 4))
+
+
+def key_from_code(code):
+    s = (code or "").replace("-", "").replace(" ", "").upper()
+    s += "=" * (-len(s) % 8)
+    key = base64.b32decode(s)
+    if len(key) != 32:
+        raise ValueError("that recovery code is not valid")
+    return key
+
+
+def backup_ids(key):
+    """Backup address and write token, both derived from the key (the server never sees the key)."""
+    return (hashlib.sha256(b"fr-backup-id:" + key).hexdigest(), hashlib.sha256(b"fr-backup-write:" + key).hexdigest())
+
+
+def encrypt_blob(key, plain):
+    nonce = os.urandom(12)
+    return BACKUP_MAGIC + nonce + _aesgcm()(key).encrypt(nonce, plain, BACKUP_MAGIC)
+
+
+def decrypt_blob(key, blob):
+    if not blob or blob[:4] != BACKUP_MAGIC:
+        raise ValueError("not a Forever Relationships backup")
+    return _aesgcm()(key).decrypt(blob[4:16], blob[16:], BACKUP_MAGIC)
+
+
+def sv_files(wow):
+    """Every Trust Advisor SavedVariables file (account-wide and per character), relative to WTF/Account."""
+    root = os.path.join(wow, "WTF", "Account")
+    out = {}
+    for path in glob.glob(os.path.join(root, "**", "SavedVariables", "TrustAdvisor.lua"), recursive=True):
+        with open(path, "rb") as f:
+            out[os.path.relpath(path, root).replace(os.sep, "/")] = f.read()
+    return out
+
+
+def pack_files(files):
+    return gzip.compress(json.dumps({"v": 1, "files": {k: base64.b64encode(v).decode("ascii") for k, v in files.items()}}).encode("utf-8"))
+
+
+def unpack_files(plain):
+    d = json.loads(gzip.decompress(plain).decode("utf-8"))
+    return {k: base64.b64decode(v) for k, v in d["files"].items()}
+
+
+class KeyStore:
+    """macOS Keychain when available; otherwise a private file next to the companion state."""
+    def __init__(self, use_keychain=None):
+        self.keychain = (platform.system() == "Darwin" and shutil.which("security") is not None) if use_keychain is None else use_keychain
+
+    def _file(self, account):
+        return os.path.join(os.path.dirname(STATE_PATH), "backup-%s.key" % account[:12])
+
+    def load(self, account):
+        if self.keychain:
+            r = subprocess.run(["security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", account, "-w"], capture_output=True, text=True)
+            if r.returncode == 0 and r.stdout.strip():
+                return bytes.fromhex(r.stdout.strip())
+            return None
+        try:
+            with open(self._file(account)) as f:
+                return bytes.fromhex(f.read().strip())
+        except OSError:
+            return None
+
+    def save(self, account, key):
+        if self.keychain:
+            subprocess.run(["security", "add-generic-password", "-U", "-s", KEYCHAIN_SERVICE, "-a", account, "-w", key.hex()],
+                           capture_output=True, check=True)
+            return
+        os.makedirs(os.path.dirname(self._file(account)), exist_ok=True)
+        fd = os.open(self._file(account), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(key.hex())
+
+    def delete(self, account):
+        if self.keychain:
+            subprocess.run(["security", "delete-generic-password", "-s", KEYCHAIN_SERVICE, "-a", account], capture_output=True)
+        else:
+            try:
+                os.remove(self._file(account))
+            except OSError:
+                pass
+
+
+def sync_backup(wow, uploader, client, state, keystore, log=print):
+    """Encrypt and upload the history when it changed. Returns (info, new_recovery_code_or_None)."""
+    key, new_code = keystore.load(uploader), None
+    if key is None:
+        key = os.urandom(32)
+        keystore.save(uploader, key)
+        new_code = recovery_code(key)
+        log("  NEW BACKUP KEY. Save this recovery code in your Passwords app; without it nobody can restore your backup:")
+        log("    " + new_code)
+    files = sv_files(wow)
+    if not files:
+        return None, new_code
+    plain = pack_files(files)
+    digest = hashlib.sha256(plain).hexdigest()
+    st = state.setdefault("backup-" + uploader[:8], {})
+    bid, token = backup_ids(key)
+    if st.get("digest") != digest:
+        res = client.backup_put(bid, token, encrypt_blob(key, plain))
+        st.update(digest=digest, at=res.get("at"), size=res.get("stored"))
+        log("  backup: %d file(s) encrypted and uploaded (%d bytes)" % (len(files), res.get("stored", 0)))
+    return {"at": st.get("at"), "size": st.get("size")}, new_code
+
+
+def restore_backup(code, wow, client, keystore=None, log=print):
+    """Download, decrypt and write back the history (run with the game closed)."""
+    key = key_from_code(code)
+    bid, _ = backup_ids(key)
+    blob, at = client.backup_get(bid)
+    if blob is None:
+        raise RuntimeError("no backup found for that recovery code")
+    files = unpack_files(decrypt_blob(key, blob))
+    root = os.path.join(wow, "WTF", "Account")
+    for rel, data in files.items():
+        if ".." in rel.split("/"):
+            continue
+        path = os.path.join(root, *rel.split("/"))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if os.path.exists(path):
+            os.replace(path, path + ".before-restore")
+        with open(path, "wb") as f:
+            f.write(data)
+    uploader = None
+    for rel, data in files.items():
+        if rel.count("/") == 2:   # <ACCOUNT>/SavedVariables/TrustAdvisor.lua
+            db = parse_saved_variables(data.decode("utf-8", "replace")).get("TrustAdvisorDB") or {}
+            uploader = (db.get("cloud") or {}).get("uploaderId")
+    if uploader:
+        (keystore or KeyStore()).save(uploader, key)   # future backups keep using the same key
+    log("Restored %d file(s) from the backup of %s. Start the game to see your history." % (
+        len(files), time.strftime("%Y-%m-%d %H:%M", time.localtime(int(at))) if at else "?"))
+    return len(files)
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +484,7 @@ def find_saved_variables(wow):
 
 
 def netdata_path(wow):
-    return os.path.join(wow, "Interface", "AddOns", "TrustAdvisor", "Network", "NetData.lua")
+    return os.path.join(wow, "Interface", "AddOns", "TrustAdvisor", "Cloud", "NetData.lua")
 
 
 def sync_feedback(db, client, state, log=print):
@@ -331,74 +507,57 @@ def sync_feedback(db, client, state, log=print):
     return statuses
 
 
-def sync_file(sv_path, client, wow, state, log=print):
+def sync_file(sv_path, client, wow, state, log=print, keystore=None):
+    """One sync for one WoW account. Returns a dict (newRecoveryCode when a backup key was just created)."""
     with open(sv_path, encoding="utf-8", errors="replace") as f:
         sv = parse_saved_variables(f.read())
     db = sv.get("TrustAdvisorDB") or {}
-    params = db.get("params") or {}
-    net = db.get("net") or {}
-    companion = {"version": VERSION, "syncedAt": int(time.time())}
+    keystore = keystore or KeyStore()
+    data = {"protocol": PROTOCOL, "generatedAt": int(time.time()), "companion": {"version": VERSION, "syncedAt": int(time.time())}}
+    result = {}
 
-    # In-game feedback: sent whenever the player pressed Send, network or not.
-    feedback = sync_feedback(db, client, state, log)
-    offline = {"protocol": PROTOCOL, "generatedAt": 0, "players": {}, "companion": companion}
-    if feedback is not None:
-        offline["feedback"] = feedback
-
-    uploader = net.get("uploaderId")
-    if not uploader:
-        write_netdata(netdata_path(wow), offline)
-        log("  network never joined: only feedback synced")
-        return True
-    st = state.setdefault(uploader[:8], {})
-
-    # data rights first: a deletion request is honored even after leaving
-    if net.get("deleteRequested") and st.get("deletedFor") != net["deleteRequested"]:
-        res = client.upload({"uploaderId": uploader, "protocol": PROTOCOL, "deleteRequested": True})
-        st["deletedFor"] = net["deleteRequested"]
-        log("  deletion sent: %s" % res)
-        write_netdata(netdata_path(wow), offline)
-        return True
-
-    if params.get("consent.network") is not True:
-        write_netdata(netdata_path(wow), offline)
-        log("  consent.network is off: only feedback synced")
-        return True
-
-    outbox = net.get("outbox") or {}
-    characters = [{"guid": g, "name": c.get("name", ""), "guild": c.get("guild", ""),
-                   **{k: c[k] for k in ("class", "race", "faction", "level", "realm", "locale") if c.get(k) is not None}}
-                  for g, c in (net.get("characters") or {}).items() if isinstance(c, dict)]
-    sent_disputes = set(st.get("disputes", []))
-    disputes = [{"id": d.get("id"), "reason": d.get("reason", "")} for d in as_list(net.get("disputes"))
-                if isinstance(d, dict) and d.get("id") not in sent_disputes]
-    if outbox.get("witness") and (outbox.get("builtAt") != st.get("builtAt") or disputes):
-        body = {"uploaderId": uploader, "protocol": PROTOCOL, "witness": outbox["witness"],
-                "witnessGuild": outbox.get("witnessGuild", ""), "characters": characters,
-                "reports": [{k: r[k] for k in ("s", "d", "x", "m", "t", "k") if k in r} for r in as_list(outbox.get("reports"))],
-                "presence": [{"a": int(p["a"]), "b": int(p["b"]), "m": as_list(p.get("m"))}
-                             for p in as_list(outbox.get("presence")) if isinstance(p, dict)],
-                "disputes": disputes}
-        res = client.upload(body)
-        st["builtAt"] = outbox.get("builtAt")
-        st["disputes"] = sorted(sent_disputes | {d["id"] for d in disputes})
-        log("  uploaded: %s" % res)
-
-    guids = [g for g in (db.get("players") or {}) if isinstance(g, str)]
-    players = client.players(guids) if guids else {}
-    me = {"events": client.self_events(uploader)}
-    try:
-        status = client.auth_status(uploader)
-        me["linked"] = bool(status.get("linked"))
-        me["verifiedCharacters"] = int(status.get("characters") or 0)
-    except RuntimeError:
-        pass
-    data = {"protocol": PROTOCOL, "generatedAt": int(time.time()), "players": players, "me": me, "companion": companion}
+    feedback = sync_feedback(db, client, state, log)   # sent whenever the player pressed Send
     if feedback is not None:
         data["feedback"] = feedback
+
+    cloud = db.get("cloud") or {}
+    uploader, outbox = cloud.get("uploaderId"), cloud.get("outbox") or {}
+    if uploader:
+        st = state.setdefault(uploader[:8], {})
+        if cloud.get("deleteRequested") and st.get("deletedFor") != cloud["deleteRequested"]:
+            client.sync({"uploaderId": uploader, "protocol": PROTOCOL, "deleteRequested": True, "me": outbox.get("me")})
+            key = keystore.load(uploader)
+            if key:
+                bid, token = backup_ids(key)
+                client.backup_delete(bid, token)
+                keystore.delete(uploader)
+            st["deletedFor"] = cloud["deleteRequested"]
+            log("  cloud data deleted and excluded")
+        elif outbox:
+            consents = {k: bool((outbox.get("consents") or {}).get(k)) for k in ("backup", "profile", "community", "recommend")}
+            body = {"uploaderId": uploader, "protocol": PROTOCOL, "consents": consents, "me": outbox.get("me"),
+                    "profile": outbox.get("profile"), "community": as_list(outbox.get("community")), "lookups": as_list(outbox.get("lookups"))}
+            res = client.sync(body)
+            data["profiles"] = res.get("profiles") or {}
+            data["suggestions"] = res.get("suggestions") or []
+            data["me"] = res.get("me") or {}
+            if res.get("storedSessions"):
+                log("  community: %d new session(s) shared" % res["storedSessions"])
+            if consents["backup"]:
+                info, code = sync_backup(wow, uploader, client, state, keystore, log)
+                data["backup"] = info
+                if code:
+                    result["newRecoveryCode"] = code
+            else:
+                key = keystore.load(uploader)
+                if key:   # consent withdrawn: the backup is deleted
+                    bid, token = backup_ids(key)
+                    client.backup_delete(bid, token)
+                    keystore.delete(uploader)
+                    log("  backup turned off: deleted from the cloud")
     write_netdata(netdata_path(wow), data)
-    log("  network view: %d players with network data, %d events about you -> %s" % (len(players), len(me["events"]), netdata_path(wow)))
-    return True
+    log("  synced -> %s" % netdata_path(wow))
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -408,7 +567,7 @@ def find_uploader_id(wow):
     for sv in find_saved_variables(wow):
         with open(sv, encoding="utf-8", errors="replace") as f:
             db = parse_saved_variables(f.read()).get("TrustAdvisorDB") or {}
-        uid = (db.get("net") or {}).get("uploaderId")
+        uid = (db.get("cloud") or {}).get("uploaderId") or (db.get("net") or {}).get("uploaderId")
         if uid:
             return uid
     return None
@@ -417,7 +576,7 @@ def find_uploader_id(wow):
 def link_battlenet(client, wow, region, open_browser=webbrowser.open, wait=300, poll=5, log=print):
     uid = find_uploader_id(wow)
     if not uid:
-        log("Join the network in game first (Transparency > Network), then log out or /reload once.")
+        log("Turn on a cloud layer in game first (Privacy), then log out or /reload once.")
         return False
     url = client.auth_begin(uid, region)
     log("Opening Battle.net login in your browser. If it does not open, visit:\n  " + url)
@@ -521,6 +680,10 @@ def uninstall_autostart():
 # macOS app mode: double-clicking "Trust Advisor Companion.app" (no arguments)
 # installs the background service and offers the Battle.net link with native dialogs.
 # ---------------------------------------------------------------------------
+def is_mac_app_bundle():
+    return platform.system() == "Darwin" and getattr(sys, "frozen", False) and ".app/Contents/MacOS/" in sys.executable
+
+
 def is_mac_app_launch(argv):
     return (platform.system() == "Darwin" and getattr(sys, "frozen", False)
             and ".app/Contents/MacOS/" in sys.executable and not argv)
@@ -547,19 +710,29 @@ def mac_choose_region():
     return out.split("(")[-1].rstrip(")")
 
 
+def mac_show_code(code):
+    """Recovery code in a dialog with a selectable text field (copy it into Passwords)."""
+    _osascript('display dialog "Your cloud backup RECOVERY CODE. Save it in your Passwords app now: without it, nobody (not even us) '
+               'can restore your backup." default answer "%s" with title "Forever Relationships" buttons {"I saved it"} '
+               'default button "I saved it" with icon caution' % code)
+
+
 def mac_app_main(wow, client):
     install_autostart([])
-    msg = "Trust Advisor Companion is installed and will run in the background whenever your Mac starts."
+    msg = "Forever Relationships Companion is installed and runs in the background whenever your Mac starts."
     uid = find_uploader_id(wow) if wow else None
     if not uid:
-        mac_dialog(msg + "\n\nNext: in game, turn on 'Join the Trust Advisor Network' (Transparency > Network) and /reload. "
-                   "Then open this app again to link your Battle.net account.", ("OK",))
+        mac_dialog(msg + "\n\nNext: in game, turn on a cloud layer you want (/fr privacy) and /reload. "
+                   "Open this app again anytime to link Battle.net or see your backup recovery code.", ("OK",))
         return 0
+    key = KeyStore().load(uid)
+    if key and mac_dialog(msg + "\n\nYour cloud backup is on.", ("OK", "Show recovery code")) == "Show recovery code":
+        mac_show_code(recovery_code(key))
     if client.auth_status(uid).get("linked"):
-        mac_dialog(msg + "\n\nYour Battle.net account is already linked. You're all set.", ("OK",))
+        mac_dialog("Your Battle.net account is linked. You're all set.", ("OK",))
         return 0
-    if mac_dialog(msg + "\n\nLink your Battle.net account now? This lets your reports count as a witness. "
-                  "Only a one-way hash of your account id is stored.", ("Later", "Link Battle.net")) != "Link Battle.net":
+    if mac_dialog("Link your Battle.net account? It proves your characters are yours, so your public profile can show "
+                  "Official data. Only a one-way code of your account id is stored.", ("Later", "Link Battle.net")) != "Link Battle.net":
         return 0
     region = mac_choose_region()
     if not region:
@@ -578,7 +751,9 @@ def main(argv=None):
     ap.add_argument("--interval", type=int, default=30, help="seconds between checks in watch mode")
     ap.add_argument("--install", action="store_true", help="start the companion automatically with your computer")
     ap.add_argument("--uninstall", action="store_true", help="remove the automatic start")
-    ap.add_argument("--link", action="store_true", help="link your Battle.net account (needed for your negatives to count)")
+    ap.add_argument("--link", action="store_true", help="link your Battle.net account (proves your characters are yours)")
+    ap.add_argument("--restore", metavar="CODE", help="restore your history from the cloud backup (game closed)")
+    ap.add_argument("--show-recovery-code", action="store_true", help="show the recovery code of your cloud backup again")
     ap.add_argument("--region", default="us", choices=["us", "eu", "kr", "tw"], help="Battle.net region for --link")
     ap.add_argument("--watch", action="store_true", help="keep syncing in the background (default when no other action)")
     ap.add_argument("--version", action="version", version="Trust Advisor companion " + VERSION)
@@ -610,6 +785,14 @@ def main(argv=None):
         ap.error("WoW: Forever folder not found; pass --wow")
     if args.link:
         return 0 if link_battlenet(client, wow, args.region) else 1
+    if args.restore:
+        restore_backup(args.restore, wow, client)
+        return 0
+    if args.show_recovery_code:
+        uid = find_uploader_id(wow)
+        key = uid and KeyStore().load(uid)
+        print(recovery_code(key) if key else "No cloud backup key on this computer.")
+        return 0
     state = load_state()
     seen = {}
     print("Trust Advisor companion %s - %s - server %s" % (VERSION, wow, args.server))
@@ -621,8 +804,10 @@ def main(argv=None):
             seen[sv] = mtime
             print("[%s] %s changed" % (time.strftime("%H:%M:%S"), sv))
             try:
-                sync_file(sv, client, wow, state)
+                res = sync_file(sv, client, wow, state)
                 save_state(state)
+                if res.get("newRecoveryCode") and is_mac_app_bundle():
+                    mac_show_code(res["newRecoveryCode"])
             except Exception as e:  # keep watching on network/parse errors
                 print("  sync failed: %s" % e)
                 seen.pop(sv, None)

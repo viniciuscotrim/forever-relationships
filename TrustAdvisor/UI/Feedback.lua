@@ -35,9 +35,9 @@ function FB:Diagnostics()
   local d = {
     addon = TA.version, build = tostring(build), interface = tostring(iface),
     locale = GetLocale and GetLocale() or "?",
-    companion = TA.Network and TA.Network:CompanionStatus() or "?",
-    companionVersion = TA.Network and TA.Network:CompanionVersion() or nil,
-    network = TA.Params:Get("consent.network") and true or false,
+    companion = TA.Cloud and TA.Cloud:CompanionStatus() or "?",
+    companionVersion = TA.Cloud and TA.Cloud:CompanionVersion() or nil,
+    layers = (TA.Params:Get("consent.backup") and "B" or "") .. (TA.Params:Get("consent.profile") and "P" or "") .. (TA.Params:Get("consent.community") and "C" or ""),
     players = 0, events = TA.Log.count, unavailable = {}, errors = {},
   }
   for _ in pairs(TA.db.players) do d.players = d.players + 1 end
@@ -57,7 +57,7 @@ function FB:DiagnosticsText(d)
   d = d or self:Diagnostics()
   local L = {
     "Trust Advisor " .. d.addon .. " · client " .. d.build .. " · interface " .. d.interface .. " · " .. d.locale,
-    "Companion: " .. d.companion .. (d.companionVersion and (" (" .. d.companionVersion .. ")") or "") .. " · network " .. (d.network and "on" or "off"),
+    "Companion: " .. d.companion .. (d.companionVersion and (" (" .. d.companionVersion .. ")") or "") .. " · layers " .. (d.layers ~= "" and d.layers or "none"),
     string.format("%d players known, %d events recorded", d.players, d.events),
     "Unavailable features: " .. (#d.unavailable > 0 and table.concat(d.unavailable, "; ") or "none"),
   }
@@ -104,11 +104,11 @@ function FB:StatusText(report)
 end
 
 function FB:DeliveryNote()
-  if TA.Network and TA.Network:CompanionSeen() then
+  if TA.Cloud and TA.Cloud:CompanionSeen() then
     return "|cff66ff66Sent automatically the next time you log out or /reload.|r"
   end
   return "|cffff9933Addons can't use the internet: your report is saved on this computer and sent automatically as soon as the free "
-    .. "Trust Advisor companion app runs here (setup: /ta network). Status and replies show up in this window.|r"
+    .. "Trust Advisor companion app runs here (setup: /ta cloud). Status and replies show up in this window.|r"
 end
 
 -------------------------------------------------------------------------------
@@ -157,8 +157,8 @@ local function Build()
     local ok, res = FB:Submit(f.kind, f.edit:GetText(), f.withDiag)
     if not ok then TA.Print(res); return end
     f.edit:SetText(""); f.edit:ClearFocus(); f.hint:Show()
-    TA.Print("Thanks! Feedback saved. " .. (TA.Network:CompanionSeen() and "It will be sent on your next logout or /reload."
-      or "It will be sent when the companion app runs (/ta network)."))
+    TA.Print("Thanks! Feedback saved. " .. (TA.Cloud:CompanionSeen() and "It will be sent on your next logout or /reload."
+      or "It will be sent when the companion app runs (/ta cloud)."))
     f:Refresh()
   end)
   f.send:SetPoint("TOPRIGHT", bg, "BOTTOMRIGHT", 0, -22)

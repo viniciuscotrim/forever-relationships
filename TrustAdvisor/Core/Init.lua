@@ -2,8 +2,8 @@
 local ADDON, TA = ...
 TA = TA or {}
 TA.name = ADDON or "TrustAdvisor"
-TA.version = "0.3.0"
-TA.SCHEMA = 1
+TA.version = "0.4.0"
+TA.SCHEMA = 2
 TA.PREFIX = "TrustAdv"
 
 -------------------------------------------------------------------------------
@@ -263,10 +263,7 @@ local DB_DEFAULTS = {
   nextEventId = 1,
   players = {},         -- identity cache: guid -> {name, class, level, lastSeen, guilds}
   active = nil,         -- in-progress session (crash safe)
-  signups = {},         -- raid signup plans
-  softReserves = {},    -- itemID -> { "Name-Realm", ... }
-  obligations = {},     -- unused store kept for ledger UI state
-  peerEndorseSeen = {}, -- dedupe of peer endorsements
+  ui = {},              -- tooltipFields etc.
   debug = false,
   invisible = false,
   errors = {},          -- Trust Advisor's own errors (deduplicated), for feedback reports
@@ -275,10 +272,8 @@ local DB_DEFAULTS = {
 
 local CHAR_DEFAULTS = {
   schemaVersion = TA.SCHEMA,
-  affinity = {},        -- guid -> { sessions = { {s,e,zone,chat,hour,wday} }, note, privateNo, privateYes }
   ui = {},
   suggestDismissed = {},
-  endorseGiven = {},    -- guid -> last endorsement time
 }
 
 local function ApplyDefaults(t, defaults)
@@ -289,7 +284,29 @@ end
 
 -- Migration steps keyed by the version they upgrade *to*.
 TA.Migrations = {
-  -- [2] = function(db, cdb) ... end,
+  -- v2 (GDD v2): game data only. Opinions and manual inputs from v1 are deleted:
+  -- notes, private yes/no, endorsements, debts, soft reserves, raid signups.
+  [2] = function(db, cdb)
+    local drop = { endorse = true, obligation = true, lootNeed = true, attendance = true }
+    local kept = {}
+    for _, ev in ipairs(db.events or {}) do
+      if not drop[ev.signal] then
+        if ev.signal == "member" and ev.details then ev.details.srRolls, ev.details.carry = nil, nil end
+        kept[#kept + 1] = ev
+      end
+    end
+    db.events = kept
+    db.signups, db.softReserves, db.obligations, db.peerEndorseSeen = nil, nil, nil, nil
+    if db.net then
+      db.cloud = db.cloud or {}
+      db.cloud.uploaderId = db.cloud.uploaderId or db.net.uploaderId
+      db.net = nil
+    end
+    if db.params then
+      for k in pairs(db.params) do if not TA.Params.byKey[k] then db.params[k] = nil end end
+    end
+    cdb.affinity, cdb.endorseGiven = nil, nil
+  end,
 }
 
 function TA:Migrate(db, cdb)

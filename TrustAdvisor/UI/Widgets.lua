@@ -4,22 +4,8 @@ local _, TA = ...
 local UI = { views = {} }
 TA.UI = UI
 
-UI.BAND_COLORS = {
-  Unknown   = { 0.60, 0.60, 0.60 },
-  Concern   = { 1.00, 0.55, 0.15 },
-  Building  = { 0.95, 0.85, 0.35 },
-  Solid     = { 0.35, 0.85, 0.40 },
-  Exemplary = { 0.40, 0.75, 1.00 },
-}
-
-function UI.BandHex(band)
-  local c = UI.BAND_COLORS[band] or UI.BAND_COLORS.Unknown
-  return string.format("ff%02x%02x%02x", c[1] * 255, c[2] * 255, c[3] * 255)
-end
-
-function UI.BandText(band)
-  return "|c" .. UI.BandHex(band) .. band .. "|r"
-end
+UI.GOLD = "|cffe8b94a"
+UI.MUTED = "|cff8f97ab"
 
 function UI.ClassColored(name, class)
   local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
@@ -28,6 +14,19 @@ function UI.ClassColored(name, class)
 end
 
 UI.NONDEFAULT_MARK = "|cffff9933*|r"
+
+-- Selected tooltip fields (account-wide), at most TA.Rel.MAX_TOOLTIP
+function UI.TooltipFields()
+  local f = TA.db.ui and TA.db.ui.tooltipFields
+  if type(f) ~= "table" or #f == 0 then return TA.Rel.DEFAULT_TOOLTIP end
+  return f
+end
+
+function UI.SetTooltipFields(list)
+  TA.db.ui = TA.db.ui or {}
+  TA.db.ui.tooltipFields = list
+  TA:Fire("DATA_CHANGED")
+end
 
 function UI.Label(parent, text, template)
   local fs = parent:CreateFontString(nil, "OVERLAY", template or "GameFontHighlight")
@@ -158,67 +157,3 @@ function UI.ShowText(title, text)
   textWindow:Show()
 end
 
--- Band strip: one small square per trust dimension
-function UI.BandStrip(parent, size)
-  local strip = CreateFrame("Frame", nil, parent)
-  size = size or 10
-  strip:SetSize(#TA.Dimensions.list * (size + 2), size)
-  strip.cells = {}
-  for i, d in ipairs(TA.Dimensions.list) do
-    local cell = CreateFrame("Frame", nil, strip)
-    cell:SetSize(size, size)
-    cell:SetPoint("LEFT", (i - 1) * (size + 2), 0)
-    cell.tex = cell:CreateTexture(nil, "ARTWORK")
-    cell.tex:SetAllPoints()
-    cell.key = d.key
-    cell:EnableMouse(true)
-    cell:SetScript("OnEnter", function(self)
-      if not self.result then return end
-      GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:SetText(self.result.label, 1, 1, 1)
-      GameTooltip:AddLine(UI.BandText(self.result.band) .. "  ·  confidence " .. self.result.confidence)
-      GameTooltip:Show()
-    end)
-    cell:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    strip.cells[i] = cell
-  end
-  function strip:SetProfile(prof)
-    for _, cell in ipairs(self.cells) do
-      local r = prof.dims[cell.key]
-      cell.result = r
-      local c = UI.BAND_COLORS[r.band]
-      cell.tex:SetColorTexture(c[1], c[2], c[3], r.band == "Unknown" and 0.25 or 0.95)
-    end
-  end
-  return strip
-end
-
--- Shared affinity summary text (private, shown to you only)
-function UI.AffinitySummary(guid)
-  local a = TA.cdb.affinity[guid]
-  if not a or not a.sessions or #a.sessions == 0 then return "No sessions together yet." end
-  local window = TA.Params:Get("affinity.windowDays") * 86400
-  local now = TA.Now()
-  local n, total, last, hours, wdays, chat = 0, 0, 0, {}, {}, 0
-  for _, s in ipairs(a.sessions) do
-    if now - s.s <= window then
-      n = n + 1
-      total = total + (s.e - s.s)
-      last = math.max(last, s.e)
-      chat = chat + (s.chat or 0)
-      if s.hour then hours[s.hour] = (hours[s.hour] or 0) + 1 end
-      if s.wday then wdays[s.wday] = (wdays[s.wday] or 0) + 1 end
-    end
-  end
-  if n == 0 then return "No sessions in the last " .. TA.Params:Get("affinity.windowDays") .. " days." end
-  local evening, morning, afternoon, night, weekend, weekday = 0, 0, 0, 0, 0, 0
-  for h, c in pairs(hours) do
-    if h >= 18 then evening = evening + c elseif h >= 12 then afternoon = afternoon + c
-    elseif h >= 6 then morning = morning + c else night = night + c end
-  end
-  for d, c in pairs(wdays) do if d == 0 or d == 6 then weekend = weekend + c else weekday = weekday + c end end
-  local part = ({ [evening] = "evenings", [afternoon] = "afternoons", [morning] = "mornings", [night] = "late nights" })[math.max(evening, afternoon, morning, night)]
-  local days = weekday >= weekend and "weekday" or "weekend"
-  return string.format("Grouped %d time%s, %s total, last %s. You played together mostly %s %s. %d party messages counted (text never stored).",
-    n, n == 1 and "" or "s", TA.FormatDuration(total), TA.FormatAgo(last), days, part or "", chat)
-end

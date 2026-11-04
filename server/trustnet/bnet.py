@@ -55,7 +55,7 @@ class BattleNet:
         return str(self._json(req)["sub"])
 
     def forever_characters(self, token, region):
-        """GUIDs of the account's Forever characters. [] if none or not available yet."""
+        """The account's Forever characters: [{guid, name, realm_slug}]. [] if none or not available yet."""
         url = "https://%s.api.blizzard.com/profile/user/wow?namespace=profile-forever-%s&locale=en_US" % (region, region)
         req = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
         try:
@@ -65,7 +65,39 @@ class BattleNet:
         out = []
         for acct in d.get("wow_accounts", []):
             for ch in acct.get("characters", []):
-                realm = (ch.get("realm") or {}).get("id")
-                if realm is not None and ch.get("id") is not None:
-                    out.append(forever_guid(realm, ch["id"]))
+                realm = ch.get("realm") or {}
+                if realm.get("id") is not None and ch.get("id") is not None:
+                    out.append({"guid": forever_guid(realm["id"], ch["id"]), "name": ch.get("name"), "realm_slug": realm.get("slug")})
         return out
+
+    # -- official data (client credentials), for "Official" public-profile items
+    _app_token = (None, 0)
+
+    def app_token(self, now):
+        tok, exp = self._app_token
+        if tok and exp > now + 60:
+            return tok
+        data = urllib.parse.urlencode({"grant_type": "client_credentials"}).encode("ascii")
+        basic = base64.b64encode(("%s:%s" % (self.client_id, self.client_secret)).encode("utf-8")).decode("ascii")
+        req = urllib.request.Request(TOKEN_URL, data=data, method="POST",
+                                     headers={"Authorization": "Basic " + basic, "Content-Type": "application/x-www-form-urlencoded"})
+        d = self._json(req)
+        self._app_token = (d["access_token"], now + int(d.get("expires_in", 3600)))
+        return d["access_token"]
+
+    def official_profile(self, region, realm_slug, name, now):
+        """{level, achievementPoints, lastLogin} from Blizzard's Forever profile API, or None."""
+        if not (region in REGIONS and realm_slug and name):
+            return None
+        url = "https://%s.api.blizzard.com/profile/wow/character/%s/%s?namespace=profile-forever-%s&locale=en_US" % (
+            region, urllib.parse.quote(realm_slug), urllib.parse.quote(name.lower()), region)
+        try:
+            d = self._json(urllib.request.Request(url, headers={"Authorization": "Bearer " + self.app_token(now)}))
+        except (RuntimeError, OSError, ValueError, KeyError):
+            return None
+        out = {}
+        if isinstance(d.get("level"), int):
+            out["level"] = d["level"]
+        if isinstance(d.get("achievement_points"), int):
+            out["achievementPoints"] = d["achievement_points"]
+        return out or None

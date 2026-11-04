@@ -1,53 +1,51 @@
--- First-run welcome: what Trust Advisor does, and every sharing choice in one
--- place. Everything starts OFF (GDD 11); nothing is shared until you choose.
+-- First-run welcome: what Trust Advisor is (an augmented view of your
+-- relationships, from game data only) and the four layers, each with its own
+-- plain-language consent. Everything that leaves your computer starts OFF.
 local _, TA = ...
 local UI = TA.UI
 
 local CHOICES = {
-  { key = "consent.endorsePrompts", label = "Ask \"Play with them again?\" after long sessions", note = "Local only unless you also share endorsements." },
-  { key = "consent.shareEndorsements", label = "Share my endorsements with the people I endorse", note = "Needs Trust Advisor on their side." },
-  { key = "consent.shareQuests", label = "Tell my group when I turn in a quest", note = "Lets partners credit you for staying to help." },
-  { key = "consent.shareAttunements", label = "Share my attunements with my group", note = "Shown to them as self-reported." },
-  { key = "presence.enabled", label = "Show me to nearby Trust Advisor users", note = "Zone, level, LFG flag. Invisible mode stops it anytime." },
-  { key = "consent.network", label = "Join the Trust Advisor Network", note = "Needs the free companion app (/ta network)." },
+  { key = "consent.backup", label = "Cloud backup", note = "Keep your history even after reinstalling. Encrypted: only you can read it.", text = "backup" },
+  { key = "consent.profile", label = "Public profile", note = "Show others the numbers YOU pick about yourself.", text = "profile" },
+  { key = "consent.community", label = "Community", note = "Help anonymous statistics about how people play together.", text = "community" },
+  { key = "consent.recommend", label = "Recommend me", note = "Be suggested to other players who also opted in.", text = "recommend" },
 }
 
 local frame
-
 local function Build()
-  local f = UI.Window("TrustAdvisorWelcome", 560, 460, "DIALOG")
+  local f = UI.Window("TrustAdvisorWelcome", 580, 470, "DIALOG")
   UI.Label(f, "Welcome to Trust Advisor", "GameFontNormalLarge"):SetPoint("TOP", 0, -30)
   local intro = UI.Label(f,
-    "Trust Advisor remembers how the people you group with actually behave: finishing runs, paying debts, loot honesty, "
-    .. "helping, generosity. It uses only what your game witnessed, and it is fair: new players start as Unknown, "
-    .. "mistakes fade, and disconnects or kicks are excused. Every rule is visible and editable in the Transparency tab.\n\n"
-    .. "Nothing leaves your computer unless you turn it on below. You can change these anytime (Transparency › Parameters).\n\n"
-    .. "Found a bug or have an idea? Type /ta feedback. You never need to leave the game.",
+    "Trust Advisor shows how you've related to the people around you: time together, dungeons completed, "
+    .. "kills, trades, help, quests. It only uses what the game itself records while you play together. "
+    .. "No chat, no opinions, no scores.\n\nHover a player to see your history with them, or right-click and choose Relationship. "
+    .. "On this computer it works right away. Everything below is optional, starts off, and needs the free companion app.",
     "GameFontHighlight")
-  intro:SetPoint("TOPLEFT", 20, -56)
-  intro:SetWidth(520)
+  intro:SetPoint("TOPLEFT", 20, -56); intro:SetWidth(540)
   f.rows = {}
   for i, c in ipairs(CHOICES) do
-    local y = -196 - (i - 1) * 34
-    local b = UI.Button(f, "", 64, 22)
-    b:SetPoint("TOPLEFT", 20, y)
+    local y = -186 - (i - 1) * 46
+    local b = UI.Button(f, "", 64, 22); b:SetPoint("TOPLEFT", 20, y)
     local l = UI.Label(f, c.label, "GameFontHighlight"); l:SetPoint("TOPLEFT", 94, y - 1)
-    local n = UI.Label(f, c.note, "GameFontDisableSmall"); n:SetPoint("TOPLEFT", 94, y - 15)
+    local n = UI.Label(f, c.note, "GameFontDisableSmall"); n:SetPoint("TOPLEFT", 94, y - 16); n:SetWidth(380)
+    local d = UI.Button(f, "Details", 70, 20, function() UI.ShowText(c.label, UI.CONSENT_TEXT[c.text]) end)
+    d:SetPoint("TOPLEFT", 490, y)
     b:SetScript("OnClick", function()
       TA.Params:Set(c.key, not TA.Params:Get(c.key))
+      if TA.Params:Get(c.key) then UI.ShowText(c.label, UI.CONSENT_TEXT[c.text]) end
       f:Refresh()
-      if c.key == "consent.network" and TA.Params:Get(c.key) then UI.ShowText("Trust Advisor Network", TA.Network:SetupText()) end
     end)
     f.rows[i] = { button = b, key = c.key }
   end
-  local done = UI.Button(f, "Done", 120, 24, function() f:Hide() end)
-  done:SetPoint("BOTTOMRIGHT", -16, 14)
-  local open = UI.Button(f, "Open Trust Advisor", 160, 24, function() f:Hide(); UI:Open("players") end)
+  local fb = UI.Label(f, "Found a bug or have an idea? Type /ta feedback. You never need to leave the game.", "GameFontHighlightSmall")
+  fb:SetPoint("BOTTOMLEFT", 20, 46)
+  local done = UI.Button(f, "Done", 120, 24, function() f:Hide() end); done:SetPoint("BOTTOMRIGHT", -16, 14)
+  local open = UI.Button(f, "Open Trust Advisor", 160, 24, function() f:Hide(); UI:Open("circle") end)
   open:SetPoint("RIGHT", done, "LEFT", -8, 0)
+  local comp = UI.Button(f, "Companion app", 130, 24, function() UI.ShowText("Companion app", TA.Cloud:SetupText()) end)
+  comp:SetPoint("BOTTOMLEFT", 16, 14)
   function f:Refresh()
-    for _, r in ipairs(self.rows) do
-      r.button:SetText(TA.Params:Get(r.key) and "|cff66ff66On|r" or "|cffaaaaaaOff|r")
-    end
+    for _, r in ipairs(self.rows) do r.button:SetText(TA.Params:Get(r.key) and "|cff66ff66On|r" or "|cffaaaaaaOff|r") end
   end
   return f
 end
@@ -60,10 +58,10 @@ function UI.ShowWelcome()
 end
 
 TA:Listen("LOGIN", function()
-  if TA.db.welcomed then return end
+  if TA.db.welcomed == "v2" then return end
   C_Timer.After(6, function()
     if TA.InCombat() then return end
-    TA.db.welcomed = TA.version
+    TA.db.welcomed = "v2"   -- v1 users see the new layers once
     UI.ShowWelcome()
   end)
 end)

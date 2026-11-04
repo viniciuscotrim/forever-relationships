@@ -11,7 +11,7 @@ TA:RegisterCapture("roster", "Group roster and sessions", "GROUP_ROSTER_UPDATE, 
 TA:RegisterCapture("encounters", "Boss kills and wipes", "ENCOUNTER_END, BOSS_KILL")
 TA:RegisterCapture("leaves", "Voluntary-leave detection", "CHAT_MSG_SYSTEM (ERR_LEFT_GROUP_S)")
 TA:RegisterCapture("connection", "Disconnects", "UNIT_CONNECTION")
-TA:RegisterCapture("chatCount", "Party chat message counts (text discarded)", "CHAT_MSG_PARTY")
+TA:RegisterCapture("questieChat", "Questie announcements (fixed pattern only)", "CHAT_MSG_PARTY")
 
 local RANK = { quest = 1, dungeon = 2, raid = 3 }
 
@@ -44,9 +44,11 @@ local function ReadUnit(unit)
   name, realm = TA.Clean(name), TA.Clean(realm)
   if not name or name == UNKNOWNOBJECT then return nil end
   local _, classFile = UnitClass(unit)
+  local _, raceFile = UnitRace(unit)
   local guild = TA.SafeCall(GetGuildInfo, unit)
   return {
     guid = guid, name = TA.FullName(name, realm), class = TA.Clean(classFile),
+    race = TA.Clean(raceFile), faction = TA.Clean((UnitFactionGroup(unit))),
     level = TA.Clean(UnitLevel(unit)), guild = guild,
     connected = TA.Clean(UnitIsConnected(unit)),
   }
@@ -87,6 +89,8 @@ function Sessions:TouchPlayer(u)
   end
   p.name = u.name or p.name
   p.class = u.class or p.class
+  p.race = u.race or p.race
+  p.faction = u.faction or p.faction
   p.level = u.level or p.level
   p.lastSeen = TA.Now()
   local g = u.guild or ""
@@ -172,8 +176,8 @@ function Sessions:Scan()
       self:TouchPlayer(u)
       local m = s.members[u.guid]
       if not m then
-        m = { name = u.name, class = u.class, level = u.level, guild = u.guild, intervals = {},
-              lootTimes = {}, chat = 0, srRolls = 0, isSelf = (u.guid == TA.playerGUID) }
+        m = { name = u.name, class = u.class, race = u.race, faction = u.faction, level = u.level, guild = u.guild,
+              intervals = {}, lootTimes = {}, isSelf = (u.guid == TA.playerGUID) }
         s.members[u.guid] = m
         TA:Fire("MEMBER_JOINED", u.guid, m)
       end
@@ -241,8 +245,8 @@ function Sessions:End(why)
       signal = "member", sessionId = s.id, subjectGUID = guid, subjectName = m.name,
       source = "game", api = "GROUP_ROSTER_UPDATE", t = endedAt,
       details = {
-        class = m.class, level = m.level, guild = m.guild, intervals = m.intervals,
-        lootTimes = m.lootTimes, srRolls = m.srRolls, carry = m.carry, isSelf = m.isSelf,
+        class = m.class, race = m.race, faction = m.faction, level = m.level, guild = m.guild,
+        intervals = m.intervals, lootTimes = m.lootTimes, isSelf = m.isSelf,
       },
     })
   end
@@ -358,45 +362,38 @@ if hooksecurefunc then
   end
 end
 
--- Party chat: count messages per sender, discard the text immediately.
--- The only text ever inspected is a Questie announcement prefix (Capture/Questie.lua).
+-- Party chat is NOT recorded (not even message counts). The only lines ever
+-- inspected are Questie's automatic announcements, matched by their fixed
+-- prefix (Capture/Questie.lua); everything else is ignored unread.
 local function OnGroupChat(event, text, sender, _, _, _, _, _, _, _, _, _, guid)
   local s = Sessions:Active()
-  if not s then return end
+  if not s or not TA.Questie then return end
   guid = TA.Clean(guid)
-  if not guid then return end
+  if not guid or guid == TA.playerGUID or TA.IsSecret(text) then return end
   local m = s.members[guid]
-  if m then m.chat = (m.chat or 0) + 1 end
-  if TA.Questie and not TA.IsSecret(text) and guid ~= TA.playerGUID then
-    TA.Questie:Inspect(text, guid, m and m.name or TA.Clean(sender))
-  end
-  text = nil -- never stored
+  TA.Questie:Inspect(text, guid, m and m.name or TA.Clean(sender))
 end
 for _, ev in ipairs({ "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER",
   "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_INSTANCE_CHAT_LEADER" }) do
-  TA:On(ev, OnGroupChat, "chatCount")
+  TA:On(ev, OnGroupChat, "questieChat")
 end
 
 -------------------------------------------------------------------------------
--- Affinity (private, per character). Never touches trust scoring.
+-- History retention: local events older than history.retentionDays are deleted.
 -------------------------------------------------------------------------------
-TA:Listen("SESSION_END", function(s, endedAt)
-  local cdb = TA.cdb
-  local minSec = TA.Params:Get("session.minMinutes") * 60
-  if endedAt - s.startedAt < minSec then return end
-  for guid, m in pairs(s.members) do
-    if guid ~= TA.playerGUID then
-      local a = cdb.affinity[guid]
-      if not a then a = { sessions = {} }; cdb.affinity[guid] = a end
-      a.name = m.name
-      local first = m.intervals[1] and m.intervals[1].join or s.startedAt
-      local lastIv = m.intervals[#m.intervals]
-      local leave = lastIv and lastIv.leave or endedAt
-      table.insert(a.sessions, {
-        s = first, e = leave, zone = s.instanceName or s.zone, chat = m.chat or 0,
-        groupType = s.groupType, hour = tonumber(date("%H", first)), wday = tonumber(date("%w", first)),
-      })
-      while #a.sessions > 200 do table.remove(a.sessions, 1) end
-    end
+function Sessions:ApplyRetention()
+  local days = TA.Params:Get("history.retentionDays")
+  if not days or days <= 0 or not TA.db then return 0 end
+  local cutoff = TA.Now() - days * 86400
+  local kept, dropped = {}, 0
+  for _, ev in ipairs(TA.db.events) do
+    if (ev.t or 0) >= cutoff then kept[#kept + 1] = ev else dropped = dropped + 1 end
   end
-end)
+  if dropped > 0 then
+    TA.db.events = kept
+    TA.Log:Reindex()
+    TA:Fire("DATA_CHANGED")
+  end
+  return dropped
+end
+TA:Listen("LOGIN", function() Sessions:ApplyRetention() end)

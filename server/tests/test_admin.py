@@ -97,7 +97,7 @@ class AdminAuth(unittest.TestCase):
     def setUp(self):
         self.clock = [NOW]
         self.store = Store(":memory:")
-        self.svc = Service(self.store, clock=lambda: self.clock[0])
+        self.svc = Service(self.store, clock=lambda: self.clock[0], hash_salt="k")
         self.adm = admin_mod.Admin(self.store, self.svc, RP, ORIGIN, clock=lambda: self.clock[0])
         self.auth = FakeAuthenticator()
 
@@ -176,16 +176,21 @@ class AdminAuth(unittest.TestCase):
         o = self.adm.overview()
         k = o["kpis"]
         self.assertGreater(k["participants"], 100)
-        self.assertGreater(k["verifiedIncidents"], 0)
-        self.assertGreater(k["verifiedNegatives"], 0)                     # multi-witness, multi-guild negatives verify
+        self.assertGreater(k["communitySessions"], 500)
+        self.assertGreater(k["observedCharacters"], 100)
         self.assertGreater(k["feedbackTotal"], 0)
         self.assertGreater(o["demoRows"], 0)
-        factions = {r["k"] for r in o["demographics"]["faction"]}
-        self.assertEqual(factions, {"Alliance", "Horde"})
-        self.assertTrue(o["demographics"]["race"] and o["demographics"]["levels"])
-        self.assertEqual(len(o["series"]["reports"]), 30)
+        self.assertEqual({r["k"] for r in o["participants"]["faction"]}, {"Alliance", "Horde"})
+        self.assertTrue(o["population"]["race"] and o["community"]["classPairs"] and o["community"]["places"])
+        self.assertEqual(len(o["series"]["communitySessions"]), 30)
+        # k-anonymity: no people-group below the minimum is shown on its own
+        for section in ("participants", "population"):
+            for dist in o[section].values():
+                for row in dist:
+                    self.assertTrue(row["n"] >= o["minGroup"] or row["k"] == "Other (small groups)", (section, row))
+        self.assertNotIn("Player-", json.dumps(o))               # never an identifier
         after = demo.clean(self.store)
-        self.assertEqual(after, {"uploaders": 0, "reports": 0, "feedback": 0, "disputes": 0})
+        self.assertEqual(after, {"participants": 0, "communitySessions": 0, "feedback": 0})
         self.assertEqual(self.adm.overview()["demoRows"], 0)
 
 

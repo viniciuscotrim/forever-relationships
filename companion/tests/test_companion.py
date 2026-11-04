@@ -81,7 +81,7 @@ class Fallback(unittest.TestCase):
         try:
             good = "http://127.0.0.1:%d" % httpd.server_address[1]
             c = tc.Client("http://nonexistent.invalid", timeout=5, fallbacks=[good])
-            self.assertEqual(c.players(["Player-1-0000000A"]), {})
+            self.assertEqual(c.feedback("c" * 32, [])["statuses"], {})
             self.assertEqual(c.server, good)
         finally:
             httpd.shutdown()
@@ -95,7 +95,7 @@ class Feedback(unittest.TestCase):
             wow = os.path.join(tmp, "_forever_")
             svdir = os.path.join(wow, "WTF", "Account", "X", "SavedVariables")
             os.makedirs(svdir)
-            os.makedirs(os.path.join(wow, "Interface", "AddOns", "TrustAdvisor", "Network"))
+            os.makedirs(os.path.join(wow, "Interface", "AddOns", "TrustAdvisor", "Cloud"))
             sv = os.path.join(svdir, "TrustAdvisor.lua")
             with open(sv, "w") as f:
                 f.write('TrustAdvisorDB = { ["feedback"] = { ["installId"] = "%s", ["outbox"] = { '
@@ -106,13 +106,13 @@ class Feedback(unittest.TestCase):
             threading.Thread(target=httpd.serve_forever, daemon=True).start()
             client = tc.Client("http://127.0.0.1:%d" % httpd.server_address[1])
             state = {}
-            self.assertTrue(tc.sync_file(sv, client, wow, state, log=lambda *_: None))
+            tc.sync_file(sv, client, wow, state, log=lambda *_: None)
             self.assertEqual(len(svc.store.list_feedback()), 1)
             svc.store.update_feedback("aaaaaaaa-1-beef", "fixed", "Thanks!", 1)
             tc.sync_file(sv, client, wow, state, log=lambda *_: None)
             nd = tc.parse_saved_variables(open(tc.netdata_path(wow), encoding="utf-8").read())["TrustAdvisorNetData"]
             self.assertEqual(nd["feedback"]["aaaaaaaa-1-beef"], {"status": "fixed", "reply": "Thanks!"})
-            self.assertEqual(nd["players"], {})                       # no network data without consent
+            self.assertNotIn("profiles", nd)                          # no cloud layer data without consent
             self.assertTrue(nd["companion"]["syncedAt"] > 0)
             self.assertEqual(len(svc.store.list_feedback()), 1)       # not sent twice
             httpd.shutdown()
@@ -153,7 +153,7 @@ class Link(unittest.TestCase):
         tmp = tempfile.mkdtemp()
         logs = []
         self.assertFalse(tc.link_battlenet(object(), tmp, "us", log=logs.append))
-        self.assertIn("Join the network", logs[0])
+        self.assertIn("Turn on a cloud layer", logs[0])
         shutil.rmtree(tmp)
 
 
@@ -198,6 +198,65 @@ class Autostart(unittest.TestCase):
         self.assertTrue(cmd[-2].endswith("ta_companion.py") and cmd[-1] == "--once")
 
 
+class Backup(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        tc.STATE_PATH = os.path.join(self.tmp, "state", "companion.json")
+        self.wow = os.path.join(self.tmp, "_forever_")
+        self.acct = os.path.join(self.wow, "WTF", "Account", "ACC", "SavedVariables")
+        self.char = os.path.join(self.wow, "WTF", "Account", "ACC", "Realm", "Char", "SavedVariables")
+        os.makedirs(self.acct)
+        os.makedirs(self.char)
+        with open(os.path.join(self.acct, "TrustAdvisor.lua"), "w") as f:
+            f.write('TrustAdvisorDB = { ["cloud"] = { ["uploaderId"] = "%s" }, ["events"] = { { ["signal"] = "session" } } }' % ("a" * 32))
+        with open(os.path.join(self.char, "TrustAdvisor.lua"), "w") as f:
+            f.write("TrustAdvisorCharDB = { }")
+        self.svc = Service(Store(":memory:"), hash_salt="k")
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.svc))
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        self.client = tc.Client("http://127.0.0.1:%d" % self.httpd.server_address[1])
+        self.ks = tc.KeyStore(use_keychain=False)
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        shutil.rmtree(self.tmp)
+
+    def test_crypto_and_recovery_code(self):
+        key = os.urandom(32)
+        code = tc.recovery_code(key)
+        self.assertEqual(tc.key_from_code(code.lower().replace("-", " ")), key)
+        blob = tc.encrypt_blob(key, b"history")
+        self.assertNotIn(b"history", blob)
+        self.assertEqual(tc.decrypt_blob(key, blob), b"history")
+        with self.assertRaises(Exception):
+            tc.decrypt_blob(os.urandom(32), blob)            # wrong key: authentication fails
+        bid, tok = tc.backup_ids(key)
+        self.assertEqual((len(bid), len(tok)), (64, 64))
+        self.assertNotEqual(bid, tok)
+
+    def test_backup_upload_is_unreadable_and_restores_everything(self):
+        logs = []
+        info, code = tc.sync_backup(self.wow, "a" * 32, self.client, {}, self.ks, log=logs.append)
+        self.assertTrue(code and info["size"] > 0)
+        self.assertTrue(any("recovery code" in l.lower() for l in logs))
+        stored = list(self.svc.store._mem_blobs.values())[0]
+        self.assertNotIn(b"TrustAdvisorDB", stored)          # the server only holds ciphertext
+        # second sync without changes uploads nothing new
+        _, code2 = tc.sync_backup(self.wow, "a" * 32, self.client, {"backup-aaaaaaaa": {"digest": "x"}}, self.ks, log=lambda *_: None)
+        self.assertIsNone(code2)
+        # new computer: wipe the files and the key, restore from the code
+        shutil.rmtree(os.path.join(self.wow, "WTF"))
+        self.ks.delete("a" * 32)
+        n = tc.restore_backup(code, self.wow, self.client, self.ks, log=lambda *_: None)
+        self.assertEqual(n, 2)
+        with open(os.path.join(self.char, "TrustAdvisor.lua")) as f:
+            self.assertIn("TrustAdvisorCharDB", f.read())
+        self.assertIsNotNone(self.ks.load("a" * 32))           # future backups use the same key
+        with self.assertRaises(RuntimeError):
+            tc.restore_backup(tc.recovery_code(os.urandom(32)), self.wow, self.client, self.ks, log=lambda *_: None)
+
+
 @unittest.skipUnless(shutil.which("luajit"), "luajit not installed")
 class EndToEnd(unittest.TestCase):
     def setUp(self):
@@ -205,25 +264,22 @@ class EndToEnd(unittest.TestCase):
         self.wow = os.path.join(self.tmp, "_forever_")
         self.svdir = os.path.join(self.wow, "WTF", "Account", "TEST", "SavedVariables")
         os.makedirs(self.svdir)
-        os.makedirs(os.path.join(self.wow, "Interface", "AddOns", "TrustAdvisor", "Network"))
+        os.makedirs(os.path.join(self.wow, "Interface", "AddOns", "TrustAdvisor", "Cloud"))
         tc.STATE_PATH = os.path.join(self.tmp, "state.json")
-        # same clock as the LuaJIT mock client (Tests/test_ingame_sim.lua). Standing thresholds are
-        # zeroed here only because a fresh test database has no history; server tests cover them.
-        self.service = Service(Store(":memory:"), clock=lambda: 1800000000 + 7200,
-                               params={"net.minUploaderAgeDays": 0, "net.minCorroborated": 0,
-                                       "net.requireBattlenet": False})
+        # same clock as the LuaJIT mock client (Tests/test_ingame_sim.lua)
+        self.service = Service(Store(":memory:"), clock=lambda: 1800000000 + 7200, hash_salt="k")
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.service))
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.url = "http://127.0.0.1:%d" % self.httpd.server_address[1]
 
     def tearDown(self):
         self.httpd.shutdown()
+        self.httpd.server_close()
         shutil.rmtree(self.tmp)
 
     def run_sim(self, **env):
         e = dict(os.environ, **env)
-        addon = os.path.join(ROOT, "TrustAdvisor")
-        r = subprocess.run(["luajit", "Tests/test_ingame_sim.lua"], cwd=addon, env=e, capture_output=True, text=True)
+        r = subprocess.run(["luajit", "Tests/test_ingame_sim.lua"], cwd=os.path.join(ROOT, "TrustAdvisor"), env=e, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout[-2000:] + r.stderr[-2000:])
         return r.stdout
 
@@ -231,37 +287,21 @@ class EndToEnd(unittest.TestCase):
         sv = os.path.join(self.svdir, "TrustAdvisor.lua")
         self.run_sim(TA_DUMP_SV=sv)
         db = tc.parse_saved_variables(open(sv, encoding="utf-8").read())["TrustAdvisorDB"]
-        leafy = "Player-1-0000000B"
-        neg = [r for r in tc.as_list(db["net"]["outbox"]["reports"]) if r["s"] == leafy and r["d"] == "finish"][0]
-
+        self.assertTrue(db["cloud"]["outbox"]["consents"]["community"])
         client = tc.Client(self.url)
-        # Tanky (in the same party, another guild) also runs Trust Advisor and saw the same loot-and-leave.
-        me, tanky = "Player-1-00000001", "Player-1-0000000A"
-        second = {k: neg[k] for k in ("s", "d", "x", "m", "k")}
-        second["t"] = int(neg["t"]) + 30
-        sess = [p for p in tc.as_list(db["net"]["outbox"]["presence"]) if leafy in tc.as_list(p["m"])][0]
-        tanky_body = {"uploaderId": "b" * 32, "protocol": 1, "witness": tanky, "witnessGuild": "Other Guild",
-                      "characters": [], "reports": [second],
-                      "presence": [{"a": int(sess["a"]), "b": int(sess["b"]), "m": [tanky, me, leafy]}]}
-        # a forger who was never in that group claims the same thing: must not help
-        client.upload({"uploaderId": "c" * 32, "protocol": 1, "witness": "Player-3-000000CC", "witnessGuild": "Third",
-                       "characters": [], "reports": [second], "presence": [{"a": int(sess["a"]), "b": int(sess["b"]), "m": ["Player-3-000000CC", leafy]}]})
-        logs = []
-        self.assertTrue(tc.sync_file(sv, client, self.wow, {}, log=logs.append))
-        netdata = tc.netdata_path(self.wow)
-        nd = tc.parse_saved_variables(open(netdata, encoding="utf-8").read())["TrustAdvisorNetData"]
-        incs = (nd["players"].get(leafy) or {}).get("incidents", [])
-        self.assertFalse(any(i["d"] == "finish" and i["x"] == 0 for i in incs), "forger + me must not verify")
-        # now the real second witness uploads
-        client.upload(tanky_body)
-        tc.sync_file(sv, client, self.wow, {}, log=logs.append)
-        nd = tc.parse_saved_variables(open(netdata, encoding="utf-8").read())["TrustAdvisorNetData"]
-        incs = nd["players"][leafy]["incidents"]
-        self.assertTrue(any(i["d"] == "finish" and i["x"] == 0 and i["w"] == 2 for i in incs), incs)
-        out = self.run_sim(TA_NETDATA=netdata)
-        self.assertIn("network view for Leafy: finish", out)
-        self.assertIn("ok   network view rendered", out)
+        # Tanky also uses the addon and publishes a profile
+        self.service.sync({"uploaderId": "b" * 32, "protocol": 2, "consents": {"profile": True},
+                           "me": {"guid": "Player-1-0000000A", "name": "Tanky"}, "profile": {"hours": 120, "dungeons": 40}})
+        tc.sync_file(sv, client, self.wow, {}, log=lambda *_: None, keystore=tc.KeyStore(use_keychain=False))
+        stored = self.service.store.q("SELECT count(*) FROM community_sessions", one=True)[0]
+        self.assertGreaterEqual(stored, 1)
+        dump = "\n".join(str(tuple(r)) for r in self.service.store.q("SELECT * FROM community_members"))
+        self.assertNotIn("Player-1-", dump)                     # pseudonymized on arrival
+        nd = tc.parse_saved_variables(open(tc.netdata_path(self.wow), encoding="utf-8").read())["TrustAdvisorNetData"]
+        self.assertIn("Player-1-0000000A", nd["profiles"])
         self.assertEqual(nd["companion"]["version"], tc.VERSION)
+        out = self.run_sim(TA_NETDATA=tc.netdata_path(self.wow))
+        self.assertIn("ok   NetData: public profile", out)
 
 
 if __name__ == "__main__":

@@ -3,11 +3,11 @@ local _, TA = ...
 local UI = TA.UI
 
 UI.TABS = {
-  { key = "players", label = "Players" },
-  { key = "card", label = "Player card" },
+  { key = "circle", label = "Circle" },
+  { key = "relationship", label = "Relationship" },
   { key = "profile", label = "My profile" },
   { key = "log", label = "Event log" },
-  { key = "transparency", label = "Transparency" },
+  { key = "privacy", label = "Privacy" },
 }
 UI.builders = {}
 
@@ -34,7 +34,7 @@ local function SelectTab(key)
     UI.views[key] = v
   end
   if v then v.frame:Show(); if v.Refresh then v:Refresh() end end
-  main.viewMark:SetText(TA.Params:AnyScoringNonDefault() and (UI.NONDEFAULT_MARK .. " |cffff9933Your view uses non-default parameters|r") or "|cff888888Your view (local witness)|r")
+  main.viewMark:SetText("|cff888888What the game recorded while you played together|r")
 end
 UI.SelectTab = SelectTab
 
@@ -69,7 +69,7 @@ end
 function UI:Open(tab)
   self:Build()
   main:Show()
-  SelectTab(tab or main.current or "players")
+  SelectTab(tab or main.current or "circle")
 end
 
 function UI:Toggle()
@@ -79,7 +79,7 @@ end
 
 function UI:OpenPlayer(guid)
   self.cardGUID = guid
-  self:Open("card")
+  self:Open("relationship")
 end
 
 function UI:RefreshCurrent()
@@ -90,7 +90,7 @@ local pending = false
 local function QueueRefresh()
   if pending then return end
   pending = true
-  C_Timer.After(0.5, function() pending = false; TA.Dimensions.Invalidate(); UI:RefreshCurrent() end)
+  C_Timer.After(0.5, function() pending = false; TA.Rel.Invalidate(); UI:RefreshCurrent() end)
 end
 TA:Listen("DATA_CHANGED", QueueRefresh)
 TA:Listen("PARAMS_CHANGED", QueueRefresh)
@@ -100,11 +100,11 @@ TA:Listen("LOGIN", function()
   if not (Settings and Settings.RegisterCanvasLayoutCategory) then return end
   local panel = CreateFrame("Frame")
   local t = UI.Label(panel, "Trust Advisor", "GameFontNormalLarge"); t:SetPoint("TOPLEFT", 16, -16)
-  local d = UI.Label(panel, "Every rule, weight and threshold is visible and editable in the Transparency tab.", "GameFontHighlight")
+  local d = UI.Label(panel, "An augmented view of how you relate to the people you play with. Type /ta.", "GameFontHighlight")
   d:SetPoint("TOPLEFT", t, "BOTTOMLEFT", 0, -8)
   local b = UI.Button(panel, "Open Trust Advisor", 180, 24, function()
     if SettingsPanel then HideUIPanel(SettingsPanel) end
-    UI:Open("transparency")
+    UI:Open("privacy")
   end)
   b:SetPoint("TOPLEFT", d, "BOTTOMLEFT", 0, -12)
   local ok, cat = pcall(Settings.RegisterCanvasLayoutCategory, panel, "Trust Advisor")
