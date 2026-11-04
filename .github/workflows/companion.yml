@@ -27,10 +27,14 @@ jobs:
           python-version: "3.12"
       - name: Test
         working-directory: companion
-        run: python -m unittest discover -s tests -v
+        run: |
+          python -m pip install -r ../server/requirements.txt
+          python -m unittest discover -s tests -v
       - name: Server tests
         working-directory: server
-        run: python -m unittest discover -s tests -v
+        run: |
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -v
       - name: Build single-file executable
         working-directory: companion
         run: |

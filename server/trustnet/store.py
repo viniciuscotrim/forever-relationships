@@ -34,6 +34,13 @@ CREATE TABLE IF NOT EXISTS feedback (
   received_at INTEGER, status TEXT, reply TEXT, updated_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS feedback_install ON feedback (install);
+CREATE TABLE IF NOT EXISTS admin_credentials (
+  id TEXT PRIMARY KEY, public_key BLOB, sign_count INTEGER, created_at INTEGER, last_used INTEGER, label TEXT
+);
+CREATE TABLE IF NOT EXISTS admin_kv (k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE IF NOT EXISTS admin_setup (token_hash TEXT PRIMARY KEY, created_at INTEGER, used_at INTEGER);
+CREATE TABLE IF NOT EXISTS admin_sessions (token_hash TEXT PRIMARY KEY, created_at INTEGER, expires_at INTEGER, ip TEXT);
+CREATE TABLE IF NOT EXISTS admin_failures (t INTEGER, ip TEXT, what TEXT);
 CREATE TABLE IF NOT EXISTS oauth_states (state TEXT PRIMARY KEY, uploader TEXT, redirect TEXT, region TEXT, created_at INTEGER);
 """
 
@@ -49,7 +56,16 @@ class Store:
         self.lock = threading.Lock()
         with self.lock:
             self.db.executescript(SCHEMA)
+            self._migrate()
             self.db.commit()
+
+    def _migrate(self):
+        # demographics of the uploader's OWN characters (network participants only)
+        have = {r[1] for r in self.db.execute("PRAGMA table_info(characters)")}
+        for col, typ in (("class", "TEXT"), ("race", "TEXT"), ("faction", "TEXT"), ("level", "INTEGER"),
+                         ("realm", "TEXT"), ("locale", "TEXT")):
+            if col not in have:
+                self.db.execute("ALTER TABLE characters ADD COLUMN %s %s" % (col, typ))
 
     # -- writes ---------------------------------------------------------------
     def upload(self, uploader, witness, wguild, characters, reports, now=None):
@@ -59,8 +75,10 @@ class Store:
             c.execute("INSERT INTO uploaders (id, created_at, last_seen) VALUES (?, ?, ?) "
                       "ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen", (uploader, now, now))
             for ch in characters:
-                c.execute("INSERT OR REPLACE INTO characters (uploader, guid, name, guild, seen_at) VALUES (?, ?, ?, ?, ?)",
-                          (uploader, ch["guid"], ch.get("name", ""), ch.get("guild", ""), now))
+                c.execute("INSERT OR REPLACE INTO characters (uploader, guid, name, guild, seen_at, class, race, faction, level, realm, locale) "
+                          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          (uploader, ch["guid"], ch.get("name", ""), ch.get("guild", ""), now, ch.get("class"), ch.get("race"),
+                           ch.get("faction"), ch.get("level"), ch.get("realm"), ch.get("locale")))
             n = 0
             for r in reports:
                 c.execute("INSERT OR IGNORE INTO reports (uploader, witness, wguild, s, d, x, m, t, k, received_at) "

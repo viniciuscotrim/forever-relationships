@@ -1,5 +1,8 @@
 # Unreleased
 
+### Changed
+- **Network only:** when you've joined the Network, it also receives your *own* character's class, race, faction, level, realm and game language, for anonymous statistics. Nothing like this is sent about other players. The data list in Transparency › Network and Data inventory shows it.
+
 ### Fixed
 - **Your own warlock summons now count as generosity.** Summons you receive were already credited to the warlock, but the summons you cast were ignored, because a summon always targets someone in your group.
 

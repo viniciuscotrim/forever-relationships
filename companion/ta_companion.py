@@ -31,7 +31,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 
-VERSION = "0.3.3"
+VERSION = "0.3.4"
 PROTOCOL = 1
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",
@@ -366,7 +366,8 @@ def sync_file(sv_path, client, wow, state, log=print):
         return True
 
     outbox = net.get("outbox") or {}
-    characters = [{"guid": g, "name": c.get("name", ""), "guild": c.get("guild", "")}
+    characters = [{"guid": g, "name": c.get("name", ""), "guild": c.get("guild", ""),
+                   **{k: c[k] for k in ("class", "race", "faction", "level", "realm", "locale") if c.get(k) is not None}}
                   for g, c in (net.get("characters") or {}).items() if isinstance(c, dict)]
     sent_disputes = set(st.get("disputes", []))
     disputes = [{"id": d.get("id"), "reason": d.get("reason", "")} for d in as_list(net.get("disputes"))

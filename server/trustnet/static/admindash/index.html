@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Trust Advisor · Cockpit</title>
+<link rel="icon" href="logo.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+<!-- Auth: login and one-time setup -->
+<main id="auth" class="auth" hidden>
+  <div class="auth-card">
+    <img src="logo.png" alt="" class="auth-logo" width="64" height="64">
+    <h1>Trust Advisor Cockpit</h1>
+    <div id="auth-login">
+      <p class="muted">Sign in with your passkey (Touch ID on Mac, Face ID on iPhone), then the 6-digit code from Passwords.</p>
+      <button id="btn-passkey" class="primary">Sign in with Touch ID / Face ID</button>
+      <form id="form-code" hidden>
+        <label for="code">Verification code from Passwords</label>
+        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required>
+        <button class="primary" type="submit">Verify</button>
+      </form>
+    </div>
+    <div id="auth-setup" hidden>
+      <ol class="steps">
+        <li id="step-passkey"><b>Create your passkey.</b> It is saved in Passwords and syncs to your iPhone through your Apple Account.
+          <button id="btn-create" class="primary">Create passkey with Touch ID</button></li>
+        <li id="step-totp" class="dim"><b>Add the verification code to Passwords.</b>
+          <div id="totp-box" hidden>
+            <a id="otpauth" class="button" href="#">Add to Passwords</a>
+            <p class="muted">Or in Passwords, add a verification code with this setup key:</p>
+            <code id="totp-secret" class="secret"></code>
+            <form id="form-setup-code">
+              <label for="setup-code">Enter the current 6-digit code to confirm</label>
+              <input id="setup-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required>
+              <button class="primary" type="submit">Confirm</button>
+            </form>
+          </div>
+        </li>
+      </ol>
+    </div>
+    <p id="auth-msg" class="msg" role="status" aria-live="polite"></p>
+  </div>
+</main>
+
+<!-- Cockpit -->
+<div id="app" class="app" hidden>
+  <nav class="side">
+    <div class="brand"><img src="logo.png" alt="" width="32" height="32"><span>Cockpit</span></div>
+    <a href="#cockpit" data-view="cockpit">Cockpit</a>
+    <a href="#demographics" data-view="demographics">Demographics</a>
+    <a href="#network" data-view="network">Network</a>
+    <a href="#feedback" data-view="feedback">Feedback <span id="nav-fb" class="pill" hidden></span></a>
+    <a href="#disputes" data-view="disputes">Disputes <span id="nav-dsp" class="pill" hidden></span></a>
+    <div class="side-foot">
+      <button id="btn-refresh">Refresh</button>
+      <button id="btn-logout">Sign out</button>
+    </div>
+  </nav>
+  <main class="content">
+    <div id="demo-banner" class="banner" hidden></div>
+    <header class="top"><h2 id="view-title">Cockpit</h2><span id="updated" class="muted"></span></header>
+
+    <section data-section="cockpit">
+      <div id="kpis" class="kpis"></div>
+      <div class="grid3">
+        <figure class="card"><figcaption>New network participants per day</figcaption><div id="ch-new"></div></figure>
+        <figure class="card"><figcaption>Witness reports received per day</figcaption><div id="ch-reports"></div></figure>
+        <figure class="card"><figcaption>Feedback received per day</figcaption><div id="ch-feedback"></div></figure>
+      </div>
+      <div class="grid2">
+        <figure class="card"><figcaption>Feedback by status</figcaption><div id="ch-fb-status"></div></figure>
+        <figure class="card"><figcaption>Most reported errors</figcaption><div id="tbl-errors"></div></figure>
+      </div>
+    </section>
+
+    <section data-section="demographics" hidden>
+      <p class="muted note">Own characters of network participants only (class, race, faction, level, realm, locale), shared with their consent. Nothing about players they meet.</p>
+      <div class="grid3">
+        <figure class="card"><figcaption>Faction</figcaption><div id="ch-faction"></div></figure>
+        <figure class="card"><figcaption>Level</figcaption><div id="ch-levels"></div></figure>
+        <figure class="card"><figcaption>Battle.net region (linked accounts)</figcaption><div id="ch-region"></div></figure>
+      </div>
+      <div class="grid2">
+        <figure class="card"><figcaption>Race</figcaption><div id="ch-race"></div></figure>
+        <figure class="card"><figcaption>Class</figcaption><div id="ch-class"></div></figure>
+        <figure class="card"><figcaption>Realm</figcaption><div id="ch-realm"></div></figure>
+        <figure class="card"><figcaption>Game language</figcaption><div id="ch-locale"></div></figure>
+      </div>
+    </section>
+
+    <section data-section="network" hidden>
+      <div id="net-kpis" class="kpis"></div>
+      <figure class="card"><figcaption>Incidents by trait: verified vs not (yet) verified</figcaption><div id="ch-dims"></div></figure>
+      <div class="grid2">
+        <figure class="card"><figcaption>Independent witnesses per incident</figcaption><div id="ch-witness"></div></figure>
+        <figure class="card"><figcaption>Published protocol (locked)</figcaption><div id="tbl-protocol"></div></figure>
+      </div>
+    </section>
+
+    <section data-section="feedback" hidden>
+      <div class="filters">
+        <select id="fb-status" aria-label="Status"><option value="">All statuses</option><option>received</option><option>planned</option><option>fixed</option><option>done</option><option>wontfix</option><option>duplicate</option></select>
+        <select id="fb-kind" aria-label="Kind"><option value="">Bugs and ideas</option><option value="bug">Bugs</option><option value="idea">Ideas</option></select>
+        <input id="fb-search" type="search" placeholder="Search text" aria-label="Search">
+        <span id="fb-count" class="muted"></span>
+      </div>
+      <div class="split">
+        <div class="card table-wrap"><table id="tbl-fb" class="table"><thead><tr><th>Date</th><th>Kind</th><th>Report</th><th>Version</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <aside id="fb-detail" class="card detail" hidden></aside>
+      </div>
+    </section>
+
+    <section data-section="disputes" hidden>
+      <div class="card table-wrap"><table id="tbl-dsp" class="table"><thead><tr><th>Filed</th><th>Trait</th><th>Player's context</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+    </section>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

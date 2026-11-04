@@ -7,7 +7,11 @@ set -e
 HOST="$1"; KEY="${2:-$HOME/.ssh/id_ed25519}"
 [ -n "$HOST" ] || { echo "usage: ./deploy.sh root@HOST [ssh-key]"; exit 1; }
 cd "$(dirname "$0")"
-python3 -m unittest discover -s tests 2>&1 | tail -1
+VENV="$(pwd)/../.venv-server"   # server tests need `cryptography`
+[ -x "$VENV/bin/python" ] || { python3 -m venv "$VENV" && "$VENV/bin/pip" install -q -r requirements.txt; }
+LOG=$(mktemp)
+if "$VENV/bin/python" -m unittest discover -s tests >"$LOG" 2>&1; then grep -E '^Ran' "$LOG"; rm -f "$LOG"
+else cat "$LOG"; rm -f "$LOG"; echo "server tests FAILED: not deploying"; exit 1; fi
 VERSION=$(sed -n 's/^## Version: //p' ../TrustAdvisor/TrustAdvisor.toc | tr -d '\r')
 COPYFILE_DISABLE=1 tar --exclude __pycache__ --exclude tests -cf - . | \
   ssh -i "$KEY" -o IdentitiesOnly=yes "$HOST" 'rm -rf /srv/trustadvisor/app && mkdir -p /srv/trustadvisor/app && tar -C /srv/trustadvisor/app -xf -'

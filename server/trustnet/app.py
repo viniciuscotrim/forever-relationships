@@ -26,10 +26,11 @@ import secrets
 import sys
 import threading
 import time
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import aggregate, bnet as bnet_mod
+from . import admin as admin_mod, aggregate, bnet as bnet_mod
 from .store import Store, hash_id
 
 GUID_RE = re.compile(r"^Player-\d+-[0-9A-Fa-f]+$")
@@ -48,6 +49,14 @@ YEAR = 400 * 86400
 
 class BadRequest(Exception):
     pass
+
+
+def _word(v, n=24):
+    """A short label (class/race/realm/locale): letters, digits, space, ' and - only."""
+    if not isinstance(v, str):
+        return None
+    v = re.sub(r"[^\w '\-]", "", v, flags=re.UNICODE)[:n].strip()
+    return v or None
 
 
 def validate_report(r, now):
@@ -219,7 +228,13 @@ class Service:
         chars = []
         for ch in (body.get("characters") or [])[:50]:
             if isinstance(ch, dict) and isinstance(ch.get("guid"), str) and GUID_RE.match(ch["guid"]):
-                chars.append({"guid": ch["guid"], "name": str(ch.get("name", ""))[:64], "guild": str(ch.get("guild", ""))[:64]})
+                lvl = ch.get("level")
+                chars.append({"guid": ch["guid"], "name": str(ch.get("name", ""))[:64], "guild": str(ch.get("guild", ""))[:64],
+                              # own-character demographics (anonymous statistics in the admin cockpit)
+                              "class": _word(ch.get("class")), "race": _word(ch.get("race")),
+                              "faction": ch.get("faction") if ch.get("faction") in ("Alliance", "Horde", "Neutral") else None,
+                              "level": lvl if isinstance(lvl, int) and 1 <= lvl <= 100 else None,
+                              "realm": _word(ch.get("realm"), 48), "locale": _word(ch.get("locale"), 8)})
         if witness not in {c["guid"] for c in chars}:
             chars.append({"guid": witness, "name": "", "guild": wguild})
         raw = body.get("reports") or []
@@ -327,7 +342,19 @@ class Service:
             raise PermissionError("admin token required")
 
 
-def make_handler(service):
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "admindash")
+STATIC_FILES = {"": ("index.html", "text/html; charset=utf-8"), "index.html": ("index.html", "text/html; charset=utf-8"),
+                "app.js": ("app.js", "text/javascript; charset=utf-8"), "app.css": ("app.css", "text/css; charset=utf-8"),
+                "logo.png": ("logo.png", "image/png")}
+ADMIN_HEADERS = {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+                               "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store", "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+
+
+def make_handler(service, admin=None):
     buckets = {}
     lock = threading.Lock()
 
@@ -348,13 +375,100 @@ def make_handler(service):
                 b[1] += 1
                 return b[1] > RATE_PER_MIN
 
-        def _send(self, code, obj):
+        def _send(self, code, obj, headers=None):
             data = json.dumps(obj).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(data)))
+            for k, v in (headers or {}).items():
+                self.send_header(k, v)
             self.end_headers()
             self.wfile.write(data)
+
+        # ---------------------------------------------------------------- admin cockpit
+        def _client_ip(self):
+            return self.headers.get("X-Forwarded-For", self.client_address[0]).split(",")[0].strip()
+
+        def _cookie(self):
+            c = SimpleCookie(self.headers.get("Cookie") or "")
+            return c[admin_mod.COOKIE].value if admin_mod.COOKIE in c else None
+
+        def _session_cookie(self, token, max_age):
+            return "%s=%s; Path=/admindash; HttpOnly; Secure; SameSite=Strict; Max-Age=%d" % (admin_mod.COOKIE, token, max_age)
+
+        def _admin(self, method, path):
+            if admin is None:
+                return self._send(404, {"error": "not found"})
+            sub = path[len("/admindash"):].lstrip("/")
+            if not sub.startswith("api/"):
+                if method != "GET" or sub not in STATIC_FILES:
+                    return self._send(404, {"error": "not found"}, ADMIN_HEADERS)
+                name, ctype = STATIC_FILES[sub]
+                with open(os.path.join(STATIC_DIR, name), "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(data)))
+                for k, v in ADMIN_HEADERS.items():
+                    self.send_header(k, v)
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            api = sub[len("api/"):]
+            if method == "POST" and self.headers.get("Origin") != admin.origin:
+                return self._send(403, {"error": "bad origin"}, ADMIN_HEADERS)
+            ip = self._client_ip()
+            try:
+                # public (pre-login) steps
+                if method == "POST" and api == "setup/begin":
+                    return self._send(200, admin.setup_begin(self._body()), ADMIN_HEADERS)
+                if method == "POST" and api == "setup/finish":
+                    return self._send(200, admin.setup_finish(self._body()), ADMIN_HEADERS)
+                if method == "POST" and api == "setup/totp":
+                    return self._send(200, admin.setup_totp(self._body()), ADMIN_HEADERS)
+                if method == "POST" and api == "login/begin":
+                    return self._send(200, admin.login_begin(ip), ADMIN_HEADERS)
+                if method == "POST" and api == "login/passkey":
+                    return self._send(200, admin.login_passkey(self._body(), ip), ADMIN_HEADERS)
+                if method == "POST" and api == "login/code":
+                    token = admin.login_code(self._body(), ip)
+                    h = dict(ADMIN_HEADERS)
+                    h["Set-Cookie"] = self._session_cookie(token, admin_mod.SESSION_TTL)
+                    return self._send(200, {"ok": True}, h)
+                if method == "GET" and api == "status":
+                    return self._send(200, {"enrolled": admin.enrolled(), "session": admin.session_ok(self._cookie())}, ADMIN_HEADERS)
+                # everything below needs a session
+                token = self._cookie()
+                if not admin.session_ok(token):
+                    return self._send(401, {"error": "login required"}, ADMIN_HEADERS)
+                if method == "POST" and api == "logout":
+                    admin.logout(token)
+                    h = dict(ADMIN_HEADERS)
+                    h["Set-Cookie"] = self._session_cookie("", 0)
+                    return self._send(200, {"ok": True}, h)
+                if method == "GET" and api == "overview":
+                    return self._send(200, admin.overview(), ADMIN_HEADERS)
+                if method == "GET" and api == "feedback":
+                    st = parse_qs(urlparse(self.path).query).get("status", [None])[0]
+                    return self._send(200, {"feedback": service.store.list_feedback(st or None, 500)}, ADMIN_HEADERS)
+                if method == "POST" and api.startswith("feedback/"):
+                    body = self._body()
+                    if body.get("status") not in FEEDBACK_STATUSES:
+                        raise BadRequest("status must be one of " + ", ".join(FEEDBACK_STATUSES))
+                    reply = body.get("reply")
+                    n = service.store.update_feedback(api.split("/", 1)[1], body["status"],
+                                                      str(reply)[:500] if reply else None, service.now())
+                    return self._send(200, {"updated": n}, ADMIN_HEADERS)
+                if method == "GET" and api == "disputes":
+                    return self._send(200, {"disputes": admin.disputes()}, ADMIN_HEADERS)
+                if method == "POST" and api.startswith("disputes/"):
+                    status = self._body().get("status")
+                    if status not in ("upheld", "rejected"):
+                        raise BadRequest("status must be upheld or rejected")
+                    return self._send(200, {"updated": service.store.review_dispute(api.split("/", 1)[1], status)}, ADMIN_HEADERS)
+                return self._send(404, {"error": "not found"}, ADMIN_HEADERS)
+            except admin_mod.AuthError as e:
+                return self._send(e.status, {"error": str(e)}, ADMIN_HEADERS)
 
         def _send_html(self, code, title, message):
             page = ("<!doctype html><html><head><meta charset='utf-8'><title>Trust Advisor - %s</title>"
@@ -384,6 +498,8 @@ def make_handler(service):
                 return self._send(429, {"error": "rate limited"})
             url = urlparse(self.path)
             try:
+                if url.path == "/admindash" or url.path.startswith("/admindash/"):
+                    return self._admin(method, url.path)
                 if method == "GET" and url.path == "/healthz":
                     return self._send(200, {"ok": True})
                 if method == "GET" and url.path == "/v1/protocol":
@@ -448,8 +564,10 @@ def main():
                       public_urls=(os.environ.get("TA_PUBLIC_URLS") or "").split(","),
                       hash_salt=os.environ.get("TA_HASH_SALT", ""))
     print("Battle.net login: %s" % ("enabled" if service.bnet else "NOT configured"))
+    origin = os.environ.get("TA_ADMIN_ORIGIN", "https://trustadvisor.gameplaybr.com.br").rstrip("/")
+    admin = admin_mod.Admin(store, service, rp_id=urlparse(origin).hostname, origin=origin)
     port = int(os.environ.get("TA_PORT", "8080"))
-    server = ThreadingHTTPServer(("0.0.0.0", port), make_handler(service))
+    server = ThreadingHTTPServer(("0.0.0.0", port), make_handler(service, admin))
     print("Trust Advisor network listening on :%d" % port)
     server.serve_forever()
 

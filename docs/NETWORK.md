@@ -14,6 +14,7 @@ Addons cannot reach the internet, so the companion reads SavedVariables and writ
 - Reports use the **published protocol parameters** (`Params:DefaultSnapshot`), never local edits.
 - Report = `{subject guid, dimension, outcome x, multiplier m, incident time t, kind k}`. The time is a moment all witnesses share (the leave time, last boss kill, or ready check).
 - Group history: for each session in the last year, its time window and the GUIDs of its members. This is what lets the server cross-check witnesses.
+- The uploader's **own** characters: name, guild, class, race, faction, level, realm, game language. These feed anonymous statistics in the admin cockpit. Nothing of this kind is sent about other players.
 
 ## Fairness rules (locked, protocol v1): `server/trustnet/aggregate.py`
 | Rule | Value |

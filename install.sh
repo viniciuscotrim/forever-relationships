@@ -14,10 +14,16 @@ for t in test_scoring test_questie test_ingame_sim; do
   fi
   rm -f "$LOG"
 done
-# Python suites: show a one-line summary, but stop on any failure (a pipe would hide it)
+# Python suites: show a one-line summary, but stop on any failure (a pipe would hide it).
+# The server needs `cryptography` (passkeys): use a local, git-ignored venv for its tests.
+VENV="$HERE/.venv-server"
+if [ ! -x "$VENV/bin/python" ]; then
+  python3 -m venv "$VENV" && "$VENV/bin/pip" install -q -r "$HERE/server/requirements.txt"
+fi
 for suite in server companion; do
   LOG=$(mktemp)
-  if (cd "$HERE/$suite" && python3 -m unittest discover -s tests >"$LOG" 2>&1); then
+  # companion tests start the real server end to end, so both use the venv
+  if (cd "$HERE/$suite" && "$VENV/bin/python" -m unittest discover -s tests >"$LOG" 2>&1); then
     echo "$suite: $(grep -E '^Ran' "$LOG") OK"
   else
     cat "$LOG"; echo "$suite tests FAILED"; rm -f "$LOG"; exit 1

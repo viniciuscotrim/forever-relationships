@@ -117,6 +117,10 @@ end
 function UnitGUID(u) local x = U(u); return x and x.guid end
 function UnitName(u) local x = U(u); return x and x.name, nil end
 function UnitClass(u) local x = U(u); return x and x.class, x and x.class end
+function UnitRace(u) if u == "player" then return "Undead", "Scourge" end end
+function UnitFactionGroup(u) if u == "player" then return "Horde", "Horde" end end
+function GetRealmName() return "Forever" end
+function GetLocale() return "ptBR" end
 function UnitLevel(u) local x = U(u); return x and x.level end
 function UnitIsConnected(u) return U(u) ~= nil end
 function UnitIsPlayer(u) return U(u) ~= nil end
@@ -389,7 +393,10 @@ assert(sawLeafyNeg, "Leafy's loot-and-leave reported")
 local dungeonSession = false
 for _, sess in ipairs(outbox.presence) do if #sess.m == 3 then dungeonSession = true end end
 assert(dungeonSession, "group history uploaded, including the dungeon with all 3 members")
-print(string.format("  ok   network outbox: %d reports, published parameters only", #outbox.reports))
+local me = TA.db.net.characters[TA.playerGUID]
+assert(me.race == "Undead" and me.faction == "Horde" and me.class == "Priest" and me.level == 30 and me.locale == "ptBR", "own character demographics")
+for guid in pairs(TA.db.net.characters) do assert(guid == TA.playerGUID, "only your own characters are listed") end
+print(string.format("  ok   network outbox: %d reports, published parameters only, own-character demographics", #outbox.reports))
 
 -- optional: dump SavedVariables for the cross-language end-to-end test
 if os.getenv("TA_DUMP_SV") then

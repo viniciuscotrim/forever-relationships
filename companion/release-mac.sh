@@ -19,7 +19,9 @@ trap 'rm -rf "$WORK"' EXIT
 OUT="${OUT:-$(pwd)/../dist/companion-$VERSION}"
 mkdir -p "$OUT"
 
-python3 -m unittest discover -s tests 2>&1 | tail -1
+VENV="$(pwd)/../.venv-server"   # tests start the real server, which needs `cryptography`
+[ -x "$VENV/bin/python" ] || { python3 -m venv "$VENV" && "$VENV/bin/pip" install -q -r ../server/requirements.txt; }
+"$VENV/bin/python" -m unittest discover -s tests 2>&1 | tail -1
 python3 -m venv "$WORK/venv" && "$WORK/venv/bin/pip" install -q pyinstaller==6.11.1
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict></dict></plist>\n' > "$WORK/ent.plist"
 cp ta_companion.py "$WORK/"

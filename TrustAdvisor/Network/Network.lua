@@ -110,11 +110,32 @@ function Net:BuildPresence(now)
   return out
 end
 
+-- Your own character, for anonymous statistics (class, race, faction, level,
+-- realm, game language). English tokens so statistics don't split by locale.
+-- Nothing about other players is ever included here.
+local RACE_NAMES = { Scourge = "Undead", NightElf = "Night Elf", BloodElf = "Blood Elf", HighmountainTauren = "Highmountain Tauren",
+  LightforgedDraenei = "Lightforged Draenei", VoidElf = "Void Elf", DarkIronDwarf = "Dark Iron Dwarf", MagharOrc = "Mag'har Orc",
+  KulTiran = "Kul Tiran", ZandalariTroll = "Zandalari Troll" }
+function Net:OwnCharacter(guild)
+  local _, classFile = UnitClass("player")
+  local _, raceFile = UnitRace("player")
+  classFile, raceFile = TA.Clean(classFile), TA.Clean(raceFile)
+  local faction = TA.Clean((UnitFactionGroup("player")))
+  return {
+    name = TA.playerName, guild = guild, t = TA.Now(),
+    class = classFile and (classFile:sub(1, 1) .. classFile:sub(2):lower()) or nil,
+    race = raceFile and (RACE_NAMES[raceFile] or raceFile) or nil,
+    faction = faction, level = TA.Clean(UnitLevel("player")),
+    realm = GetRealmName and TA.Clean(GetRealmName()) or nil,
+    locale = GetLocale and GetLocale() or nil,
+  }
+end
+
 function Net:WriteOutbox()
   if not self:Enabled() or not TA.db or not TA.playerGUID then return end
   local n = self:State()
   local reports, guild = self:BuildReports()
-  n.characters[TA.playerGUID] = { name = TA.playerName, guild = guild, t = TA.Now() }
+  n.characters[TA.playerGUID] = self:OwnCharacter(guild)
   n.outbox = { protocol = TA.Params:Get("net.protocolVersion"), builtAt = TA.Now(), witness = TA.playerGUID,
     witnessGuild = guild, reports = reports, presence = self:BuildPresence() }
 end

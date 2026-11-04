@@ -54,6 +54,7 @@ Join the Network to also see what *other* players witnessed.
 
 The rules are built so the Network can't be used to harm anyone:
 - **Only game-witnessed facts are shared.** They're computed with the published rules, never your local edits. Debts, signup lists, notes and chat stay on your computer.
+- **For anonymous statistics,** the Network also receives your *own* character's class, race, faction, level, realm and game language. It never receives any of that about the players you meet.
 - **A negative only counts when two or more independent players, from two or more different guilds, witnessed it.** Each of those witnesses must:
   - have been in the same group as you and as each other at that moment;
   - have an established, cross-checked history;
@@ -92,7 +93,7 @@ Everything works even if nobody else has the addon. If your group mates also run
 |---|---|---|
 | [`TrustAdvisor/`](TrustAdvisor) | The addon (Lua 5.1, no libraries). This is the only part published on CurseForge. | [How it works](docs/HOW-IT-WORKS.md) · [Testing](docs/TESTING.md) |
 | [`companion/`](companion) | Desktop app that connects the addon to the Network (Python, standard library only). | [README](companion/README.md) |
-| [`server/`](server) | Network server: fairness rules, Battle.net identity, in-game feedback, API (Python stdlib + SQLite). | [Network design](docs/NETWORK.md) · [Deployment](docs/DEPLOY.md) |
+| [`server/`](server) | Network server: fairness rules, Battle.net identity, in-game feedback, API, and the admin cockpit (Python + SQLite; `cryptography` for passkeys). | [Network design](docs/NETWORK.md) · [Deployment](docs/DEPLOY.md) · [Cockpit](docs/COCKPIT.md) |
 | [`branding/`](branding) | Logo and the public description, which is the single source of truth for every store page. | |
 
 ```sh

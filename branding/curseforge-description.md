@@ -61,6 +61,7 @@ Join the Network to also see what *other* players witnessed.
 
 The rules are built so the Network can't be used to harm anyone:
 - **Only game-witnessed facts are shared.** They're computed with the published rules, never your local edits. Debts, signup lists, notes and chat stay on your computer.
+- **For anonymous statistics,** the Network also receives your *own* character's class, race, faction, level, realm and game language. It never receives any of that about the players you meet.
 - **A negative only counts when two or more independent players, from two or more different guilds, witnessed it.** Each of those witnesses must:
   - have been in the same group as you and as each other at that moment;
   - have an established, cross-checked history;

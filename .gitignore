@@ -17,3 +17,6 @@ Trust Advisor — Game Design Document.md
 __pycache__/
 *.pyc
 *.sqlite3
+
+# local test venv
+.venv-server/
