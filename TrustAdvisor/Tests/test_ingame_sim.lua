@@ -306,7 +306,20 @@ fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-buff-1", 1459)
 for _, ev in ipairs(TA.Log:All()) do
   assert(not (ev.signal == "generosity" and ev.details.kind == "buff" and ev.details.recipientGUID == "Player-1-0000000A"), "group buff not counted")
 end
+-- developer probe records group casts and summon offers
+TA.HandleSlash("probe on")
+fire("UNIT_SPELLCAST_CHANNEL_START", "party1", "c-1", 698)
+fire("UNIT_SPELLCAST_SUCCEEDED", "party1", "c-2", 7720)
+fire("UNIT_SPELLCAST_SUCCEEDED", "target", "c-3", 1)          -- not a group unit: ignored
+fire("CONFIRM_SUMMON")
+TA.HandleSlash("probe off")
+fire("UNIT_SPELLCAST_SUCCEEDED", "party1", "c-4", 7720)       -- probe off: ignored
+local probeText = table.concat(TA.Probe:Text(), "\n")
+assert(#TA.db.probe.rows == 3 and probeText:find("698") and probeText:find("7720") and probeText:find("SUMMON OFFER from Tanky"), "probe rows: " .. probeText)
+TA.HandleSlash("probe show"); TA.HandleSlash("probe clear")
+assert(#TA.db.probe.rows == 0, "probe cleared")
 party = {}; fire("GROUP_LEFT"); advance(5)
+print("  ok   developer probe (/ta probe) records group casts and summon offers")
 print("  ok   warlock summons: received and given (inside the group); group buffs still excluded")
 
 -- In-game feedback and error capture

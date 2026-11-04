@@ -87,6 +87,7 @@ local HELP = {
   "/ta network - network status and companion app setup",
   "/ta welcome - show the welcome and privacy choices again",
   "/ta status - client, interface and capture status",
+  "/ta probe on|off|show|clear - developer: record spells cast by your group for live validation",
   "Something wrong or an idea? /ta feedback. Companion app: github.com/viniciuscotrim/trust-advisor",
 }
 
@@ -152,6 +153,12 @@ local function Handle(msg)
     TA.Print("Presence LFG flag " .. (TA.Presence.lfg and "ON" or "off") .. (TA.Presence:Active() and "" or " (presence is off)") .. ".")
   elseif cmd == "feedback" or cmd == "bug" or cmd == "idea" then
     UI.ShowFeedback(cmd == "idea" and "idea" or (cmd == "bug" and "bug" or nil), rest ~= "" and rest or nil)
+  elseif cmd == "probe" then
+    local a = rest:lower()
+    if a == "on" then TA.Probe:Set(true)
+    elseif a == "off" then TA.Probe:Set(false)
+    elseif a == "clear" then TA.Probe:Clear(); TA.Print("Probe cleared.")
+    else UI.ShowText("Trust Advisor probe", TA.Probe:Text()) end
   elseif cmd == "network" then
     UI.ShowText("Trust Advisor Network", TA.Network:SetupText())
   elseif cmd == "welcome" then

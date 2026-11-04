@@ -15,7 +15,7 @@ The server runs isolated on a shared VPS that also hosts other services. Do not 
 | Battle.net OAuth client | `/srv/trustadvisor/blizzard.env` (root, 600): `TA_BNET_CLIENT_ID`, `TA_BNET_CLIENT_SECRET`, `TA_PUBLIC_URLS`. Redirect URLs registered at develop.battle.net: `https://trustadvisor.gameplaybr.com.br/v1/auth/callback` and the sslip.io one |
 | Container | `trustadvisor-net`: `127.0.0.1:10790` only, 256 MB, 0.5 CPU, read-only, no capabilities, uid 65534, restart unless-stopped |
 | nginx | its own file `/etc/nginx/sites-available/trustadvisor-net` (HTTP: ACME + redirect; HTTPS: proxy) |
-| TLS | Let's Encrypt via webroot `/var/www/trustadvisor-acme`, auto-renew with nginx reload |
+| TLS | Let's Encrypt via webroot `/var/www/trustadvisor-acme`, auto-renew with nginx reload. `--dry-run` cannot be used here: the VPS can't reach LE *staging*, but it does reach production (see BACKLOG TA-2) |
 
 DNS is on Cloudflare (zone `gameplaybr.com.br`). The `trustadvisor` record is **proxied**, with SSL mode **Full (strict)**, so the public sees Cloudflare's IPs. The HTTPS server block for this name accepts connections **only from Cloudflare's IP ranges**, and takes the client IP for rate limiting from `CF-Connecting-IP`. Certificate renewals (HTTP-01) pass through Cloudflare. The local Cloudflare token (`cloudflare.key`, git-ignored) can only edit this zone's DNS and settings.
 

@@ -19,6 +19,7 @@ Scoring\Dimensions.lua
 Network\NetData.lua
 Network\Network.lua
 Core\Sessions.lua
+Core\Probe.lua
 Capture\Group.lua
 Capture\Loot.lua
 Capture\Trade.lua
