@@ -33,4 +33,4 @@ The addon computes network bands with the same engine and published parameters, 
    **Recommended before a public network launch:** Battle.net OAuth to bind uploaders to real characters (if Blizzard's API covers Forever), or a manual allowlist / invite-only beta.
 2. **Character claims.** Characters are self-declared. A GUID claimed by two uploaders is *contested*: neither can see its events or hide it, and an admin must resolve it.
 3. **Moderation.** Disputes need a human reviewer (admin endpoints). Budget time for this.
-4. **Hosting.** The server needs HTTPS hosting and a backup of the SQLite file.
+4. **Hosting.** Deployed at https://trustadvisor.72-62-142-237.sslip.io with daily backups. See `DEPLOY.md`.

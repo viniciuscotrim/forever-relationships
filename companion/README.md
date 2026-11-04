@@ -7,9 +7,9 @@ WoW addons cannot use the internet. This small program (Python 3.8+, no dependen
 3. Downloads the network view for players you know into `Interface/AddOns/TrustAdvisor/Network/NetData.lua`. Type `/reload` in game to see it.
 
 ```sh
-python3 ta_companion.py --server https://YOUR-SERVER          # keeps watching
-python3 ta_companion.py --server https://YOUR-SERVER --once   # one sync
-python3 ta_companion.py --wow "D:\Games\World of Warcraft\_forever_" --server ...
+python3 ta_companion.py              # keeps watching, official network
+python3 ta_companion.py --once       # one sync
+python3 ta_companion.py --wow "D:\Games\World of Warcraft\_forever_"   # custom install folder
 ```
 
 Nothing is sent unless `consent.network` is ON in the addon. Notes, affinity and chat are never read.

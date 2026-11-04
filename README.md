@@ -24,4 +24,4 @@ Network: [`server/`](server) (aggregation + API, Python stdlib + SQLite) and [`c
 `./install.sh` runs the tests and copies the addon into the Forever AddOns folder. `./publish.sh <projectId> [alpha|beta|release]` uploads a release to CurseForge (reads the author token from a local, git-ignored file).
 
 ## Status
-Released (0.2.0). Network (Phase 3) code is complete and tested end to end; the server still has to be hosted (see [`docs/NETWORK.md`](docs/NETWORK.md)). Not yet verified on every live-client API; unavailable captures disable themselves safely.
+Released (0.2.0). Network (Phase 3) is live at https://trustadvisor.72-62-142-237.sslip.io (see [`docs/NETWORK.md`](docs/NETWORK.md) and [`docs/DEPLOY.md`](docs/DEPLOY.md)). Not yet verified on every live-client API; unavailable captures disable themselves safely.

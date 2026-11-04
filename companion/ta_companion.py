@@ -9,8 +9,9 @@ WoW addons cannot use the internet, so this small program does it for them:
      Interface/AddOns/TrustAdvisor/Network/NetData.lua (loaded on the next /reload).
 
 Usage:
-  python3 ta_companion.py --server https://net.example.com           # watch mode
-  python3 ta_companion.py --server https://net.example.com --once
+  python3 ta_companion.py                 # watch mode, official network
+  python3 ta_companion.py --once          # one sync
+  python3 ta_companion.py --server https://other.example.com   # another server
   python3 ta_companion.py --wow "/Applications/World of Warcraft/_forever_" --server ...
 """
 import argparse
@@ -30,6 +31,7 @@ DEFAULT_WOW = [
     r"C:\Program Files (x86)\World of Warcraft\_forever_",
     r"C:\Program Files\World of Warcraft\_forever_",
 ]
+DEFAULT_SERVER = "https://trustadvisor.72-62-142-237.sslip.io"
 STATE_PATH = os.path.join(os.path.expanduser("~"), ".trustadvisor", "companion.json")
 
 
@@ -334,7 +336,7 @@ def sync_file(sv_path, client, wow, state, log=print):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Trust Advisor companion app")
-    ap.add_argument("--server", default=os.environ.get("TA_SERVER"), help="network server URL")
+    ap.add_argument("--server", default=os.environ.get("TA_SERVER", DEFAULT_SERVER), help="network server URL (default: the official Trust Advisor network)")
     ap.add_argument("--wow", help="WoW: Forever folder (contains WTF and Interface)")
     ap.add_argument("--once", action="store_true", help="sync once and exit")
     ap.add_argument("--interval", type=int, default=30, help="seconds between checks in watch mode")
