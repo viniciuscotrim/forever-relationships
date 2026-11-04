@@ -264,6 +264,30 @@ class Api(unittest.TestCase):
         with self.assertRaises(BadRequest):
             svc.auth_begin({"uploaderId": "a" * 32})
 
+    def test_feedback_roundtrip(self):
+        iid = "f" * 32
+        item = {"id": "ffffffff-1-abcd", "kind": "bug", "text": "tooltip shows nothing", "version": "0.3.0",
+                "diag": {"addon": "0.3.0", "errors": ["x1 boom"]}, "t": NOW}
+        res = self.svc.feedback({"installId": iid, "items": [item, item]})
+        self.assertEqual(res["accepted"], 1)                                   # deduplicated by id
+        self.assertEqual(res["statuses"], {"ffffffff-1-abcd": {"status": "received"}})
+        self.svc.store.update_feedback("ffffffff-1-abcd", "fixed", "Fixed in 0.3.1, thanks!", NOW)
+        st = self.svc.feedback({"installId": iid, "items": []})["statuses"]["ffffffff-1-abcd"]
+        self.assertEqual(st, {"status": "fixed", "reply": "Fixed in 0.3.1, thanks!"})
+        self.assertEqual(self.svc.feedback({"installId": "e" * 32, "items": []})["statuses"], {})  # others can't see it
+        stored = self.svc.store.list_feedback()[0]
+        self.assertNotIn(iid, str(stored))                                     # install id stored hashed only
+
+    def test_feedback_validation_and_daily_limit(self):
+        with self.assertRaises(BadRequest):
+            self.svc.feedback({"installId": "f" * 32, "items": [{"id": "x", "kind": "bug"}]})
+        with self.assertRaises(BadRequest):
+            self.svc.feedback({"installId": "f" * 32, "items": [{"id": "abcdefgh", "kind": "rant"}]})
+        for batch in range(2):
+            items = [{"id": "id%02d%02d-aaaa" % (batch, i), "kind": "idea", "text": "x"} for i in range(15)]
+            self.svc.feedback({"installId": "f" * 32, "items": items})
+        self.assertEqual(len(self.svc.store.list_feedback()), 20)
+
     def test_presence_validation(self):
         with self.assertRaises(BadRequest):
             self.upload("a" * 32, A, "G1", [], presence=[{"a": NOW, "b": NOW - 10, "m": [A]}])

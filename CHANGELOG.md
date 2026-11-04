@@ -1,6 +1,8 @@
 # Trust Advisor 0.3.0
 
 ### New
+- **In-game feedback: `/ta feedback`.** Report a bug or suggest an idea without leaving the game; there's also a Feedback button in the main window. It's the one feedback channel. Diagnostics are optional and you can preview them; they never include names, notes or chat. Replies and status (planned, fixed…) show up in the same window. Reports travel through the companion app, and are saved until it runs.
+- **Error reports in one click.** If Trust Advisor hits an error, it offers to send a report with the details already attached. This only happens outside combat, and at most once per error.
 - **Welcome screen** on first login. It explains what Trust Advisor does and gathers every sharing choice in one place, all **off** until you turn them on. Reopen it with `/ta welcome`.
 - **Companion app detection.** If you joined the Network but the companion app isn't syncing, Trust Advisor tells you in game and shows the setup steps (`/ta network`). `/ta status` and Transparency › Network show the companion's status and version.
 - **Companion app downloads:** ready-made Windows and Mac versions, no Python needed. Run once with `--install` and it starts with your computer. Get them from the project's GitHub Releases.

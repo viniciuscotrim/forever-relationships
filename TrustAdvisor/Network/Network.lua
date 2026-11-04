@@ -22,6 +22,7 @@ Net.ELIGIBLE = { finish = true, ready = true, loot = true, carry = true, generos
 Net.SHARED = { finish = true, ready = true, loot = true, carry = true, teach = true, help = true, hc = true }
 
 local MAX_REPORTS = 20000
+local STALE = 7 * 86400
 local YEAR = 365 * 86400
 
 local function RandomId()
@@ -201,7 +202,6 @@ end)
 -- moment you joined, and never older than a week.
 -------------------------------------------------------------------------------
 Net.DOWNLOAD_URL = "github.com/viniciuscotrim/trust-advisor/releases"
-local STALE = 7 * 86400
 
 TA:Listen("PARAMS_CHANGED", function(key)
   if key == "consent.network" and TA.Params:Get("consent.network") then
@@ -232,6 +232,13 @@ function Net:Linked()
   return d.me.linked, d.me.verifiedCharacters or 0
 end
 
+-- True if the companion synced on this computer in the last week (network or not).
+function Net:CompanionSeen()
+  local d = Data()
+  local at = d and d.companion and d.companion.syncedAt
+  return at ~= nil and TA.Now() - at <= STALE
+end
+
 function Net:CompanionVersion()
   local d = Data()
   return d and d.companion and d.companion.version
@@ -256,7 +263,8 @@ function Net:SetupText()
   return {
     "|cffffd100Trust Advisor Network - companion app setup|r",
     "",
-    "WoW addons cannot use the internet, so a small free companion app does it for Trust Advisor.",
+    "WoW addons cannot use the internet, so a small free companion app does it for Trust Advisor:",
+    "it syncs the Network and delivers your /ta feedback reports (and the developer's replies).",
     "It only reads Trust Advisor's own saved data and only sends anything if you joined the network.",
     "",
     "1. Download it from:  https://" .. Net.DOWNLOAD_URL,

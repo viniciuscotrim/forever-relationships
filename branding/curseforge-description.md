@@ -23,6 +23,9 @@ You've also met the other kind: the one who grabbed the drop and was gone before
 
 **Trust Advisor remembers both for you, and it's fair about it.**
 
+> **Found a bug or have an idea? Type `/ta feedback` in game.**
+> It's the one place for all feedback. You never need to leave the game, and replies from the developer show up right there. If Trust Advisor ever hits an error, it offers to send a report for you with one click.
+
 ### What it does
 
 - **Hover a player, see your history.** One tooltip line shows how much you've grouped with them and what stood out, for example *"Finishing Solid · Paying Exemplary · 4 sessions"*. LFG listings get the same line, plus a small marker for leaders you know.
@@ -73,6 +76,7 @@ Everything works even if nobody else has the addon. If your group mates also run
 ### Commands
 
 `/ta` opens the window. Other useful commands:
+- `/ta feedback`: report a bug or suggest an idea, without leaving the game
 - `/ta network`: Network status and companion setup
 - `/ta welcome`: your sharing choices
 - `/ta why <name> <trait>`: the math behind a band
@@ -82,5 +86,7 @@ Everything works even if nobody else has the addon. If your group mates also run
 
 - Made for **WoW: Forever**. The interface is in English.
 - **Early release.** If a game feature isn't available on your client, that part turns itself off safely and shows as "unavailable" in Transparency › Captures instead of throwing errors.
-- Source code, companion downloads and bug reports: **https://github.com/viniciuscotrim/trust-advisor**
+- **Feedback and bug reports: `/ta feedback` in game.** It's the only channel, so please don't use comments for bug reports. That way nothing gets lost.
+- **The companion app also delivers your feedback.** Without it, reports are saved and sent the first time it runs.
+- Source code and companion downloads: **https://github.com/viniciuscotrim/trust-advisor**
 <!-- PUBLIC-DESCRIPTION:END -->

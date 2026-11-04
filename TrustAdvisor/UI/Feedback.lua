@@ -104,8 +104,7 @@ function FB:StatusText(report)
 end
 
 function FB:DeliveryNote()
-  local st = TA.Network and TA.Network:CompanionStatus() or "missing"
-  if st == "ok" or st == "waiting" then
+  if TA.Network and TA.Network:CompanionSeen() then
     return "|cff66ff66Sent automatically the next time you log out or /reload.|r"
   end
   return "|cffff9933Addons can't use the internet: your report is saved on this computer and sent automatically as soon as the free "
@@ -158,7 +157,7 @@ local function Build()
     local ok, res = FB:Submit(f.kind, f.edit:GetText(), f.withDiag)
     if not ok then TA.Print(res); return end
     f.edit:SetText(""); f.edit:ClearFocus(); f.hint:Show()
-    TA.Print("Thanks! Feedback saved. " .. ((TA.Network:CompanionStatus() == "ok") and "It will be sent on your next logout or /reload."
+    TA.Print("Thanks! Feedback saved. " .. (TA.Network:CompanionSeen() and "It will be sent on your next logout or /reload."
       or "It will be sent when the companion app runs (/ta network)."))
     f:Refresh()
   end)

@@ -290,6 +290,9 @@ assert(okFb and report.id and report.diag and report.diag.addon == TA.version, "
 local diagText = table.concat(TA.Feedback:DiagnosticsText(), "\n")
 assert(not diagText:find("Tanky") and not diagText:find("Leafy"), "diagnostics never include player names")
 assert(TA.Feedback:StatusText(report):find("Waiting"), "waiting until the companion sends it")
+assert(TA.Feedback:DeliveryNote():find("companion app runs here"), "explains delivery without companion")
+TrustAdvisorNetData.companion = { version = "0.3.3", syncedAt = TA.Now() }
+assert(TA.Feedback:DeliveryNote():find("Sent automatically"), "companion seen (even with network off)")
 TrustAdvisorNetData.feedback = { [report.id] = { status = "planned", reply = "Coming in 0.4" } }
 local st, reply = TA.Feedback:StatusText(report)
 assert(st:find("Planned") and reply == "Coming in 0.4", "status and reply shown in game")

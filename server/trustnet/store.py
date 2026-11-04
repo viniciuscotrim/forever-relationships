@@ -29,6 +29,11 @@ CREATE TABLE IF NOT EXISTS presence (
 CREATE INDEX IF NOT EXISTS presence_u ON presence (uploader);
 CREATE TABLE IF NOT EXISTS links (uploader TEXT PRIMARY KEY, account TEXT, region TEXT, linked_at INTEGER);
 CREATE TABLE IF NOT EXISTS owned (guid TEXT PRIMARY KEY, account TEXT, verified_at INTEGER);
+CREATE TABLE IF NOT EXISTS feedback (
+  id TEXT PRIMARY KEY, install TEXT, kind TEXT, text TEXT, version TEXT, diag TEXT, t INTEGER,
+  received_at INTEGER, status TEXT, reply TEXT, updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS feedback_install ON feedback (install);
 CREATE TABLE IF NOT EXISTS oauth_states (state TEXT PRIMARY KEY, uploader TEXT, redirect TEXT, region TEXT, created_at INTEGER);
 """
 
@@ -146,6 +151,39 @@ class Store:
         with self.lock:
             r = self.db.execute("SELECT account, region, linked_at FROM links WHERE uploader = ?", (uploader,)).fetchone()
         return {"account": r[0], "region": r[1], "linked_at": r[2]} if r else None
+
+    # -- feedback ---------------------------------------------------------------
+    def feedback_recent_count(self, install, since):
+        with self.lock:
+            return self.db.execute("SELECT count(*) FROM feedback WHERE install = ? AND received_at >= ?", (install, since)).fetchone()[0]
+
+    def add_feedback(self, install, item, now):
+        with self.lock:
+            cur = self.db.execute("INSERT OR IGNORE INTO feedback (id, install, kind, text, version, diag, t, received_at, status, reply, updated_at) "
+                                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'received', NULL, ?)",
+                                  (item["id"], install, item["kind"], item["text"], item["version"], item["diag"], item["t"], now, now))
+            self.db.commit()
+            return cur.rowcount
+
+    def feedback_statuses(self, install):
+        with self.lock:
+            rows = self.db.execute("SELECT id, status, reply FROM feedback WHERE install = ?", (install,)).fetchall()
+        return {r[0]: ({"status": r[1], "reply": r[2]} if r[2] else {"status": r[1]}) for r in rows}
+
+    def list_feedback(self, status=None, limit=200):
+        q, args = "SELECT id, kind, text, version, diag, t, received_at, status, reply FROM feedback", []
+        if status:
+            q, args = q + " WHERE status = ?", [status]
+        with self.lock:
+            rows = self.db.execute(q + " ORDER BY received_at DESC LIMIT ?", args + [limit]).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_feedback(self, fid, status, reply, now):
+        with self.lock:
+            cur = self.db.execute("UPDATE feedback SET status = ?, reply = COALESCE(?, reply), updated_at = ? WHERE id = ?",
+                                  (status, reply, now, fid))
+            self.db.commit()
+            return cur.rowcount
 
     def add_dispute(self, uploader, inc, reason, now=None):
         now = now or int(time.time())

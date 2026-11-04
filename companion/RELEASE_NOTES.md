@@ -1,4 +1,4 @@
-**Optional.** Trust Advisor works fully without this app. You only need it to join the Trust Advisor Network.
+**Optional.** Trust Advisor works fully without this app. It's needed to join the Trust Advisor Network, and to deliver the feedback you write in game with `/ta feedback` (and bring the developer's replies back).
 
 WoW addons cannot use the internet. This small app syncs Trust Advisor's network data for you. It only reads Trust Advisor's own saved data, and it only sends anything if you turned on **Join the Trust Advisor Network** in game.
 

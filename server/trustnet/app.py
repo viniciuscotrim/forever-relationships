@@ -8,6 +8,9 @@
   POST /v1/auth/begin                     {uploaderId, region} -> Battle.net login URL
   GET  /v1/auth/callback                  Battle.net redirect target (HTML page)
   POST /v1/auth/status                    {uploaderId} -> linked?, verified characters
+  POST /v1/feedback                       {installId, items} -> stores reports, returns status/replies
+  GET  /v1/admin/feedback[?status=]       X-Admin-Token
+  POST /v1/admin/feedback/<id>            X-Admin-Token, {"status": ..., "reply": "..."}
   GET  /v1/admin/disputes                 X-Admin-Token
   POST /v1/admin/disputes/<id>            X-Admin-Token, {"status": "upheld"|"rejected"}
 
@@ -36,6 +39,9 @@ MAX_REPORTS = 20000
 MAX_GUIDS = 500
 MAX_SESSIONS = 5000
 MAX_MEMBERS = 40
+FEEDBACK_ID_RE = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+FEEDBACK_STATUSES = ("received", "planned", "fixed", "done", "wontfix", "duplicate")
+FEEDBACK_PER_DAY = 20
 RATE_PER_MIN = 60
 YEAR = 400 * 86400
 
@@ -154,6 +160,38 @@ class Service:
             return {"linked": False}
         owned = self.store.owned_map().get(link["account"], set())
         return {"linked": True, "region": link["region"], "linkedAt": link["linked_at"], "characters": len(owned)}
+
+    # -- feedback (in-game, delivered by the companion; independent of the network) --
+    def _install(self, body):
+        iid = body.get("installId")
+        if not (isinstance(iid, str) and UPLOADER_RE.match(iid)):
+            raise BadRequest("bad installId")
+        return hash_id(iid)
+
+    def feedback(self, body):
+        now = self.now()
+        install = self._install(body)
+        items = body.get("items") or []
+        if not isinstance(items, list) or len(items) > 20:
+            raise BadRequest("items must be a list of at most 20")
+        accepted = 0
+        for it in items:
+            if not isinstance(it, dict):
+                raise BadRequest("bad item")
+            fid, kind = it.get("id"), it.get("kind")
+            if not (isinstance(fid, str) and FEEDBACK_ID_RE.match(fid)):
+                raise BadRequest("bad feedback id")
+            if kind not in ("bug", "idea"):
+                raise BadRequest("kind must be bug or idea")
+            diag = it.get("diag")
+            diag_json = json.dumps(diag)[:8192] if isinstance(diag, (dict, list)) else None
+            if self.store.feedback_recent_count(install, now - 86400) >= FEEDBACK_PER_DAY:
+                break  # quietly stop: per-install daily limit
+            accepted += self.store.add_feedback(install, {
+                "id": fid, "kind": kind, "text": str(it.get("text") or "")[:1000],
+                "version": str(it.get("version") or "")[:20], "diag": diag_json,
+                "t": int(it.get("t") or now)}, now)
+        return {"accepted": accepted, "statuses": self.store.feedback_statuses(install)}
 
     def _contested(self):
         claims = self.store.self_claims()
@@ -364,6 +402,20 @@ def make_handler(service):
                 if method == "GET" and url.path == "/v1/auth/callback":
                     q = {k: v[0] for k, v in parse_qs(url.query).items()}
                     return self._send_html(*service.auth_callback(q))
+                if method == "POST" and url.path == "/v1/feedback":
+                    return self._send(200, service.feedback(self._body()))
+                if url.path.startswith("/v1/admin/feedback"):
+                    service.check_admin(self.headers.get("X-Admin-Token"))
+                    if method == "GET":
+                        st = parse_qs(url.query).get("status", [None])[0]
+                        return self._send(200, {"feedback": service.store.list_feedback(st)})
+                    fid = url.path.rsplit("/", 1)[-1]
+                    body = self._body()
+                    if body.get("status") not in FEEDBACK_STATUSES:
+                        raise BadRequest("status must be one of " + ", ".join(FEEDBACK_STATUSES))
+                    reply = body.get("reply")
+                    return self._send(200, {"updated": service.store.update_feedback(
+                        fid, body["status"], str(reply)[:500] if reply else None, service.now())})
                 if url.path.startswith("/v1/admin/disputes"):
                     service.check_admin(self.headers.get("X-Admin-Token"))
                     if method == "GET":

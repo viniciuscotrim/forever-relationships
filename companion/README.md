@@ -1,6 +1,6 @@
 # Trust Advisor companion app
 
-**Optional.** Trust Advisor works fully without it. It is only needed for the Trust Advisor Network.
+**Optional.** Trust Advisor works fully without it. It connects the addon to the Trust Advisor Network, and it delivers the feedback you write in game with `/ta feedback`, along with the developer's replies.
 
 WoW addons cannot use the internet, so this small program does it for them:
 
@@ -36,6 +36,6 @@ Other options:
 
 In game, `/ta network` shows whether the companion is syncing.
 
-Nothing is sent unless `consent.network` is ON in the addon. Notes, affinity and chat are never read.
+Network data is sent only if `consent.network` is ON in the addon. Feedback is sent only when you pressed **Send** in `/ta feedback`. Notes, affinity and chat are never read.
 
 Tests: `python3 -m unittest discover -s tests -v` (the end-to-end test needs `luajit`). Releases: push a `companion-v*` tag. CI tests both platforms and publishes the Windows build. Then run `companion/release-mac.sh` on a Mac to attach the signed, notarized and stapled macOS app.

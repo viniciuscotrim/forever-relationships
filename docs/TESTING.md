@@ -24,7 +24,8 @@ python3 tools/sync_docs.py --check                         # README matches the 
 5. Raid: run a ready check and confirm `ready` rows with consumable counts. If auras are secret on this client, Transparency › Captures shows "unavailable". That is the intended safe failure.
 6. Questie: ask a partner with Questie announcements on to turn in a quest. Copy 10 real lines into `TrustAdvisor/Tests/test_questie.lua`.
 7. Check the IDs in `TrustAdvisor/Data/*.lua` (consumables, attunements, generosity spells) on the live client, then set `verified = true`.
-8. Network:
+8. Feedback: `/ta feedback` → send a test idea → `/reload`. Then `tools/feedback.sh` should show it. Reply with `tools/feedback.sh reply <id> planned "test"` and `/reload` twice: the status and reply appear in the window.
+9. Network:
    - turn on **Join the Trust Advisor Network**, then `/reload`;
    - open the companion and link Battle.net;
    - `/reload` again: `/ta network` should say *syncing* and *linked*.

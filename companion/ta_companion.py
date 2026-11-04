@@ -31,7 +31,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 PROTOCOL = 1
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",
@@ -276,6 +276,9 @@ class Client:
     def self_events(self, uploader_id):
         return self._req("POST", "/v1/self", {"uploaderId": uploader_id}).get("events", [])
 
+    def feedback(self, install_id, items):
+        return self._req("POST", "/v1/feedback", {"installId": install_id, "items": items})
+
     def auth_begin(self, uploader_id, region):
         return self._req("POST", "/v1/auth/begin", {"uploaderId": uploader_id, "region": region})["url"]
 
@@ -308,16 +311,45 @@ def netdata_path(wow):
     return os.path.join(wow, "Interface", "AddOns", "TrustAdvisor", "Network", "NetData.lua")
 
 
+def sync_feedback(db, client, state, log=print):
+    """Send new in-game feedback reports; return {id: {status, reply}} or None."""
+    fb = db.get("feedback") or {}
+    iid = fb.get("installId")
+    if not isinstance(iid, str) or not iid:
+        return None
+    st = state.setdefault("fb-" + iid[:8], {})
+    sent = set(st.get("sent", []))
+    items = []
+    for r in as_list(fb.get("outbox")):
+        if isinstance(r, dict) and r.get("id") and r["id"] not in sent:
+            items.append({k: r.get(k) for k in ("id", "kind", "text", "version", "diag", "t")})
+    res = client.feedback(iid, items[:20])
+    statuses = res.get("statuses") or {}
+    st["sent"] = sorted(sent | set(statuses))
+    if items:
+        log("  feedback: %d new report(s) sent" % res.get("accepted", 0))
+    return statuses
+
+
 def sync_file(sv_path, client, wow, state, log=print):
     with open(sv_path, encoding="utf-8", errors="replace") as f:
         sv = parse_saved_variables(f.read())
     db = sv.get("TrustAdvisorDB") or {}
     params = db.get("params") or {}
     net = db.get("net") or {}
+    companion = {"version": VERSION, "syncedAt": int(time.time())}
+
+    # In-game feedback: sent whenever the player pressed Send, network or not.
+    feedback = sync_feedback(db, client, state, log)
+    offline = {"protocol": PROTOCOL, "generatedAt": 0, "players": {}, "companion": companion}
+    if feedback is not None:
+        offline["feedback"] = feedback
+
     uploader = net.get("uploaderId")
     if not uploader:
-        log("  %s: network never joined, skipping" % sv_path)
-        return False
+        write_netdata(netdata_path(wow), offline)
+        log("  network never joined: only feedback synced")
+        return True
     st = state.setdefault(uploader[:8], {})
 
     # data rights first: a deletion request is honored even after leaving
@@ -325,12 +357,13 @@ def sync_file(sv_path, client, wow, state, log=print):
         res = client.upload({"uploaderId": uploader, "protocol": PROTOCOL, "deleteRequested": True})
         st["deletedFor"] = net["deleteRequested"]
         log("  deletion sent: %s" % res)
-        write_netdata(netdata_path(wow), {"protocol": PROTOCOL, "generatedAt": 0, "players": {}, "companion": {"version": VERSION}})
+        write_netdata(netdata_path(wow), offline)
         return True
 
     if params.get("consent.network") is not True:
-        log("  %s: consent.network is off, nothing sent" % os.path.basename(os.path.dirname(os.path.dirname(sv_path))))
-        return False
+        write_netdata(netdata_path(wow), offline)
+        log("  consent.network is off: only feedback synced")
+        return True
 
     outbox = net.get("outbox") or {}
     characters = [{"guid": g, "name": c.get("name", ""), "guild": c.get("guild", "")}
@@ -359,8 +392,10 @@ def sync_file(sv_path, client, wow, state, log=print):
         me["verifiedCharacters"] = int(status.get("characters") or 0)
     except RuntimeError:
         pass
-    write_netdata(netdata_path(wow), {"protocol": PROTOCOL, "generatedAt": int(time.time()), "players": players, "me": me,
-                                      "companion": {"version": VERSION}})
+    data = {"protocol": PROTOCOL, "generatedAt": int(time.time()), "players": players, "me": me, "companion": companion}
+    if feedback is not None:
+        data["feedback"] = feedback
+    write_netdata(netdata_path(wow), data)
     log("  network view: %d players with network data, %d events about you -> %s" % (len(players), len(me["events"]), netdata_path(wow)))
     return True
 

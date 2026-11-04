@@ -88,6 +88,39 @@ class Fallback(unittest.TestCase):
             httpd.server_close()
 
 
+class Feedback(unittest.TestCase):
+    def test_feedback_is_sent_without_network_and_status_comes_back(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            wow = os.path.join(tmp, "_forever_")
+            svdir = os.path.join(wow, "WTF", "Account", "X", "SavedVariables")
+            os.makedirs(svdir)
+            os.makedirs(os.path.join(wow, "Interface", "AddOns", "TrustAdvisor", "Network"))
+            sv = os.path.join(svdir, "TrustAdvisor.lua")
+            with open(sv, "w") as f:
+                f.write('TrustAdvisorDB = { ["feedback"] = { ["installId"] = "%s", ["outbox"] = { '
+                        '{ ["id"] = "aaaaaaaa-1-beef", ["kind"] = "bug", ["text"] = "it broke", ["version"] = "0.3.0", '
+                        '["diag"] = { ["addon"] = "0.3.0" }, ["t"] = 1800000000 } } } }' % ("a" * 32))
+            svc = Service(Store(":memory:"))
+            httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(svc))
+            threading.Thread(target=httpd.serve_forever, daemon=True).start()
+            client = tc.Client("http://127.0.0.1:%d" % httpd.server_address[1])
+            state = {}
+            self.assertTrue(tc.sync_file(sv, client, wow, state, log=lambda *_: None))
+            self.assertEqual(len(svc.store.list_feedback()), 1)
+            svc.store.update_feedback("aaaaaaaa-1-beef", "fixed", "Thanks!", 1)
+            tc.sync_file(sv, client, wow, state, log=lambda *_: None)
+            nd = tc.parse_saved_variables(open(tc.netdata_path(wow), encoding="utf-8").read())["TrustAdvisorNetData"]
+            self.assertEqual(nd["feedback"]["aaaaaaaa-1-beef"], {"status": "fixed", "reply": "Thanks!"})
+            self.assertEqual(nd["players"], {})                       # no network data without consent
+            self.assertTrue(nd["companion"]["syncedAt"] > 0)
+            self.assertEqual(len(svc.store.list_feedback()), 1)       # not sent twice
+            httpd.shutdown()
+            httpd.server_close()
+        finally:
+            shutil.rmtree(tmp)
+
+
 class Link(unittest.TestCase):
     def test_link_opens_browser_and_waits_for_confirmation(self):
         tmp = tempfile.mkdtemp()
