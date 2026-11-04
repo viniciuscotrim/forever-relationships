@@ -53,8 +53,11 @@ function UI:Build()
     main.tabButtons[t.key] = b
     prev = b
   end
+  local fb = UI.Button(main, "Feedback", 90, 22, function() UI.ShowFeedback() end)
+  fb:SetPoint("TOPRIGHT", -12, -30)
+  UI.Tooltip(fb, "Feedback", { "Report a bug or suggest an idea without leaving the game. Replies show up here too." })
   main.viewMark = UI.Label(main, "", "GameFontNormalSmall")
-  main.viewMark:SetPoint("TOPRIGHT", -14, -35)
+  main.viewMark:SetPoint("RIGHT", fb, "LEFT", -10, 0)
 
   main.content = CreateFrame("Frame", nil, main)
   main.content:SetPoint("TOPLEFT", 12, -60)

@@ -71,6 +71,7 @@ TA.UI.ShowImport = ShowImport
 
 local HELP = {
   "/ta - open the main window",
+  "/ta feedback - report a bug or suggest an idea (right here in game)",
   "/ta player <name> - open a player card",
   "/ta why <name> <dimension> - print the explainer to chat",
   "/ta config - open Transparency",
@@ -86,7 +87,7 @@ local HELP = {
   "/ta network - network status and companion app setup",
   "/ta welcome - show the welcome and privacy choices again",
   "/ta status - client, interface and capture status",
-  "Help, companion app and bug reports: github.com/viniciuscotrim/trust-advisor",
+  "Something wrong or an idea? /ta feedback. Companion app: github.com/viniciuscotrim/trust-advisor",
 }
 
 local function Handle(msg)
@@ -149,6 +150,8 @@ local function Handle(msg)
   elseif cmd == "lfg" then
     TA.Presence.lfg = not TA.Presence.lfg
     TA.Print("Presence LFG flag " .. (TA.Presence.lfg and "ON" or "off") .. (TA.Presence:Active() and "" or " (presence is off)") .. ".")
+  elseif cmd == "feedback" or cmd == "bug" or cmd == "idea" then
+    UI.ShowFeedback(cmd == "idea" and "idea" or (cmd == "bug" and "bug" or nil), rest ~= "" and rest or nil)
   elseif cmd == "network" then
     UI.ShowText("Trust Advisor Network", TA.Network:SetupText())
   elseif cmd == "welcome" then

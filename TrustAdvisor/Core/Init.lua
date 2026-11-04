@@ -133,8 +133,54 @@ function TA:Fire(msg, ...)
   if not list then return end
   for _, fn in ipairs(list) do
     local ok, err = pcall(fn, ...)
-    if not ok then TA.Debug("listener error", msg, err) end
+    if not ok then
+      TA.Debug("listener error", msg, err)
+      TA:RecordError(err, "listener " .. tostring(msg))
+    end
   end
+end
+
+-------------------------------------------------------------------------------
+-- Error capture. Every Trust Advisor error (caught handler errors and uncaught
+-- Lua errors from our files) is recorded, deduplicated, and offered to the
+-- player as a one-click feedback report (UI/Feedback.lua). Other addons'
+-- errors are passed through untouched.
+-------------------------------------------------------------------------------
+TA._pendingErrors = {}
+local MAX_ERRORS = 20
+
+local function CleanError(msg)
+  msg = tostring(msg or "?")
+  msg = msg:gsub("Interface[/\\]AddOns[/\\]", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  return msg:sub(1, 300)
+end
+
+function TA:RecordError(msg, where)
+  local clean = CleanError(msg)
+  local store = self.db and self.db.errors
+  if not store then
+    table.insert(self._pendingErrors, { msg = clean, where = where })
+    return
+  end
+  for _, e in ipairs(store) do
+    if e.msg == clean then
+      e.count, e.last = e.count + 1, TA.Now()
+      return
+    end
+  end
+  table.insert(store, { msg = clean, where = where, count = 1, first = TA.Now(), last = TA.Now(), version = TA.version })
+  while #store > MAX_ERRORS do table.remove(store, 1) end
+  self:Fire("ERROR_RECORDED", store[#store])
+end
+
+if geterrorhandler and seterrorhandler then
+  local previous = geterrorhandler()
+  seterrorhandler(function(msg, ...)
+    if type(msg) == "string" and msg:find("TrustAdvisor", 1, true) then
+      pcall(TA.RecordError, TA, msg, "lua")
+    end
+    if previous then return previous(msg, ...) end
+  end)
 end
 
 -------------------------------------------------------------------------------
@@ -184,6 +230,7 @@ if CreateFrame then
       if not ok then
         h.errors = (h.errors or 0) + 1
         TA.Debug("handler error", event, err)
+        TA:RecordError(err, "event " .. event)
         -- a capture that keeps failing disables itself instead of spamming errors
         if h.capture and h.errors >= 3 then TA:CaptureUnavailable(h.capture, event, "handler error: " .. tostring(err)) end
       end
@@ -222,6 +269,8 @@ local DB_DEFAULTS = {
   peerEndorseSeen = {}, -- dedupe of peer endorsements
   debug = false,
   invisible = false,
+  errors = {},          -- Trust Advisor's own errors (deduplicated), for feedback reports
+  feedback = {},        -- { installId, outbox = { report, ... } } sent by the companion app
 }
 
 local CHAR_DEFAULTS = {
@@ -263,6 +312,8 @@ function TA:InitDB()
   self.cdb = TrustAdvisorCharDB
   self.Params:Bind(self.db.params, self.db.changeLog, TA.Now)
   self.Log:Bind(self.db)
+  for _, e in ipairs(self._pendingErrors) do self:RecordError(e.msg, e.where) end
+  self._pendingErrors = {}
 end
 
 function TA:WipeEverything()

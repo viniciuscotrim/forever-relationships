@@ -284,6 +284,34 @@ TrustAdvisorNetData = { protocol = 1, generatedAt = 0, players = {} }
 TA.Params:Set("consent.network", false)
 print("  ok   welcome screen, companion detection (off/waiting/missing/ok), /ta network")
 
+-- In-game feedback and error capture
+local okFb, report = TA.Feedback:Submit("idea", "Please add a minimap button", true)
+assert(okFb and report.id and report.diag and report.diag.addon == TA.version, "feedback saved with diagnostics")
+local diagText = table.concat(TA.Feedback:DiagnosticsText(), "\n")
+assert(not diagText:find("Tanky") and not diagText:find("Leafy"), "diagnostics never include player names")
+assert(TA.Feedback:StatusText(report):find("Waiting"), "waiting until the companion sends it")
+TrustAdvisorNetData.feedback = { [report.id] = { status = "planned", reply = "Coming in 0.4" } }
+local st, reply = TA.Feedback:StatusText(report)
+assert(st:find("Planned") and reply == "Coming in 0.4", "status and reply shown in game")
+TrustAdvisorNetData.feedback = nil
+TA.UI.ShowFeedback("bug")
+TA.HandleSlash("feedback")
+-- an error inside a Trust Advisor handler is recorded once (deduplicated) and offers a report
+local toasts = 0
+local origToast = TA.UI.Toast
+TA.UI.Toast = function(t) toasts = toasts + 1; assert(t.text:find("hit an error")) end
+TA:On("TA_SIM_BOOM", function() error("boom from a test handler") end)
+fire("TA_SIM_BOOM"); fire("TA_SIM_BOOM")
+advance(5)
+local found
+for _, e in ipairs(TA.db.errors) do if e.msg:find("boom from a test handler") then found = e end end
+assert(found and found.count == 2, "error recorded and deduplicated")
+assert(toasts == 1, "one report prompt per distinct error")
+TA.UI.Toast = origToast
+assert(table.concat(TA.Feedback:DiagnosticsText(), "\n"):find("boom"), "recent errors attached to diagnostics")
+for i = #errors, 1, -1 do if tostring(errors[i]):find("boom from a test handler") then table.remove(errors, i) end end -- the deliberate one
+print("  ok   in-game feedback (diagnostics without names, status/reply), error capture + one-click report prompt")
+
 -- Ledger import (GDKP) parsing
 local rows = TA.Trade.ParseLedger("Tanky 1,500g\nLeafy: 200\n|cffffffffJosé|r - 75.5 gold\njunk line")
 assert(#rows == 3 and rows[1].gold == 1500 and rows[2].name == "Leafy" and rows[3].gold == 75.5, "ledger parse")

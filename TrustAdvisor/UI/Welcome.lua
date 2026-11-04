@@ -15,19 +15,20 @@ local CHOICES = {
 local frame
 
 local function Build()
-  local f = UI.Window("TrustAdvisorWelcome", 560, 430, "DIALOG")
+  local f = UI.Window("TrustAdvisorWelcome", 560, 460, "DIALOG")
   UI.Label(f, "Welcome to Trust Advisor", "GameFontNormalLarge"):SetPoint("TOP", 0, -30)
   local intro = UI.Label(f,
     "Trust Advisor remembers how the people you group with actually behave: finishing runs, paying debts, loot honesty, "
     .. "helping, generosity. It uses only what your game witnessed, and it is fair: new players start as Unknown, "
     .. "mistakes fade, and disconnects or kicks are excused. Every rule is visible and editable in the Transparency tab.\n\n"
-    .. "Nothing leaves your computer unless you turn it on below. You can change these anytime (Transparency › Parameters).",
+    .. "Nothing leaves your computer unless you turn it on below. You can change these anytime (Transparency › Parameters).\n\n"
+    .. "Found a bug or have an idea? Type /ta feedback. You never need to leave the game.",
     "GameFontHighlight")
   intro:SetPoint("TOPLEFT", 20, -56)
   intro:SetWidth(520)
   f.rows = {}
   for i, c in ipairs(CHOICES) do
-    local y = -168 - (i - 1) * 34
+    local y = -196 - (i - 1) * 34
     local b = UI.Button(f, "", 64, 22)
     b:SetPoint("TOPLEFT", 20, y)
     local l = UI.Label(f, c.label, "GameFontHighlight"); l:SetPoint("TOPLEFT", 94, y - 1)

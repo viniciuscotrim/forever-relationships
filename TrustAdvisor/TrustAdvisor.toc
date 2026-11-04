@@ -39,4 +39,5 @@ UI\Transparency.lua
 UI\Tooltip.lua
 UI\Prompts.lua
 UI\Welcome.lua
+UI\Feedback.lua
 Core\Slash.lua
