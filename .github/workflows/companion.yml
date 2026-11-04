@@ -62,6 +62,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" assets/* companion/ta_companion.py \
+          # the macOS build here is a test build only: the signed + notarized one is
+          # attached from a Mac with companion/release-mac.sh
+          gh release create "$GITHUB_REF_NAME" assets/TrustAdvisorCompanion-windows.exe companion/ta_companion.py \
             --title "Trust Advisor Companion ${GITHUB_REF_NAME#companion-v}" \
             --notes-file companion/RELEASE_NOTES.md

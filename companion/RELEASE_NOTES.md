@@ -6,8 +6,8 @@ WoW addons cannot use the internet. This small app syncs Trust Advisor's network
 - **Windows:** download `TrustAdvisorCompanion-windows.exe`, put it somewhere permanent (e.g. `Documents\TrustAdvisor`), then open a terminal there and run
   `TrustAdvisorCompanion-windows.exe --install`
   From then on it starts with Windows. Windows SmartScreen may warn about an unsigned app: choose *More info › Run anyway*.
-- **Mac:** download `TrustAdvisorCompanion-macos`, then in Terminal run
-  `chmod +x TrustAdvisorCompanion-macos && xattr -d com.apple.quarantine TrustAdvisorCompanion-macos; ./TrustAdvisorCompanion-macos --install`
+- **Mac (Apple Silicon and Intel, signed and notarized by Apple):** download `TrustAdvisorCompanion-macos.zip`, double-click it to unzip, move `TrustAdvisorCompanion-macos` somewhere permanent (e.g. `~/TrustAdvisor`), then in Terminal run
+  `~/TrustAdvisor/TrustAdvisorCompanion-macos --install`
 - **Any OS with Python 3.8+:** `python3 ta_companion.py --install`
 
 Then link Battle.net once (opens your browser): `--link --region us` (or `eu`, `kr`, `tw`). Only a one-way hash of your account id is stored.
