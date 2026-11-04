@@ -104,3 +104,7 @@ svg { display: block; max-width: 100%; height: auto; overflow: visible; }
   .split { grid-template-columns: 1fr; }
 }
 .kpis + .card, .kpis + .grid2 { margin-top: 14px; }
+
+/* login: just the button (and the code field after Touch ID / Face ID) */
+.auth.login .auth-card { background: none; border: 0; width: min(280px, 100%); padding: 0; }
+.auth.login .auth-card form { text-align: center; }

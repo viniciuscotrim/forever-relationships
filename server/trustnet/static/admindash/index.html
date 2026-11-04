@@ -14,18 +14,16 @@
 <!-- Auth: login and one-time setup -->
 <main id="auth" class="auth" hidden>
   <div class="auth-card">
-    <img src="logo.png" alt="" class="auth-logo" width="64" height="64">
-    <h1>Trust Advisor Cockpit</h1>
-    <div id="auth-login">
-      <p class="muted">Sign in with your passkey (Touch ID on Mac, Face ID on iPhone), then the 6-digit code from Passwords.</p>
-      <button id="btn-passkey" class="primary">Sign in with Touch ID / Face ID</button>
+    <div id="auth-login" class="login-only">
+      <button id="btn-passkey" class="primary">Sign In</button>
       <form id="form-code" hidden>
-        <label for="code">Verification code from Passwords</label>
-        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required>
-        <button class="primary" type="submit">Verify</button>
+        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" aria-label="Verification code" required>
+        <button class="primary" type="submit">Sign In</button>
       </form>
     </div>
     <div id="auth-setup" hidden>
+      <img src="logo.png" alt="" class="auth-logo" width="64" height="64">
+      <h1>Trust Advisor Cockpit</h1>
       <ol class="steps">
         <li id="step-passkey"><b>Create your passkey.</b> It is saved in Passwords and syncs to your iPhone through your Apple Account.
           <button id="btn-create" class="primary">Create passkey with Touch ID</button></li>

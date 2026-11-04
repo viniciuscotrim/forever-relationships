@@ -72,7 +72,6 @@ async function startLogin() {
     $("#btn-passkey").hidden = true;
     $("#form-code").hidden = false;
     $("#code").focus();
-    msg("Passkey OK. Now the code from Passwords.", true);
   } catch (e) { msg(e.name === "NotAllowedError" ? "Cancelled." : e.message); }
 }
 async function submitCode(ev) {
@@ -116,8 +115,8 @@ async function confirmSetupCode(ev) {
 }
 function finishSetup() {
   history.replaceState(null, "", location.pathname);
-  $("#auth-setup").hidden = true; $("#auth-login").hidden = false;
-  msg("All set. Sign in with your passkey.", true);
+  $("#auth-setup").hidden = true; $("#auth-login").hidden = false; $("#auth").classList.add("login");
+  msg("");
 }
 
 // ------------------------------------------------------------------ tooltip
@@ -387,7 +386,7 @@ async function decide(id, status) { await api("POST", "disputes/" + encodeURICom
 let timer = null;
 function toLogin() {
   clearInterval(timer);
-  $("#app").hidden = true; $("#auth").hidden = false;
+  $("#app").hidden = true; $("#auth").hidden = false; $("#auth").classList.add("login");
   $("#auth-setup").hidden = true; $("#auth-login").hidden = false;
   $("#btn-passkey").hidden = false; $("#form-code").hidden = true;
 }
@@ -415,7 +414,7 @@ window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer
   const m = location.hash.match(/setup=([\w-]+)/);
   if (m) {
     setupToken = m[1];
-    $("#auth").hidden = false; $("#auth-login").hidden = true; $("#auth-setup").hidden = false;
+    $("#auth").hidden = false; $("#auth").classList.remove("login"); $("#auth-login").hidden = true; $("#auth-setup").hidden = false;
     if (!window.PublicKeyCredential) msg("This browser doesn't support passkeys. Use Safari on your Mac.");
     return;
   }
@@ -423,6 +422,6 @@ window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer
     const st = await api("GET", "status");
     if (st.session) return startApp();
     toLogin();
-    if (!st.enrolled) msg("No admin enrolled yet: open the one-time setup link from the server.");
+    if (!st.enrolled) msg("Not enrolled yet.");
   } catch (e) { toLogin(); msg(e.message); }
 })();
