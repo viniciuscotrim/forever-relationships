@@ -73,6 +73,40 @@ class Parser(unittest.TestCase):
         self.assertEqual(back["s"], 'a"b\\c\nd')
 
 
+class Fallback(unittest.TestCase):
+    def test_unreachable_primary_falls_back(self):
+        svc = Service(Store(":memory:"))
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(svc))
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        try:
+            good = "http://127.0.0.1:%d" % httpd.server_address[1]
+            c = tc.Client("http://nonexistent.invalid", timeout=5, fallbacks=[good])
+            self.assertEqual(c.players(["Player-1-0000000A"]), {})
+            self.assertEqual(c.server, good)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+
+class Autostart(unittest.TestCase):
+    def test_mac_plist_is_valid_and_keeps_running(self):
+        import plistlib
+        xml = tc.mac_plist(["/usr/bin/python3", "/path with space/ta_companion.py", "--wow", "A&B"], "/tmp/log")
+        d = plistlib.loads(xml.encode("utf-8"))
+        self.assertEqual(d["Label"], tc.LABEL)
+        self.assertEqual(d["ProgramArguments"][3], "A&B")
+        self.assertTrue(d["RunAtLoad"] and d["KeepAlive"])
+
+    def test_windows_script_quotes_paths(self):
+        s = tc.windows_startup_script([r"C:\Program Files\TA\TrustAdvisorCompanion.exe", "--wow", r"D:\Games\WoW"])
+        self.assertIn('"C:\\Program Files\\TA\\TrustAdvisorCompanion.exe"', s)
+        self.assertTrue(s.startswith("@echo off"))
+
+    def test_launch_command_points_at_this_script(self):
+        cmd = tc.launch_command(["--once"])
+        self.assertTrue(cmd[-2].endswith("ta_companion.py") and cmd[-1] == "--once")
+
+
 @unittest.skipUnless(shutil.which("luajit"), "luajit not installed")
 class EndToEnd(unittest.TestCase):
     def setUp(self):
@@ -135,6 +169,7 @@ class EndToEnd(unittest.TestCase):
         out = self.run_sim(TA_NETDATA=netdata)
         self.assertIn("network view for Leafy: finish", out)
         self.assertIn("ok   network view rendered", out)
+        self.assertEqual(nd["companion"]["version"], tc.VERSION)
 
 
 if __name__ == "__main__":

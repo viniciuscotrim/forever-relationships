@@ -1,6 +1,6 @@
 # Network server deployment (production)
 
-**URL:** https://trustadvisor.72-62-142-237.sslip.io (default in the companion app)
+**URL:** https://trustadvisor.gameplaybr.com.br (default in the companion app)
 
 The server runs isolated on a shared VPS that also hosts other services. Do not touch anything outside the paths below.
 
@@ -14,7 +14,9 @@ The server runs isolated on a shared VPS that also hosts other services. Do not 
 | nginx | its own file `/etc/nginx/sites-available/trustadvisor-net` (HTTP: ACME + redirect; HTTPS: proxy) |
 | TLS | Let's Encrypt via webroot `/var/www/trustadvisor-acme`, auto-renew with nginx reload |
 
-The sslip.io hostname needs no DNS change. To use a real domain later, point it at the VPS, add it to `server_name`, and issue a certificate with the same webroot.
+DNS is on Cloudflare (zone `gameplaybr.com.br`). The `trustadvisor` record is **proxied**, with SSL mode **Full (strict)**, so the public sees Cloudflare's IPs. The HTTPS server block for this name accepts connections **only from Cloudflare's IP ranges**, and takes the client IP for rate limiting from `CF-Connecting-IP`. Certificate renewals (HTTP-01) pass through Cloudflare. The local Cloudflare token (`cloudflare.key`, git-ignored) can only edit this zone's DNS and settings.
+
+Legacy `trustadvisor.72-62-142-237.sslip.io` (direct, no Cloudflare) is kept temporarily for early companion installs. Remove it once they have updated.
 
 ## Update
 ```sh
@@ -31,5 +33,5 @@ ssh root@VPS 'source /srv/trustadvisor/admin.env; curl -s -X POST -H "X-Admin-To
 ```sh
 docker rm -f trustadvisor-net; docker rmi trustadvisor-net:0.2.0
 rm /etc/nginx/sites-enabled/trustadvisor-net /etc/nginx/sites-available/trustadvisor-net && nginx -t && systemctl reload nginx
-certbot delete --cert-name trustadvisor.72-62-142-237.sslip.io; rm /etc/cron.d/trustadvisor-backup; rm -rf /srv/trustadvisor /var/www/trustadvisor-acme
+certbot delete --cert-name trustadvisor.72-62-142-237.sslip.io; certbot delete --cert-name trustadvisor.gameplaybr.com.br; rm /etc/cron.d/trustadvisor-backup; rm -rf /srv/trustadvisor /var/www/trustadvisor-acme
 ```

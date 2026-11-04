@@ -257,6 +257,8 @@ UI:RegisterView("transparency", function(frame)
       "",
       "|cffffd100Status|r",
       "  Consent: " .. (TA.Network:Enabled() and "ON" or "off"),
+      "  Companion: " .. TA.Network.STATUS_TEXT[TA.Network:CompanionStatus()] .. (TA.Network:CompanionVersion() and (" (v" .. TA.Network:CompanionVersion() .. ")") or ""),
+      "  Get the companion app: https://" .. TA.Network.DOWNLOAD_URL .. "   (setup steps: /ta network)",
       "  Uploader id: " .. (n.uploaderId and (n.uploaderId:sub(1, 6) .. "... (secret, kept local)") or "created when you join"),
       "  Last outbox: " .. (outbox and string.format("%d reports, built %s", #outbox.reports, TA.FormatAgo(outbox.builtAt)) or "none yet (built at logout or /reload)"),
       "  Last sync: " .. (synced and TA.FormatAgo(synced) or "never"),

@@ -1,17 +1,30 @@
 # Trust Advisor companion app
 
-WoW addons cannot use the internet. This small program (Python 3.8+, no dependencies) connects Trust Advisor to the network:
+**Optional.** Trust Advisor works fully without it. It is only needed for the Trust Advisor Network.
+
+WoW addons cannot use the internet, so this small program does it for them:
 
 1. Reads `WTF/Account/*/SavedVariables/TrustAdvisor.lua` (written on logout or `/reload`).
-2. If you joined the network in game (Transparency › Network), it uploads your witness reports, disputes and deletion requests.
-3. Downloads the network view for players you know into `Interface/AddOns/TrustAdvisor/Network/NetData.lua`. Type `/reload` in game to see it.
+2. If you joined the network in game, it uploads your witness reports, group history, disputes and deletion requests.
+3. Downloads the network view for the players you know into `Interface/AddOns/TrustAdvisor/Network/NetData.lua`. Type `/reload` in game to see it.
+
+## Install
+Download from **[Releases](https://github.com/viniciuscotrim/trust-advisor/releases)**: a Windows `.exe`, a Mac binary, or `ta_companion.py` (needs Python 3.8+). Then run it once with `--install`:
 
 ```sh
-python3 ta_companion.py              # keeps watching, official network
-python3 ta_companion.py --once       # one sync
-python3 ta_companion.py --wow "D:\Games\World of Warcraft\_forever_"   # custom install folder
+TrustAdvisorCompanion-windows.exe --install       # Windows: starts with Windows (Startup folder, no admin)
+./TrustAdvisorCompanion-macos --install           # Mac: LaunchAgent, restarts if it stops
+python3 ta_companion.py --install                 # any OS with Python
 ```
+
+Other options:
+- `--wow "<path to _forever_>"` if WoW isn't in the default folder.
+- `--once` for a single sync.
+- `--uninstall` to stop the automatic start.
+- `--server URL` for a self-hosted server.
+
+In game, `/ta network` shows whether the companion is syncing.
 
 Nothing is sent unless `consent.network` is ON in the addon. Notes, affinity and chat are never read.
 
-Tests: `python3 -m unittest discover -s tests -v` (the end-to-end test needs `luajit`).
+Tests: `python3 -m unittest discover -s tests -v` (the end-to-end test needs `luajit`). Releases are built by `.github/workflows/companion.yml` when a `companion-v*` tag is pushed.

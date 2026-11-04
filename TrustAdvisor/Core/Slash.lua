@@ -83,6 +83,8 @@ local HELP = {
   "/ta ledger - import debts owed to you (GDKP)  |  /ta ledger iowe - import debts you owe",
   "/ta signup add <names> | start <minutes> | withdraw <name> | close | show",
   "/ta lfg - toggle your looking-for-group flag in presence",
+  "/ta network - network status and companion app setup",
+  "/ta welcome - show the welcome and privacy choices again",
   "/ta status - client, interface and capture status",
 }
 
@@ -146,9 +148,14 @@ local function Handle(msg)
   elseif cmd == "lfg" then
     TA.Presence.lfg = not TA.Presence.lfg
     TA.Print("Presence LFG flag " .. (TA.Presence.lfg and "ON" or "off") .. (TA.Presence:Active() and "" or " (presence is off)") .. ".")
+  elseif cmd == "network" then
+    UI.ShowText("Trust Advisor Network", TA.Network:SetupText())
+  elseif cmd == "welcome" then
+    UI.ShowWelcome()
   elseif cmd == "status" then
     local _, build, _, iface = GetBuildInfo()
     TA.Print(string.format("v%s · client build %s · interface %s · %d events · schema %d", TA.version, tostring(build), tostring(iface), TA.Log.count, TA.db.schemaVersion))
+    TA.Print("  Network: " .. TA.Network.STATUS_TEXT[TA.Network:CompanionStatus()] .. (TA.Network:CompanionVersion() and (" (companion " .. TA.Network:CompanionVersion() .. ")") or ""))
     for _, n in ipairs(TA.CaptureOrder) do
       local c = TA.Captures[n]
       TA.Print(string.format("  %s %s%s", c.status == "ok" and "|cff66ff66ok|r" or "|cffff9933unavailable|r", c.label,

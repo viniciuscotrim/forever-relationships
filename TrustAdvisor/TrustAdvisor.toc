@@ -2,7 +2,7 @@
 ## Title: Trust Advisor
 ## Notes: Fair, forgiving, transparent reputation for the people you group with. Type /ta
 ## Author: Vinicius
-## Version: 0.2.0
+## Version: 0.3.0
 ## Category: Social
 ## SavedVariables: TrustAdvisorDB
 ## SavedVariablesPerCharacter: TrustAdvisorCharDB
@@ -38,4 +38,5 @@ UI\EventLogView.lua
 UI\Transparency.lua
 UI\Tooltip.lua
 UI\Prompts.lua
+UI\Welcome.lua
 Core\Slash.lua

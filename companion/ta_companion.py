@@ -9,6 +9,8 @@ WoW addons cannot use the internet, so this small program does it for them:
      Interface/AddOns/TrustAdvisor/Network/NetData.lua (loaded on the next /reload).
 
 Usage:
+  python3 ta_companion.py --install       # start automatically with the computer (recommended)
+  python3 ta_companion.py --uninstall     # stop starting automatically
   python3 ta_companion.py                 # watch mode, official network
   python3 ta_companion.py --once          # one sync
   python3 ta_companion.py --server https://other.example.com   # another server
@@ -16,6 +18,9 @@ Usage:
 """
 import argparse
 import glob
+import platform
+import shutil
+import subprocess
 import json
 import os
 import re
@@ -24,14 +29,16 @@ import time
 import urllib.error
 import urllib.request
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 PROTOCOL = 1
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",
     r"C:\Program Files (x86)\World of Warcraft\_forever_",
     r"C:\Program Files\World of Warcraft\_forever_",
 ]
-DEFAULT_SERVER = "https://trustadvisor.72-62-142-237.sslip.io"
+DEFAULT_SERVER = "https://trustadvisor.gameplaybr.com.br"
+# Tried in order when no --server is given (the legacy address is kept during the DNS move).
+FALLBACK_SERVERS = [DEFAULT_SERVER, "https://trustadvisor.72-62-142-237.sslip.io"]
 STATE_PATH = os.path.join(os.path.expanduser("~"), ".trustadvisor", "companion.json")
 
 
@@ -232,19 +239,26 @@ def write_netdata(path, data):
 # HTTP
 # ---------------------------------------------------------------------------
 class Client:
-    def __init__(self, server, timeout=20):
-        self.server = server.rstrip("/")
+    def __init__(self, server, timeout=20, fallbacks=()):
+        self.servers = [server.rstrip("/")] + [f.rstrip("/") for f in fallbacks if f.rstrip("/") != server.rstrip("/")]
+        self.server = self.servers[0]
         self.timeout = timeout
 
     def _req(self, method, path, body=None):
         data = json.dumps(body).encode("utf-8") if body is not None else None
-        req = urllib.request.Request(self.server + path, data=data, method=method,
-                                     headers={"Content-Type": "application/json", "User-Agent": "TrustAdvisorCompanion/" + VERSION})
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as r:
-                return json.loads(r.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            raise RuntimeError("%s %s -> HTTP %d: %s" % (method, path, e.code, e.read().decode("utf-8", "replace")[:300]))
+        last = None
+        for server in [self.server] + [s for s in self.servers if s != self.server]:
+            req = urllib.request.Request(server + path, data=data, method=method,
+                                         headers={"Content-Type": "application/json", "User-Agent": "TrustAdvisorCompanion/" + VERSION})
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as r:
+                    self.server = server  # stick with the one that works
+                    return json.loads(r.read().decode("utf-8"))
+            except urllib.error.HTTPError as e:
+                raise RuntimeError("%s %s -> HTTP %d: %s" % (method, path, e.code, e.read().decode("utf-8", "replace")[:300]))
+            except (urllib.error.URLError, OSError) as e:  # DNS or connection failure: try the next address
+                last = e
+        raise RuntimeError("%s %s -> no server reachable (%s)" % (method, path, last))
 
     def upload(self, body):
         return self._req("POST", "/v1/upload", body)
@@ -303,7 +317,7 @@ def sync_file(sv_path, client, wow, state, log=print):
         res = client.upload({"uploaderId": uploader, "protocol": PROTOCOL, "deleteRequested": True})
         st["deletedFor"] = net["deleteRequested"]
         log("  deletion sent: %s" % res)
-        write_netdata(netdata_path(wow), {"protocol": PROTOCOL, "generatedAt": 0, "players": {}})
+        write_netdata(netdata_path(wow), {"protocol": PROTOCOL, "generatedAt": 0, "players": {}, "companion": {"version": VERSION}})
         return True
 
     if params.get("consent.network") is not True:
@@ -331,9 +345,94 @@ def sync_file(sv_path, client, wow, state, log=print):
     guids = [g for g in (db.get("players") or {}) if isinstance(g, str)]
     players = client.players(guids) if guids else {}
     me = {"events": client.self_events(uploader)}
-    write_netdata(netdata_path(wow), {"protocol": PROTOCOL, "generatedAt": int(time.time()), "players": players, "me": me})
+    write_netdata(netdata_path(wow), {"protocol": PROTOCOL, "generatedAt": int(time.time()), "players": players, "me": me,
+                                      "companion": {"version": VERSION}})
     log("  network view: %d players with network data, %d events about you -> %s" % (len(players), len(me["events"]), netdata_path(wow)))
     return True
+
+
+# ---------------------------------------------------------------------------
+# Autostart (--install / --uninstall): start with the computer, no admin rights
+# ---------------------------------------------------------------------------
+LABEL = "com.trustadvisor.companion"
+
+
+def launch_command(extra_args):
+    """The command that starts this companion, frozen executable or script."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable] + extra_args
+    py = sys.executable
+    if platform.system() == "Windows":
+        pyw = os.path.join(os.path.dirname(py), "pythonw.exe")
+        if os.path.exists(pyw):
+            py = pyw  # no console window
+    return [py, os.path.abspath(__file__)] + extra_args
+
+
+def mac_plist(cmd, log_path):
+    args = "".join("    <string>%s</string>\n" % a.replace("&", "&amp;").replace("<", "&lt;") for a in cmd)
+    return ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+            "<plist version=\"1.0\"><dict>\n"
+            "  <key>Label</key><string>%s</string>\n"
+            "  <key>ProgramArguments</key><array>\n%s  </array>\n"
+            "  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n"
+            "  <key>StandardOutPath</key><string>%s</string>\n  <key>StandardErrorPath</key><string>%s</string>\n"
+            "</dict></plist>\n") % (LABEL, args, log_path, log_path)
+
+
+def windows_startup_script(cmd):
+    quoted = " ".join('"%s"' % a for a in cmd)
+    return '@echo off\r\nstart "" /min %s\r\n' % quoted
+
+
+def autostart_paths():
+    home = os.path.expanduser("~")
+    system = platform.system()
+    if system == "Darwin":
+        return {"file": os.path.join(home, "Library", "LaunchAgents", LABEL + ".plist"),
+                "log": os.path.join(home, "Library", "Logs", "TrustAdvisorCompanion.log")}
+    if system == "Windows":
+        appdata = os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming"))
+        return {"file": os.path.join(appdata, "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "TrustAdvisorCompanion.cmd")}
+    return {"file": os.path.join(home, ".config", "systemd", "user", "trustadvisor-companion.service")}
+
+
+def install_autostart(extra_args):
+    paths = autostart_paths()
+    cmd = launch_command(extra_args)
+    os.makedirs(os.path.dirname(paths["file"]), exist_ok=True)
+    system = platform.system()
+    if system == "Darwin":
+        with open(paths["file"], "w", encoding="utf-8") as f:
+            f.write(mac_plist(cmd, paths["log"]))
+        subprocess.run(["launchctl", "unload", paths["file"]], capture_output=True)
+        subprocess.run(["launchctl", "load", "-w", paths["file"]], check=False)
+    elif system == "Windows":
+        with open(paths["file"], "w", encoding="utf-8") as f:
+            f.write(windows_startup_script(cmd))
+        subprocess.Popen(cmd, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    else:
+        with open(paths["file"], "w", encoding="utf-8") as f:
+            f.write("[Unit]\nDescription=Trust Advisor companion\n[Service]\nExecStart=%s\nRestart=always\n"
+                    "[Install]\nWantedBy=default.target\n" % " ".join(cmd))
+        if shutil.which("systemctl"):
+            subprocess.run(["systemctl", "--user", "enable", "--now", "trustadvisor-companion.service"], check=False)
+    print("Installed: the companion now starts with your computer (%s)" % paths["file"])
+    return paths["file"]
+
+
+def uninstall_autostart():
+    paths = autostart_paths()
+    if platform.system() == "Darwin" and os.path.exists(paths["file"]):
+        subprocess.run(["launchctl", "unload", "-w", paths["file"]], capture_output=True)
+    elif platform.system() not in ("Darwin", "Windows") and shutil.which("systemctl"):
+        subprocess.run(["systemctl", "--user", "disable", "--now", "trustadvisor-companion.service"], capture_output=True)
+    if os.path.exists(paths["file"]):
+        os.remove(paths["file"])
+        print("Removed autostart (%s). Running copies stop at the next restart." % paths["file"])
+    else:
+        print("Autostart was not installed.")
 
 
 def main(argv=None):
@@ -342,13 +441,27 @@ def main(argv=None):
     ap.add_argument("--wow", help="WoW: Forever folder (contains WTF and Interface)")
     ap.add_argument("--once", action="store_true", help="sync once and exit")
     ap.add_argument("--interval", type=int, default=30, help="seconds between checks in watch mode")
+    ap.add_argument("--install", action="store_true", help="start the companion automatically with your computer")
+    ap.add_argument("--uninstall", action="store_true", help="remove the automatic start")
+    ap.add_argument("--version", action="version", version="Trust Advisor companion " + VERSION)
     args = ap.parse_args(argv)
+    if args.uninstall:
+        uninstall_autostart()
+        return 0
+    if args.install:
+        extra = []
+        if args.wow:
+            extra += ["--wow", args.wow]
+        if args.server and args.server != DEFAULT_SERVER:
+            extra += ["--server", args.server]
+        install_autostart(extra)
+        return 0
     if not args.server:
         ap.error("--server (or TA_SERVER) is required")
     wow = args.wow or next((p for p in DEFAULT_WOW if os.path.isdir(p)), None)
     if not wow:
         ap.error("WoW: Forever folder not found; pass --wow")
-    client = Client(args.server)
+    client = Client(args.server, fallbacks=FALLBACK_SERVERS if args.server == DEFAULT_SERVER else ())
     state = load_state()
     seen = {}
     print("Trust Advisor companion %s - %s - server %s" % (VERSION, wow, args.server))

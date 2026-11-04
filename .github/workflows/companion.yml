@@ -1,0 +1,67 @@
+name: Companion app
+
+on:
+  push:
+    tags: ["companion-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            exe: TrustAdvisorCompanion.exe
+            asset: TrustAdvisorCompanion-windows.exe
+          - os: macos-latest
+            exe: TrustAdvisorCompanion
+            asset: TrustAdvisorCompanion-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test
+        working-directory: companion
+        run: python -m unittest discover -s tests -v
+      - name: Server tests
+        working-directory: server
+        run: python -m unittest discover -s tests -v
+      - name: Build single-file executable
+        working-directory: companion
+        run: |
+          python -m pip install pyinstaller==6.11.1
+          pyinstaller --onefile --name TrustAdvisorCompanion ta_companion.py
+      - name: Smoke test
+        working-directory: companion
+        shell: bash
+        run: ./dist/${{ matrix.exe }} --version
+      - name: Rename
+        shell: bash
+        run: cp companion/dist/${{ matrix.exe }} ${{ matrix.asset }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/companion-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" assets/* companion/ta_companion.py \
+            --title "Trust Advisor Companion ${GITHUB_REF_NAME#companion-v}" \
+            --notes-file companion/RELEASE_NOTES.md

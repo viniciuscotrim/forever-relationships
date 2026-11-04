@@ -2,7 +2,7 @@
 local ADDON, TA = ...
 TA = TA or {}
 TA.name = ADDON or "TrustAdvisor"
-TA.version = "0.2.0"
+TA.version = "0.3.0"
 TA.SCHEMA = 1
 TA.PREFIX = "TrustAdv"
 

@@ -266,6 +266,21 @@ fire("CHAT_MSG_ADDON", "TrustAdv", "garbage", "PARTY", "Tanky")
 fire("CHAT_MSG_ADDON", "TrustAdv", "1|QUEST|Player-1-DEADBEEF;5", "WHISPER", "Stranger")
 advance(10)
 print(string.format("  ok   %d malformed/spoofed messages dropped", TA.Protocol.dropped or 0))
+-- Welcome screen and companion detection
+assert(TA.db.welcomed, "welcome shown on first login")
+TA.UI.ShowWelcome()
+assert(TA.Network:CompanionStatus() == "off", "network off by default")
+TA.Params:Set("consent.network", true)
+assert(TA.Network:CompanionStatus() == "waiting", "just joined: waiting for first sync")
+TA.loginAt = TA.Now() + 1                       -- simulate a later login with no NetData
+assert(TA.Network:CompanionStatus() == "missing", "companion missing after relog")
+TrustAdvisorNetData = { protocol = 1, generatedAt = TA.Now() + 2, players = {}, companion = { version = "0.3.0" } }
+assert(TA.Network:CompanionStatus() == "ok" and TA.Network:CompanionVersion() == "0.3.0", "companion syncing")
+TA.HandleSlash("network")
+TrustAdvisorNetData = { protocol = 1, generatedAt = 0, players = {} }
+TA.Params:Set("consent.network", false)
+print("  ok   welcome screen, companion detection (off/waiting/missing/ok), /ta network")
+
 -- Ledger import (GDKP) parsing
 local rows = TA.Trade.ParseLedger("Tanky 1,500g\nLeafy: 200\n|cffffffffJosé|r - 75.5 gold\njunk line")
 assert(#rows == 3 and rows[1].gold == 1500 and rows[2].name == "Leafy" and rows[3].gold == 75.5, "ledger parse")

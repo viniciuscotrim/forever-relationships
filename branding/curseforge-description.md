@@ -36,6 +36,12 @@ Every weight, timer, threshold and formula is visible in the **Transparency** ta
 - Notes and private opinions are **never** sent to anyone.
 - Every sharing feature starts **off**: endorsements, quest sharing, and the "nearby players" presence channel. Invisible mode turns all broadcasting off with one click.
 
+### Trust Advisor Network (optional)
+
+Join from the welcome screen or Transparency › Network to see what *other* players witnessed too. You need the free companion app (Windows/Mac, from the project's GitHub Releases), because WoW addons can't use the internet.
+- A negative only counts when **2+ independent players from 2+ different guilds**, who were really in the same group, witnessed it.
+- Witnesses stay anonymous, and you can see and dispute everything the network says about you.
+
 ### Better with friends, works alone
 
 Everything works even if nobody else has the addon. If your group mates also run Trust Advisor, you can exchange "I'd play with you again" endorsements and see who's questing nearby. Both are opt-in.

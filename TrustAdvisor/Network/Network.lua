@@ -193,3 +193,75 @@ TA:Listen("DB_READY", function()
     TA:CaptureUnavailable("network", "NetData.lua", "network data uses a different protocol version")
   end
 end)
+
+-------------------------------------------------------------------------------
+-- Companion detection. An addon cannot see other programs, so it infers the
+-- companion's health from NetData.lua: the companion rewrites it after every
+-- logout/reload, so after you join the network it must be newer than the
+-- moment you joined, and never older than a week.
+-------------------------------------------------------------------------------
+Net.DOWNLOAD_URL = "github.com/viniciuscotrim/trust-advisor/releases"
+local STALE = 7 * 86400
+
+TA:Listen("PARAMS_CHANGED", function(key)
+  if key == "consent.network" and TA.Params:Get("consent.network") then
+    Net:State().consentAt = TA.Now()
+  end
+end)
+
+-- "off" | "waiting" (joined this session, nothing to sync yet) | "missing" | "stale" | "ok"
+function Net:CompanionStatus()
+  if not self:Enabled() then return "off" end
+  local n = self:State()
+  local synced = self:SyncedAt()
+  local joined = n.consentAt or 0
+  if not synced then
+    return (TA.loginAt and joined >= TA.loginAt) and "waiting" or "missing"
+  end
+  if synced < joined then
+    return (TA.loginAt and joined >= TA.loginAt) and "waiting" or "missing"
+  end
+  if TA.Now() - synced > STALE then return "stale" end
+  return "ok"
+end
+
+function Net:CompanionVersion()
+  local d = Data()
+  return d and d.companion and d.companion.version
+end
+
+Net.STATUS_TEXT = {
+  off = "You have not joined the network.",
+  waiting = "Joined. Log out or /reload so the companion app can sync, then /reload again to see the network view.",
+  missing = "Companion app not detected: the network view never arrived since you joined.",
+  stale = "Companion app seems stopped: the network view is more than 7 days old.",
+  ok = "Companion app is syncing.",
+}
+
+function Net:SetupText()
+  return {
+    "|cffffd100Trust Advisor Network - companion app setup|r",
+    "",
+    "WoW addons cannot use the internet, so a small free companion app does it for Trust Advisor.",
+    "It only reads Trust Advisor's own saved data and only sends anything if you joined the network.",
+    "",
+    "1. Download it from:  https://" .. Net.DOWNLOAD_URL,
+    "     Windows: TrustAdvisorCompanion.exe     Mac: TrustAdvisorCompanion (or run ta_companion.py with Python 3)",
+    "2. Run it once with --install to start it automatically with your computer:",
+    "     TrustAdvisorCompanion.exe --install",
+    "3. In game, /reload. The network column appears on player cards after the next sync.",
+    "",
+    "Status: " .. Net.STATUS_TEXT[self:CompanionStatus()],
+    "Without the companion, everything else in Trust Advisor works normally.",
+  }
+end
+
+TA:Listen("LOGIN", function()
+  TA.loginAt = TA.Now()
+  C_Timer.After(12, function()
+    local st = Net:CompanionStatus()
+    if st == "missing" or st == "stale" then
+      TA.Print("|cffff9933Network:|r " .. Net.STATUS_TEXT[st] .. " Type |cffffffff/ta network|r for setup.")
+    end
+  end)
+end)
