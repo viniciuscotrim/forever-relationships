@@ -103,9 +103,9 @@ class Admin:
                     for r in self._q("SELECT id FROM admin_credentials")]
         return {"nonce": nonce, "publicKey": {
             "challenge": webauthn.b64url_encode(p["challenge"]),
-            "rp": {"id": self.rp_id, "name": "Trust Advisor Cockpit"},
+            "rp": {"id": self.rp_id, "name": "Forever Relationships Cockpit"},
             "user": {"id": webauthn.b64url_encode(b"trustadvisor-admin"), "name": "admin@" + self.rp_id,
-                     "displayName": "Trust Advisor admin"},
+                     "displayName": "Forever Relationships admin"},
             "pubKeyCredParams": [{"type": "public-key", "alg": -7}],
             "authenticatorSelection": {"authenticatorAttachment": "platform", "residentKey": "required",
                                        "requireResidentKey": True, "userVerification": "required"},

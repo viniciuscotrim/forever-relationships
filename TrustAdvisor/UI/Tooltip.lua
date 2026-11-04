@@ -31,7 +31,7 @@ end
 function UI.LFGMarker(guid)
   local r = guid and TA.db.players[guid] and TA.Rel:Compute(guid)
   if not r or r.sessions == 0 then return "" end
-  return "|cffe8b94aTA|r |cff999999" .. TA.FormatDuration(r.seconds) .. "|r"
+  return "|cffe8b94aFR|r |cff999999" .. TA.FormatDuration(r.seconds) .. "|r"
 end
 
 TA:Listen("LOGIN", function()

@@ -7,7 +7,7 @@ local UI = TA.UI
 UI.CONSENT_TEXT = {
   backup = {
     "|cffffd100Cloud backup|r",
-    "The companion app encrypts your Trust Advisor history on YOUR computer before sending it.",
+    "The companion app encrypts your Forever Relationships history on YOUR computer before sending it.",
     "The key never leaves your computer; you get a RECOVERY CODE once - save it in your Passwords app.",
     "Nobody else, including us, can read or recover it. Without the code the backup is lost.",
     "The backup includes the facts your game recorded about players you grouped with (times, places,",
@@ -15,7 +15,7 @@ UI.CONSENT_TEXT = {
   },
   profile = {
     "|cffffd100Public profile|r",
-    "Other Trust Advisor players will see the items YOU tick about yourself (e.g. hours in groups,",
+    "Other Forever Relationships players will see the items YOU tick about yourself (e.g. hours in groups,",
     "dungeons completed). Items confirmed by Blizzard's API for your Battle.net-linked character are",
     "marked Official; the others say 'Recorded by the addon'. Untick or turn off anytime.",
   },
@@ -51,14 +51,14 @@ UI.DATA_INVENTORY = {
   "  Cloud backup: your history, encrypted with your key (unreadable to anyone else).",
   "  Public profile: the items you tick about yourself.",
   "  Community: your group sessions + members' class/race/faction/level, pseudonymized on arrival.",
-  "  Feedback: only what you write in /ta feedback (and optional diagnostics).",
+  "  Feedback: only what you write in /fr feedback (and optional diagnostics).",
   "",
   "|cffffd100Never|r",
   "  Chat text or message counts, notes or ratings about anyone, inferences about anyone.",
   "",
   "|cffffd100Your rights|r: see, download and delete your data and opt out for good:",
-  "  in game (Delete my cloud data below) or https://trustadvisor.gameplaybr.com.br/me (Battle.net login).",
-  "  Privacy policy: https://trustadvisor.gameplaybr.com.br/privacy  ·  Questions: /ta feedback",
+  "  in game (Delete my cloud data below) or https://forever.gameplaybr.com.br/me (Battle.net login).",
+  "  Privacy policy: https://forever.gameplaybr.com.br/privacy  ·  Questions: /fr feedback",
 }
 
 UI:RegisterView("privacy", function(frame)
@@ -162,7 +162,7 @@ StaticPopupDialogs["TRUSTADVISOR_CLOUD_DELETE"] = {
   OnAccept = function() TA.Cloud:RequestDeletion(); TA.Print("Cloud deletion requested. It is sent on the next companion sync.") end,
 }
 StaticPopupDialogs["TRUSTADVISOR_DELETE_ALL"] = {
-  text = "Delete ALL Trust Advisor data on this computer (history, settings)? This cannot be undone. Cloud data is not affected.",
+  text = "Delete ALL Forever Relationships data on this computer (history, settings)? This cannot be undone. Cloud data is not affected.",
   button1 = DELETE or "Delete", button2 = CANCEL, timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
-  OnAccept = function() TA:WipeEverything(); TA.Print("All local Trust Advisor data deleted.") end,
+  OnAccept = function() TA:WipeEverything(); TA.Print("All local Forever Relationships data deleted.") end,
 }

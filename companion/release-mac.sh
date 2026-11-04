@@ -1,9 +1,9 @@
 #!/bin/sh
 # Build the macOS companion, sign it with the Developer ID, notarize it with Apple,
 # staple the ticket and attach it to the GitHub release companion-v<VERSION>.
-#   "Trust Advisor Companion.app" (double-click: installs the background service,
-#   offers the Battle.net link) -> TrustAdvisorCompanion-macos-app.zip
-# Terminal users can run the same binary: "Trust Advisor Companion.app/Contents/MacOS/Trust Advisor Companion" --help
+#   "Forever Relationships Companion.app" (double-click: installs the background service,
+#   offers the Battle.net link) -> ForeverRelationshipsCompanion-macos-app.zip
+# Terminal users can run the same binary: "Forever Relationships Companion.app/Contents/MacOS/Forever Relationships Companion" --help
 # (a loose CLI binary is not shipped: Gatekeeper rejects those when opened from Finder, even notarized)
 # Needs Xcode, the "Developer ID Application" certificate, and notarization credentials:
 #   xcrun notarytool store-credentials trustadvisor --apple-id <email> --team-id U3H5DHZP65
@@ -12,7 +12,7 @@ set -e
 cd "$(dirname "$0")"
 IDENTITY="${IDENTITY:-Developer ID Application: Vinicius Luciano Menezes Cotrim (U3H5DHZP65)}"
 PROFILE="${PROFILE:-trustadvisor}"
-APP="Trust Advisor Companion"
+APP="Forever Relationships Companion"
 VERSION=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' ta_companion.py)
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
@@ -26,7 +26,7 @@ python3 -m venv "$WORK/venv" && "$WORK/venv/bin/pip" install -q pyinstaller==6.1
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict></dict></plist>\n' > "$WORK/ent.plist"
 cp ta_companion.py "$WORK/"
 
-# App icon from the Trust Advisor logo
+# App icon from the Forever Relationships logo
 ICONSET="$WORK/icon.iconset"; mkdir -p "$ICONSET"
 for s in 16 32 128 256 512; do
   sips -z $s $s ../branding/logo-1024.png --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
@@ -52,9 +52,9 @@ xcrun stapler staple "dist/$APP.app"
 spctl --assess --type execute -vv "dist/$APP.app"
 "dist/$APP.app/Contents/MacOS/$APP" --version
 
-(cd dist && ditto -c -k --sequesterRsrc --keepParent "$APP.app" "$OUT/TrustAdvisorCompanion-macos-app.zip")
+(cd dist && ditto -c -k --sequesterRsrc --keepParent "$APP.app" "$OUT/ForeverRelationshipsCompanion-macos-app.zip")
 echo "Built in $OUT"
 if [ -z "$SKIP_UPLOAD" ]; then
-  gh release upload -R viniciuscotrim/trust-advisor "companion-v$VERSION" "$OUT/TrustAdvisorCompanion-macos-app.zip" --clobber
+  gh release upload -R viniciuscotrim/trust-advisor "companion-v$VERSION" "$OUT/ForeverRelationshipsCompanion-macos-app.zip" --clobber
   echo "Published signed + notarized macOS companion $VERSION"
 fi

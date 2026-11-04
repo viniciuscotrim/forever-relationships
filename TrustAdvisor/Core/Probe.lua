@@ -1,4 +1,4 @@
--- Developer probe: /ta probe on|off|show|clear
+-- Developer probe: /fr probe on|off|show|clear
 -- Records spells cast by you and your group/raid (spell id, name, caster), plus
 -- summon/zone events, so mechanics can be validated on the live client
 -- (e.g. which spell the Ritual of Summoning / meeting stone "clickers" cast).
@@ -21,7 +21,7 @@ function Probe:Set(on)
   local p = Store()
   p.on = on and true or false
   if on then p.startedAt = TA.Now() end
-  TA.Print("Probe " .. (p.on and "ON: recording spells cast by you and your group. /ta probe off when done." or "off.") .. " " .. #p.rows .. " rows recorded.")
+  TA.Print("Probe " .. (p.on and "ON: recording spells cast by you and your group. /fr probe off when done." or "off.") .. " " .. #p.rows .. " rows recorded.")
 end
 
 function Probe:Add(kind, fields)
@@ -72,7 +72,7 @@ TA:On("PLAYER_ENTERING_WORLD", function() Probe:Add("zone", {}) end)
 
 function Probe:Text()
   local p = Store()
-  local L = { string.format("Trust Advisor probe: %d rows (%s)", #p.rows, p.on and "recording" or "stopped") }
+  local L = { string.format("Forever Relationships probe: %d rows (%s)", #p.rows, p.on and "recording" or "stopped") }
   for _, r in ipairs(p.rows) do
     if r.kind == "cast" then
       L[#L + 1] = string.format("%s  %-26s %-9s %-8s %6s %s", date("%H:%M:%S", r.t), r.event, r.unit, TA.ShortName(r.caster or "?"), r.spellID, r.spell or "?")

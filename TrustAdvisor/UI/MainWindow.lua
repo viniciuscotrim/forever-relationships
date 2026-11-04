@@ -1,4 +1,4 @@
--- Main window (/ta) with five tabs: Players, Player card, My profile, Event log, Transparency.
+-- Main window (/fr) with five tabs: Players, Player card, My profile, Event log, Transparency.
 local _, TA = ...
 local UI = TA.UI
 
@@ -42,7 +42,7 @@ function UI:Build()
   if main then return main end
   main = UI.Window("TrustAdvisorMainFrame", 820, 540, "HIGH")
 
-  local title = UI.Label(main, "Trust Advisor", "GameFontHighlight")
+  local title = UI.Label(main, "Forever Relationships", "GameFontHighlight")
   title:SetPoint("TOP", 0, -5)
 
   main.tabButtons = {}
@@ -99,14 +99,14 @@ TA:Listen("PARAMS_CHANGED", QueueRefresh)
 TA:Listen("LOGIN", function()
   if not (Settings and Settings.RegisterCanvasLayoutCategory) then return end
   local panel = CreateFrame("Frame")
-  local t = UI.Label(panel, "Trust Advisor", "GameFontNormalLarge"); t:SetPoint("TOPLEFT", 16, -16)
-  local d = UI.Label(panel, "An augmented view of how you relate to the people you play with. Type /ta.", "GameFontHighlight")
+  local t = UI.Label(panel, "Forever Relationships", "GameFontNormalLarge"); t:SetPoint("TOPLEFT", 16, -16)
+  local d = UI.Label(panel, "An augmented view of how you relate to the people you play with. Type /fr.", "GameFontHighlight")
   d:SetPoint("TOPLEFT", t, "BOTTOMLEFT", 0, -8)
-  local b = UI.Button(panel, "Open Trust Advisor", 180, 24, function()
+  local b = UI.Button(panel, "Open Forever Relationships", 180, 24, function()
     if SettingsPanel then HideUIPanel(SettingsPanel) end
     UI:Open("privacy")
   end)
   b:SetPoint("TOPLEFT", d, "BOTTOMLEFT", 0, -12)
-  local ok, cat = pcall(Settings.RegisterCanvasLayoutCategory, panel, "Trust Advisor")
+  local ok, cat = pcall(Settings.RegisterCanvasLayoutCategory, panel, "Forever Relationships")
   if ok and cat then pcall(Settings.RegisterAddOnCategory, cat); UI.settingsCategory = cat end
 end)

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Trust Advisor · Cockpit</title>
+<title>Forever Relationships · Cockpit</title>
 <link rel="icon" href="logo.png">
 <link rel="stylesheet" href="app.css">
 </head>
@@ -23,7 +23,7 @@
     </div>
     <div id="auth-setup" hidden>
       <img src="logo.png" alt="" class="auth-logo" width="64" height="64">
-      <h1>Trust Advisor Cockpit</h1>
+      <h1>Forever Relationships Cockpit</h1>
       <ol class="steps">
         <li id="step-passkey"><b>Create your passkey.</b> It is saved in Passwords and syncs to your iPhone through your Apple Account.
           <button id="btn-create" class="primary">Create passkey with Touch ID</button></li>
@@ -50,10 +50,9 @@
   <nav class="side">
     <div class="brand"><img src="logo.png" alt="" width="32" height="32"><span>Cockpit</span></div>
     <a href="#cockpit" data-view="cockpit">Cockpit</a>
-    <a href="#demographics" data-view="demographics">Demographics</a>
-    <a href="#network" data-view="network">Network</a>
+    <a href="#participants" data-view="participants">Participants</a>
+    <a href="#community" data-view="community">Community</a>
     <a href="#feedback" data-view="feedback">Feedback <span id="nav-fb" class="pill" hidden></span></a>
-    <a href="#disputes" data-view="disputes">Disputes <span id="nav-dsp" class="pill" hidden></span></a>
     <div class="side-foot">
       <button id="btn-refresh">Refresh</button>
       <button id="btn-logout">Sign out</button>
@@ -66,8 +65,8 @@
     <section data-section="cockpit">
       <div id="kpis" class="kpis"></div>
       <div class="grid3">
-        <figure class="card"><figcaption>New network participants per day</figcaption><div id="ch-new"></div></figure>
-        <figure class="card"><figcaption>Witness reports received per day</figcaption><div id="ch-reports"></div></figure>
+        <figure class="card"><figcaption>New participants per day</figcaption><div id="ch-new"></div></figure>
+        <figure class="card"><figcaption>Group sessions shared per day</figcaption><div id="ch-sessions"></div></figure>
         <figure class="card"><figcaption>Feedback received per day</figcaption><div id="ch-feedback"></div></figure>
       </div>
       <div class="grid2">
@@ -76,27 +75,39 @@
       </div>
     </section>
 
-    <section data-section="demographics" hidden>
-      <p class="muted note">Own characters of network participants only (class, race, faction, level, realm, locale), shared with their consent. Nothing about players they meet.</p>
+    <section data-section="participants" hidden>
+      <div id="layer-kpis" class="kpis"></div>
+      <p class="muted note min-note"></p>
       <div class="grid3">
-        <figure class="card"><figcaption>Faction</figcaption><div id="ch-faction"></div></figure>
-        <figure class="card"><figcaption>Level</figcaption><div id="ch-levels"></div></figure>
-        <figure class="card"><figcaption>Battle.net region (linked accounts)</figcaption><div id="ch-region"></div></figure>
+        <figure class="card"><figcaption>Faction</figcaption><div id="ch-p-faction"></div></figure>
+        <figure class="card"><figcaption>Level</figcaption><div id="ch-p-levels"></div></figure>
+        <figure class="card"><figcaption>Battle.net region (linked)</figcaption><div id="ch-p-region"></div></figure>
       </div>
       <div class="grid2">
-        <figure class="card"><figcaption>Race</figcaption><div id="ch-race"></div></figure>
-        <figure class="card"><figcaption>Class</figcaption><div id="ch-class"></div></figure>
-        <figure class="card"><figcaption>Realm</figcaption><div id="ch-realm"></div></figure>
-        <figure class="card"><figcaption>Game language</figcaption><div id="ch-locale"></div></figure>
+        <figure class="card"><figcaption>Race</figcaption><div id="ch-p-race"></div></figure>
+        <figure class="card"><figcaption>Class</figcaption><div id="ch-p-class"></div></figure>
+        <figure class="card"><figcaption>Realm</figcaption><div id="ch-p-realm"></div></figure>
+        <figure class="card"><figcaption>Game language</figcaption><div id="ch-p-locale"></div></figure>
       </div>
     </section>
 
-    <section data-section="network" hidden>
-      <div id="net-kpis" class="kpis"></div>
-      <figure class="card"><figcaption>Incidents by trait: verified vs not (yet) verified</figcaption><div id="ch-dims"></div></figure>
+    <section data-section="community" hidden>
+      <div id="com-kpis" class="kpis"></div>
+      <p class="muted note min-note"></p>
       <div class="grid2">
-        <figure class="card"><figcaption>Independent witnesses per incident</figcaption><div id="ch-witness"></div></figure>
-        <figure class="card"><figcaption>Published protocol (locked)</figcaption><div id="tbl-protocol"></div></figure>
+        <figure class="card"><figcaption>Which classes play together (groups containing both)</figcaption><div id="ch-pairs"></div></figure>
+        <figure class="card"><figcaption>Where people group</figcaption><div id="ch-places"></div></figure>
+      </div>
+      <div class="grid3">
+        <figure class="card"><figcaption>Observed players by faction</figcaption><div id="ch-o-faction"></div></figure>
+        <figure class="card"><figcaption>Observed players by level</figcaption><div id="ch-o-levels"></div></figure>
+        <figure class="card"><figcaption>Group type</figcaption><div id="ch-type"></div></figure>
+      </div>
+      <div class="grid2">
+        <figure class="card"><figcaption>Observed players by race</figcaption><div id="ch-o-race"></div></figure>
+        <figure class="card"><figcaption>Observed players by class</figcaption><div id="ch-o-class"></div></figure>
+        <figure class="card"><figcaption>Sessions by hour of day (UTC)</figcaption><div id="ch-hours"></div></figure>
+        <figure class="card"><figcaption>Group size</figcaption><div id="ch-sizes"></div></figure>
       </div>
     </section>
 
@@ -113,9 +124,6 @@
       </div>
     </section>
 
-    <section data-section="disputes" hidden>
-      <div class="card table-wrap"><table id="tbl-dsp" class="table"><thead><tr><th>Filed</th><th>Trait</th><th>Player's context</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
-    </section>
   </main>
 </div>
 <script src="app.js"></script>

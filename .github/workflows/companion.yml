@@ -15,10 +15,10 @@ jobs:
         include:
           - os: windows-latest
             exe: TrustAdvisorCompanion.exe
-            asset: TrustAdvisorCompanion-windows.exe
+            asset: ForeverRelationshipsCompanion-windows.exe
           - os: macos-latest
             exe: TrustAdvisorCompanion
-            asset: TrustAdvisorCompanion-macos
+            asset: ForeverRelationshipsCompanion-macos
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +68,6 @@ jobs:
         run: |
           # the macOS build here is a test build only: the signed + notarized one is
           # attached from a Mac with companion/release-mac.sh
-          gh release create "$GITHUB_REF_NAME" assets/TrustAdvisorCompanion-windows.exe companion/ta_companion.py \
-            --title "Trust Advisor Companion ${GITHUB_REF_NAME#companion-v}" \
+          gh release create "$GITHUB_REF_NAME" assets/ForeverRelationshipsCompanion-windows.exe companion/ta_companion.py \
+            --title "Forever Relationships Companion ${GITHUB_REF_NAME#companion-v}" \
             --notes-file companion/RELEASE_NOTES.md

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Update the Trust Advisor network server on the VPS (isolated deployment).
+# Update the Forever Relationships server on the VPS (isolated deployment).
 # Usage: ./deploy.sh root@HOST [ssh-key]
 # Layout on the host: /srv/trustadvisor/{app,data,admin.env,blizzard.env}, container "trustadvisor-net"
 # bound to 127.0.0.1:10790, nginx site /etc/nginx/sites-available/trustadvisor-net.

@@ -1,4 +1,4 @@
-// Trust Advisor Cockpit. Vanilla JS, no external code (strict CSP).
+// Forever Relationships Cockpit. Vanilla JS, no external code (strict CSP).
 "use strict";
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -175,7 +175,11 @@ function columns(host, rows, unit = "") {
   rows.forEach((r, i) => {
     const h = top ? ih * r.n / top : 0, x = pad.l + i * bw + gap / 2;
     if (h > 0) s.append(svg("path", { d: roundedTop(x, pad.t + ih - h, bw - gap, h, 4), fill: COLORS.s1 }));
-    const t = svg("text", { x: x + (bw - gap) / 2, y: H - 8, "text-anchor": "middle", class: "lbl" }); t.textContent = r.k; s.append(t);
+    const every = Math.ceil(rows.length / 12);   // never more than ~12 axis labels
+    if (i % every === 0) {
+      const t = svg("text", { x: x + (bw - gap) / 2, y: H - 8, "text-anchor": "middle", class: "lbl" });
+      t.textContent = String(r.k).startsWith("Other") ? "Other" : r.k; s.append(t);
+    }
     const hit = svg("rect", { x: pad.l + i * bw, y: pad.t, width: bw, height: ih, class: "hit" });
     hover(hit, `${r.k}${unit}: ${fmt.format(r.n)}`); s.append(hit);
   });
@@ -257,7 +261,7 @@ function simpleTable(host, head, rows) {
 
 // ------------------------------------------------------------------ views
 let data = null, feedback = [], selectedFb = null;
-const VIEWS = { cockpit: "Cockpit", demographics: "Demographics", network: "Network", feedback: "Feedback", disputes: "Disputes" };
+const VIEWS = { cockpit: "Cockpit", participants: "Participants", community: "Community", feedback: "Feedback" };
 
 function showView(v) {
   if (!VIEWS[v]) v = "cockpit";
@@ -266,7 +270,6 @@ function showView(v) {
   $$(".side a").forEach(a => a.classList.toggle("active", a.dataset.view === v));
   current = v;
   if (v === "feedback") loadFeedback();
-  if (v === "disputes") loadDisputes();
   render();   // charts are drawn at the visible card's real width
 }
 
@@ -277,38 +280,43 @@ function render() {
   $("#updated").textContent = "Live from the server · " + dtFmt.format(new Date(data.generatedAt * 1000));
   const banner = $("#demo-banner");
   banner.hidden = !data.demoRows;
-  banner.textContent = data.demoRows ? `Demo data present (${fmt.format(data.demoRows)} demo participants/feedback). Remove it on the server with: python -m trustnet.demo clean` : "";
+  banner.textContent = data.demoRows ? `Demo data present (${fmt.format(data.demoRows)} demo rows). Remove it on the server with: python -m trustnet.demo clean` : "";
   $("#nav-fb").hidden = !k.feedbackNew; $("#nav-fb").textContent = k.feedbackNew;
-  $("#nav-dsp").hidden = !k.openDisputes; $("#nav-dsp").textContent = k.openDisputes;
-  kpis($("#kpis"), [
-    ["Network participants", k.participants, true], ["Active last 24 h", k.active24h], ["Active last 7 days", k.active7d],
-    ["Linked Battle.net accounts", k.linkedAccounts], ["New feedback", k.feedbackNew, true], ["Open disputes", k.openDisputes],
-    ["Bugs reported", k.bugs], ["Ideas", k.ideas],
-  ]);
-  area($("#ch-new"), data.series.newParticipants);
-  area($("#ch-reports"), data.series.reports);
-  area($("#ch-feedback"), data.series.feedback);
-  barList($("#ch-fb-status"), data.feedback.byStatus.map(r => ({ k: STATUS_LABEL[r.k] || r.k, n: r.n })));
-  simpleTable($("#tbl-errors"), ["Error (from diagnostics)", "Reports"], data.feedback.topErrors.map(e => [e.k, e.n]));
+  $$(".min-note").forEach(n => n.textContent = `Aggregates only, never individuals. Any group with fewer than ${data.minGroup} distinct people is folded into "Other (small groups)".`);
 
-  const d = data.demographics;
-  barList($("#ch-faction"), d.faction);
-  columns($("#ch-levels"), d.levels);
-  barList($("#ch-region"), (d.region || []).map(r => ({ k: String(r.k).toUpperCase(), n: r.n })));
-  barList($("#ch-race"), d.race);
-  barList($("#ch-class"), d.class);
-  barList($("#ch-realm"), d.realm);
-  barList($("#ch-locale"), d.locale);
-
-  kpis($("#net-kpis"), [
-    ["Players observed", k.playersObserved], ["Witness reports", k.reports], ["Incidents", k.incidents],
-    ["Verified incidents", k.verifiedIncidents, true], ["Verified negatives", k.verifiedNegatives],
-    ["Verified characters", k.verifiedCharacters], ["Opted out (deleted)", k.optedOut], ["Guilds seen", d.guilds],
-  ]);
-  stacked2($("#ch-dims"), data.network.byDimension.map(r => ({ k: TRAITS[r.k] || r.k, a: r.verified, b: r.incidents - r.verified,
-    extra: `${r.verifiedNegatives} of ${r.negatives} negatives verified` })), ["verified", "not verified"]);
-  columns($("#ch-witness"), data.network.witnessHistogram.map(r => ({ k: String(r.k), n: r.n })), " witness(es)");
-  simpleTable($("#tbl-protocol"), ["Parameter", "Value"], Object.entries(data.protocol).map(([a, b]) => [a, String(b)]));
+  if (current === "cockpit") {
+    kpis($("#kpis"), [
+      ["Participants", k.participants, true], ["Active last 7 days", k.active7d], ["Linked Battle.net accounts", k.linkedAccounts],
+      ["Public profiles", k.profiles], ["Group sessions shared", k.communitySessions], ["Players observed", k.observedCharacters],
+      ["New feedback", k.feedbackNew, true], ["Opted out", k.optedOut],
+    ]);
+    area($("#ch-new"), data.series.newParticipants);
+    area($("#ch-sessions"), data.series.communitySessions);
+    area($("#ch-feedback"), data.series.feedback);
+    barList($("#ch-fb-status"), data.feedback.byStatus.map(r => ({ k: STATUS_LABEL[r.k] || r.k, n: r.n })));
+    simpleTable($("#tbl-errors"), ["Error (from diagnostics)", "Reports"], data.feedback.topErrors.map(e => [e.k, e.n]));
+  } else if (current === "participants") {
+    kpis($("#layer-kpis"), [
+      ["Participants", k.participants, true], ["Cloud backup", k.layerBackup], ["Backups stored (MB)", k.backupMB],
+      ["Public profile", k.layerProfile], ["Community", k.layerCommunity], ["Recommend me", k.layerRecommend],
+      ["Verified characters", k.verifiedCharacters], ["Opted out", k.optedOut],
+    ]);
+    const p = data.participants;
+    barList($("#ch-p-faction"), p.faction); columns($("#ch-p-levels"), p.levels);
+    barList($("#ch-p-region"), p.region.map(r => ({ k: String(r.k).toUpperCase(), n: r.n })));
+    barList($("#ch-p-race"), p.race); barList($("#ch-p-class"), p.class);
+    barList($("#ch-p-realm"), p.realm); barList($("#ch-p-locale"), p.locale);
+  } else if (current === "community") {
+    kpis($("#com-kpis"), [
+      ["Group sessions shared", k.communitySessions, true], ["Players observed", k.observedCharacters],
+      ["Sharing participants", k.layerCommunity], ["Excluded players", k.optedOut],
+    ]);
+    const c = data.community, o = data.population;
+    barList($("#ch-pairs"), c.classPairs, { max: 15 }); barList($("#ch-places"), c.places);
+    barList($("#ch-o-faction"), o.faction); columns($("#ch-o-levels"), o.levels); barList($("#ch-type"), c.byType);
+    barList($("#ch-o-race"), o.race); barList($("#ch-o-class"), o.class);
+    columns($("#ch-hours"), c.byHour); columns($("#ch-sizes"), c.groupSizes, " members");
+  }
 }
 
 async function loadOverview() {
@@ -342,8 +350,8 @@ function showFeedback(f) {
   let diag = "";
   try {
     const d = JSON.parse(f.diag || "null");
-    if (d) diag = [`Addon ${d.addon} · client ${d.build} · ${d.locale}`, `Companion ${d.companion}${d.companionVersion ? " " + d.companionVersion : ""} · network ${d.network ? "on" : "off"}`,
-      `${d.players} players known · ${d.events} events`, ...(d.unavailable || []).map(u => "Unavailable: " + u), ...(d.errors || []).map(e => "Error: " + e)].join("\n");
+    if (d) diag = [`Addon ${d.addon} · client ${d.build} · ${d.locale}`, `Companion ${d.companion}${d.companionVersion ? " " + d.companionVersion : ""}`,
+      `${d.players} players known · ${d.events} events · layers ${d.layers || "none"}`, ...(d.unavailable || []).map(u => "Unavailable: " + u), ...(d.errors || []).map(e => "Error: " + e)].join("\n");
   } catch (_) { diag = f.diag || ""; }
   const sel = el("select", { "aria-label": "Status" }, Object.entries(STATUS_LABEL).map(([v, l]) => el("option", { value: v, text: l })));
   sel.value = f.status;
@@ -363,24 +371,8 @@ function showFeedback(f) {
     diag ? el("pre", { text: diag }) : null,
     el("label", { text: "Status" }), el("div", { class: "row" }, sel),
     el("label", { text: "Reply" }), reply,
-    el("div", { class: "row" }, save), note,
-    el("p", { class: "muted", text: "Id " + f.id }));
+    el("div", { class: "row" }, save), note);
 }
-
-// disputes
-async function loadDisputes() {
-  try {
-    const list = (await api("GET", "disputes")).disputes;
-    $("#tbl-dsp tbody").replaceChildren(...(list.length ? list.map(d => {
-      const actions = d.status === "open" ? el("td", {},
-        el("button", { text: "Uphold (remove event)", onclick: () => decide(d.id, "upheld") }), " ",
-        el("button", { text: "Reject (keep event)", onclick: () => decide(d.id, "rejected") })) : el("td", {});
-      return el("tr", {}, el("td", { text: dayFmt.format(new Date(d.created_at * 1000)) }), el("td", { text: TRAITS[d.d] || d.d }),
-        el("td", { text: d.reason || "" }), el("td", { text: d.status }), actions);
-    }) : [el("tr", {}, el("td", { colspan: "5", class: "muted", text: "No disputes." }))]));
-  } catch (e) { if (e.status === 401) toLogin(); }
-}
-async function decide(id, status) { await api("POST", "disputes/" + encodeURIComponent(id), { status }); loadDisputes(); loadOverview(); }
 
 // ------------------------------------------------------------------ boot
 let timer = null;

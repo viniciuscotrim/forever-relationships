@@ -39,7 +39,7 @@ def verify(secret_b32, code, t, window=1, last_used_step=None):
     return None
 
 
-def otpauth_uri(secret_b32, account, issuer="Trust Advisor"):
+def otpauth_uri(secret_b32, account, issuer="Forever Relationships"):
     label = urllib.parse.quote("%s:%s" % (issuer, account))
     q = urllib.parse.urlencode({"secret": secret_b32, "issuer": issuer, "algorithm": "SHA1", "digits": 6, "period": 30})
     return "otpauth://totp/%s?%s" % (label, q)

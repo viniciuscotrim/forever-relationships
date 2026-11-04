@@ -1,4 +1,4 @@
--- First-run welcome: what Trust Advisor is (an augmented view of your
+-- First-run welcome: what Forever Relationships is (an augmented view of your
 -- relationships, from game data only) and the four layers, each with its own
 -- plain-language consent. Everything that leaves your computer starts OFF.
 local _, TA = ...
@@ -14,9 +14,9 @@ local CHOICES = {
 local frame
 local function Build()
   local f = UI.Window("TrustAdvisorWelcome", 580, 470, "DIALOG")
-  UI.Label(f, "Welcome to Trust Advisor", "GameFontNormalLarge"):SetPoint("TOP", 0, -30)
+  UI.Label(f, "Welcome to Forever Relationships", "GameFontNormalLarge"):SetPoint("TOP", 0, -30)
   local intro = UI.Label(f,
-    "Trust Advisor shows how you've related to the people around you: time together, dungeons completed, "
+    "Forever Relationships shows how you've related to the people around you: time together, dungeons completed, "
     .. "kills, trades, help, quests. It only uses what the game itself records while you play together. "
     .. "No chat, no opinions, no scores.\n\nHover a player to see your history with them, or right-click and choose Relationship. "
     .. "On this computer it works right away. Everything below is optional, starts off, and needs the free companion app.",
@@ -37,10 +37,10 @@ local function Build()
     end)
     f.rows[i] = { button = b, key = c.key }
   end
-  local fb = UI.Label(f, "Found a bug or have an idea? Type /ta feedback. You never need to leave the game.", "GameFontHighlightSmall")
+  local fb = UI.Label(f, "Found a bug or have an idea? Type /fr feedback. You never need to leave the game.", "GameFontHighlightSmall")
   fb:SetPoint("BOTTOMLEFT", 20, 46)
   local done = UI.Button(f, "Done", 120, 24, function() f:Hide() end); done:SetPoint("BOTTOMRIGHT", -16, 14)
-  local open = UI.Button(f, "Open Trust Advisor", 160, 24, function() f:Hide(); UI:Open("circle") end)
+  local open = UI.Button(f, "Open Forever Relationships", 160, 24, function() f:Hide(); UI:Open("circle") end)
   open:SetPoint("RIGHT", done, "LEFT", -8, 0)
   local comp = UI.Button(f, "Companion app", 130, 24, function() UI.ShowText("Companion app", TA.Cloud:SetupText()) end)
   comp:SetPoint("BOTTOMLEFT", 16, 14)

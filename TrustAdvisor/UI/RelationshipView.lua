@@ -40,7 +40,7 @@ UI:RegisterView("relationship", function(frame)
   view.profileBox:SetPoint("TOPLEFT", 400, -300); view.profileBox:SetWidth(380); view.profileBox:SetJustifyV("TOP")
 
   view.friendBtn = UI.Button(frame, "Add friend", 110, 22, function()
-    if C_FriendList and C_FriendList.AddFriend then C_FriendList.AddFriend(TA.ShortName(view.name), "Trust Advisor") end
+    if C_FriendList and C_FriendList.AddFriend then C_FriendList.AddFriend(TA.ShortName(view.name), "Forever Relationships") end
   end)
   view.friendBtn:SetPoint("BOTTOMLEFT", 4, 2)
   view.inviteBtn = UI.Button(frame, "Invite", 90, 22, function()

@@ -1,4 +1,4 @@
-"""Trust Advisor server, protocol v2 (GDD v2). Python stdlib + `cryptography` (passkeys).
+"""Forever Relationships server, protocol v2 (GDD v2). Python stdlib + `cryptography` (passkeys).
 
 Public API (companion app)
   POST /v1/sync                 layers the player consented to; returns public profiles + suggestions
@@ -358,7 +358,7 @@ class Service:
             return 200, "Signed in", "", tok
         msg = ("%d WoW: Forever character(s) verified." % len(chars)) if chars else \
             "No WoW: Forever characters were listed by Battle.net yet; your account is linked and characters will be verified when available."
-        return 200, "Linked", "Your Trust Advisor identity is now linked to your Battle.net account. " + msg + \
+        return 200, "Linked", "Your Forever Relationships identity is now linked to your Battle.net account. " + msg + \
             " Only a one-way code of your account id is stored. You can close this window.", None
 
     def auth_status(self, body):
@@ -475,7 +475,7 @@ def make_handler(service, admin=None):
 
         def _send_html(self, code, title, message):
             page = ("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
-                    "<title>Trust Advisor - %s</title><link rel='stylesheet' href='/public.css'></head>"
+                    "<title>Forever Relationships - %s</title><link rel='stylesheet' href='/public.css'></head>"
                     "<body><main class='card'><h1>%s</h1><p>%s</p></main></body></html>") % (html.escape(title), html.escape(title), html.escape(message))
             self._raw(code, page.encode("utf-8"), "text/html; charset=utf-8", SEC_HEADERS)
 
@@ -642,7 +642,7 @@ def main():
                       public_urls=(os.environ.get("TA_PUBLIC_URLS") or "").split(","),
                       hash_salt=os.environ.get("TA_HASH_SALT", ""))
     print("Battle.net login: %s" % ("enabled" if service.bnet else "NOT configured"), flush=True)
-    origin = os.environ.get("TA_ADMIN_ORIGIN", "https://trustadvisor.gameplaybr.com.br").rstrip("/")
+    origin = os.environ.get("TA_ADMIN_ORIGIN", "https://forever.gameplaybr.com.br").rstrip("/")
     admin = admin_mod.Admin(store, service, rp_id=urlparse(origin).hostname, origin=origin)
 
     def janitor():
@@ -655,7 +655,7 @@ def main():
     threading.Thread(target=janitor, daemon=True).start()
     port = int(os.environ.get("TA_PORT", "8080"))
     server = ThreadingHTTPServer(("0.0.0.0", port), make_handler(service, admin))
-    print("Trust Advisor listening on :%d" % port, flush=True)
+    print("Forever Relationships listening on :%d" % port, flush=True)
     server.serve_forever()
 
 

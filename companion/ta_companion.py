@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trust Advisor companion app (GDD Phase 3). Python 3.8+, standard library only.
+"""Forever Relationships companion app (formerly Trust Advisor) (GDD Phase 3). Python 3.8+, standard library only.
 
 WoW addons cannot use the internet, so this small program does it for them:
   1. reads TrustAdvisor.lua from SavedVariables (written on logout or /reload),
@@ -41,9 +41,9 @@ DEFAULT_WOW = [
     r"C:\Program Files (x86)\World of Warcraft\_forever_",
     r"C:\Program Files\World of Warcraft\_forever_",
 ]
-DEFAULT_SERVER = "https://trustadvisor.gameplaybr.com.br"
+DEFAULT_SERVER = "https://forever.gameplaybr.com.br"
 # Tried in order when no --server is given (the legacy address is kept during the DNS move).
-FALLBACK_SERVERS = [DEFAULT_SERVER, "https://trustadvisor.72-62-142-237.sslip.io"]
+FALLBACK_SERVERS = [DEFAULT_SERVER, "https://trustadvisor.gameplaybr.com.br", "https://trustadvisor.72-62-142-237.sslip.io"]
 STATE_PATH = os.path.join(os.path.expanduser("~"), ".trustadvisor", "companion.json")
 
 
@@ -236,7 +236,7 @@ def write_netdata(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        f.write("-- Written by the Trust Advisor companion app %s. Do not edit by hand.\n" % VERSION)
+        f.write("-- Written by the Forever Relationships companion app %s. Do not edit by hand.\n" % VERSION)
         f.write("TrustAdvisorNetData = " + lua_literal(data) + "\n")
     os.replace(tmp, path)
 
@@ -351,7 +351,7 @@ def decrypt_blob(key, blob):
 
 
 def sv_files(wow):
-    """Every Trust Advisor SavedVariables file (account-wide and per character), relative to WTF/Account."""
+    """Every Forever Relationships (TrustAdvisor) SavedVariables file (account-wide and per character), relative to WTF/Account."""
     root = os.path.join(wow, "WTF", "Account")
     out = {}
     for path in glob.glob(os.path.join(root, "**", "SavedVariables", "TrustAdvisor.lua"), recursive=True):
@@ -655,7 +655,7 @@ def install_autostart(extra_args):
         subprocess.Popen(cmd, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     else:
         with open(paths["file"], "w", encoding="utf-8") as f:
-            f.write("[Unit]\nDescription=Trust Advisor companion\n[Service]\nExecStart=%s\nRestart=always\n"
+            f.write("[Unit]\nDescription=Forever Relationships companion\n[Service]\nExecStart=%s\nRestart=always\n"
                     "[Install]\nWantedBy=default.target\n" % " ".join(cmd))
         if shutil.which("systemctl"):
             subprocess.run(["systemctl", "--user", "enable", "--now", "trustadvisor-companion.service"], check=False)
@@ -677,7 +677,7 @@ def uninstall_autostart():
 
 
 # ---------------------------------------------------------------------------
-# macOS app mode: double-clicking "Trust Advisor Companion.app" (no arguments)
+# macOS app mode: double-clicking "Forever Relationships Companion.app" (no arguments)
 # installs the background service and offers the Battle.net link with native dialogs.
 # ---------------------------------------------------------------------------
 def is_mac_app_bundle():
@@ -696,7 +696,7 @@ def _osascript(script):
 
 def mac_dialog(text, buttons=("OK",), default=None):
     btns = ", ".join('"%s"' % b for b in buttons)
-    script = 'display dialog "%s" with title "Trust Advisor Companion" buttons {%s} default button "%s" with icon note' % (
+    script = 'display dialog "%s" with title "Forever Relationships Companion" buttons {%s} default button "%s" with icon note' % (
         text.replace('"', "'"), btns, default or buttons[-1])
     out = _osascript(script) or ""
     return out.split("button returned:", 1)[-1].strip() if "button returned:" in out else None
@@ -704,7 +704,7 @@ def mac_dialog(text, buttons=("OK",), default=None):
 
 def mac_choose_region():
     out = _osascript('choose from list {"Americas (us)", "Europe (eu)", "Korea (kr)", "Taiwan (tw)"} '
-                     'with title "Trust Advisor Companion" with prompt "Your Battle.net region:" default items {"Americas (us)"}')
+                     'with title "Forever Relationships Companion" with prompt "Your Battle.net region:" default items {"Americas (us)"}')
     if not out or out == "false":
         return None
     return out.split("(")[-1].rstrip(")")
@@ -744,8 +744,8 @@ def mac_app_main(wow, client):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Trust Advisor companion app")
-    ap.add_argument("--server", default=os.environ.get("TA_SERVER", DEFAULT_SERVER), help="network server URL (default: the official Trust Advisor network)")
+    ap = argparse.ArgumentParser(description="Forever Relationships companion app")
+    ap.add_argument("--server", default=os.environ.get("TA_SERVER", DEFAULT_SERVER), help="network server URL (default: the official Forever Relationships server)")
     ap.add_argument("--wow", help="WoW: Forever folder (contains WTF and Interface)")
     ap.add_argument("--once", action="store_true", help="sync once and exit")
     ap.add_argument("--interval", type=int, default=30, help="seconds between checks in watch mode")
@@ -756,7 +756,7 @@ def main(argv=None):
     ap.add_argument("--show-recovery-code", action="store_true", help="show the recovery code of your cloud backup again")
     ap.add_argument("--region", default="us", choices=["us", "eu", "kr", "tw"], help="Battle.net region for --link")
     ap.add_argument("--watch", action="store_true", help="keep syncing in the background (default when no other action)")
-    ap.add_argument("--version", action="version", version="Trust Advisor companion " + VERSION)
+    ap.add_argument("--version", action="version", version="Forever Relationships companion " + VERSION)
     raw = sys.argv[1:] if argv is None else argv
     app_launch = is_mac_app_launch(raw)
     args = ap.parse_args(raw)
@@ -795,7 +795,7 @@ def main(argv=None):
         return 0
     state = load_state()
     seen = {}
-    print("Trust Advisor companion %s - %s - server %s" % (VERSION, wow, args.server))
+    print("Forever Relationships companion %s - %s - server %s" % (VERSION, wow, args.server))
     while True:
         for sv in find_saved_variables(wow):
             mtime = os.path.getmtime(sv)

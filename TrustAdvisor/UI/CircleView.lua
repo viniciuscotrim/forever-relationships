@@ -1,5 +1,5 @@
 -- Circle: everyone you've played with, most time together first, plus nearby
--- Trust Advisor users and suggestions from the community (opt-in participants only).
+-- Forever Relationships users and suggestions from the community (opt-in participants only).
 local _, TA = ...
 local UI = TA.UI
 

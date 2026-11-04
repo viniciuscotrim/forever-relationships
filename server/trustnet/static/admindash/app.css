@@ -1,4 +1,4 @@
-/* Trust Advisor Cockpit - dark, brand navy + gold. Chart colors: validated
+/* Forever Relationships Cockpit - dark, brand navy + gold. Chart colors: validated
    categorical palette (dark steps) against the #141f38 card surface. */
 :root {
   color-scheme: dark;
@@ -108,3 +108,4 @@ svg { display: block; max-width: 100%; height: auto; overflow: visible; }
 /* login: just the button (and the code field after Touch ID / Face ID) */
 .auth.login .auth-card { background: none; border: 0; width: min(280px, 100%); padding: 0; }
 .auth.login .auth-card form { text-align: center; }
+.note { margin: 10px 0 0; }

@@ -12,7 +12,7 @@ from .store import Store
 
 def main(argv):
     store = Store(os.environ.get("TA_DB", "trustnet.sqlite3"))
-    origin = os.environ.get("TA_ADMIN_ORIGIN", "https://trustadvisor.gameplaybr.com.br").rstrip("/")
+    origin = os.environ.get("TA_ADMIN_ORIGIN", "https://forever.gameplaybr.com.br").rstrip("/")
     admin = Admin(store, None, urlparse(origin).hostname, origin)
     cmd = argv[0] if argv else ""
     if cmd == "setup-link":

@@ -18,7 +18,7 @@ local function BuildToast()
   f:SetFrameStrata("DIALOG")
   f:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
     edgeSize = 14, insets = { left = 4, right = 4, top = 4, bottom = 4 } })
-  f.title = UI.Label(f, "Trust Advisor", "GameFontNormalSmall"); f.title:SetPoint("TOPLEFT", 10, -8)
+  f.title = UI.Label(f, "Forever Relationships", "GameFontNormalSmall"); f.title:SetPoint("TOPLEFT", 10, -8)
   f.text = UI.Label(f, "", "GameFontHighlight"); f.text:SetPoint("TOPLEFT", 10, -24); f.text:SetWidth(340)
   f.yes = UI.Button(f, "", 110, 20); f.yes:SetPoint("BOTTOMLEFT", 10, 8)
   f.no = UI.Button(f, "Not now", 90, 20); f.no:SetPoint("LEFT", f.yes, "RIGHT", 6, 0)
@@ -76,7 +76,7 @@ TA:Listen("SESSION_END", function(s)
         UI.Toast({
           text = string.format("You've grouped with %s %d times. Add as a friend?", TA.ShortName(m.name), n),
           yesLabel = "Add friend",
-          onYes = function() C_FriendList.AddFriend(TA.ShortName(m.name), "Trust Advisor") end,
+          onYes = function() C_FriendList.AddFriend(TA.ShortName(m.name), "Forever Relationships") end,
           onNo = function() TA.cdb.suggestDismissed[m.guid] = TA.Now() end,
         })
       end

@@ -197,13 +197,13 @@ end
 
 function Cloud:SetupText()
   return {
-    "|cffffd100Trust Advisor companion app|r",
+    "|cffffd100Forever Relationships companion app|r",
     "",
-    "WoW addons cannot use the internet. The free companion app does it for Trust Advisor:",
-    "your encrypted cloud backup, your public profile, community statistics, and /ta feedback.",
+    "WoW addons cannot use the internet. The free companion app does it for Forever Relationships:",
+    "your encrypted cloud backup, your public profile, community statistics, and /fr feedback.",
     "",
     "1. Download it from:  https://" .. Cloud.DOWNLOAD_URL,
-    "   Mac: open Trust Advisor Companion.app. It installs itself and offers the Battle.net link.",
+    "   Mac: open Forever Relationships Companion.app. It installs itself and offers the Battle.net link.",
     "   Windows: put TrustAdvisorCompanion-windows.exe in a permanent folder, then in a terminal there:",
     "     TrustAdvisorCompanion-windows.exe --install",
     "     TrustAdvisorCompanion-windows.exe --link --region us      (eu / kr / tw for other regions)",
@@ -213,7 +213,7 @@ function Cloud:SetupText()
     "",
     "Status: " .. Cloud.STATUS_TEXT[self:CompanionStatus()],
     "Battle.net: " .. self:LinkText(),
-    "Without the companion, everything local in Trust Advisor works normally.",
+    "Without the companion, everything local in Forever Relationships works normally.",
   }
 end
 

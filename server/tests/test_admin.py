@@ -219,7 +219,7 @@ class AdminHttp(unittest.TestCase):
     def test_static_page_with_security_headers(self):
         code, h, body = self.req("/admindash/")
         self.assertEqual(code, 200)
-        self.assertIn(b"Trust Advisor Cockpit", body)
+        self.assertIn(b"Forever Relationships", body)
         self.assertIn("frame-ancestors 'none'", h["Content-Security-Policy"])
         self.assertEqual(h["Cache-Control"], "no-store")
         self.assertEqual(self.req("/admindash/../app.py")[0], 404)

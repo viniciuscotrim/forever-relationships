@@ -1,7 +1,7 @@
--- In-game feedback: the ONLY feedback channel. /ta feedback
+-- In-game feedback: the ONLY feedback channel. /fr feedback
 -- Reports are stored in SavedVariables and delivered by the companion app on
 -- the next sync (addons cannot use the internet). Status and replies come back
--- through the same companion and show here. Lua errors from Trust Advisor offer
+-- through the same companion and show here. Lua errors from Forever Relationships offer
 -- a one-click, pre-filled report.
 local _, TA = ...
 local UI = TA.UI
@@ -56,7 +56,7 @@ end
 function FB:DiagnosticsText(d)
   d = d or self:Diagnostics()
   local L = {
-    "Trust Advisor " .. d.addon .. " · client " .. d.build .. " · interface " .. d.interface .. " · " .. d.locale,
+    "Forever Relationships " .. d.addon .. " · client " .. d.build .. " · interface " .. d.interface .. " · " .. d.locale,
     "Companion: " .. d.companion .. (d.companionVersion and (" (" .. d.companionVersion .. ")") or "") .. " · layers " .. (d.layers ~= "" and d.layers or "none"),
     string.format("%d players known, %d events recorded", d.players, d.events),
     "Unavailable features: " .. (#d.unavailable > 0 and table.concat(d.unavailable, "; ") or "none"),
@@ -108,7 +108,7 @@ function FB:DeliveryNote()
     return "|cff66ff66Sent automatically the next time you log out or /reload.|r"
   end
   return "|cffff9933Addons can't use the internet: your report is saved on this computer and sent automatically as soon as the free "
-    .. "Trust Advisor companion app runs here (setup: /ta cloud). Status and replies show up in this window.|r"
+    .. "Forever Relationships companion app runs here (setup: /fr cloud). Status and replies show up in this window.|r"
 end
 
 -------------------------------------------------------------------------------
@@ -118,7 +118,7 @@ local win
 
 local function Build()
   local f = UI.Window("TrustAdvisorFeedback", 600, 470, "DIALOG")
-  UI.Label(f, "Send feedback to the Trust Advisor developer", "GameFontNormalLarge"):SetPoint("TOP", 0, -28)
+  UI.Label(f, "Send feedback to the Forever Relationships developer", "GameFontNormalLarge"):SetPoint("TOP", 0, -28)
   local sub = UI.Label(f, "This is the one place for bug reports and ideas. You never need to leave the game.", "GameFontHighlightSmall")
   sub:SetPoint("TOP", 0, -48)
 
@@ -151,14 +151,14 @@ local function Build()
   f.diagBtn:SetPoint("TOPLEFT", bg, "BOTTOMLEFT", 0, -6)
   local see = UI.Button(f, "What's included?", 130, 20, function() UI.ShowText("Diagnostics sent with your report", FB:DiagnosticsText()) end)
   see:SetPoint("LEFT", f.diagBtn, "RIGHT", 6, 0)
-  UI.Tooltip(see, "Diagnostics", { "Addon and client versions, which features are unavailable on your client, recent Trust Advisor errors, and simple counts. Never names, notes, chat or anything about other players." })
+  UI.Tooltip(see, "Diagnostics", { "Addon and client versions, which features are unavailable on your client, recent Forever Relationships errors, and simple counts. Never names, notes, chat or anything about other players." })
 
   f.send = UI.Button(f, "Send", 100, 24, function()
     local ok, res = FB:Submit(f.kind, f.edit:GetText(), f.withDiag)
     if not ok then TA.Print(res); return end
     f.edit:SetText(""); f.edit:ClearFocus(); f.hint:Show()
     TA.Print("Thanks! Feedback saved. " .. (TA.Cloud:CompanionSeen() and "It will be sent on your next logout or /reload."
-      or "It will be sent when the companion app runs (/ta cloud)."))
+      or "It will be sent when the companion app runs (/fr cloud)."))
     f:Refresh()
   end)
   f.send:SetPoint("TOPRIGHT", bg, "BOTTOMRIGHT", 0, -22)
@@ -194,7 +194,7 @@ local function Build()
     self.bugBtn:SetText(self.kind == "bug" and "|cffffd100> Something's broken|r" or "Something's broken")
     self.ideaBtn:SetText(self.kind == "idea" and "|cffffd100> Idea / suggestion|r" or "Idea / suggestion")
     self.hint:SetText(self.kind == "bug" and "What happened, and what did you expect? (Diagnostics are attached, so a short note is enough.)"
-      or "What would you like Trust Advisor to do differently?")
+      or "What would you like Forever Relationships to do differently?")
     if self.edit:GetText() ~= "" or self.edit:HasFocus() then self.hint:Hide() else self.hint:Show() end
     self.diagBtn:SetText(self.withDiag and "|cff66ff66Include diagnostics: On|r" or "Include diagnostics: Off")
     self.note:SetText(FB:DeliveryNote())
@@ -226,7 +226,7 @@ TA:Listen("ERROR_RECORDED", function(e)
   local function offer()
     if TA.InCombat() then C_Timer.After(5, offer); return end
     UI.Toast({
-      text = "Trust Advisor hit an error. Send a report so it gets fixed? The error details are attached for you.",
+      text = "Forever Relationships hit an error. Send a report so it gets fixed? The error details are attached for you.",
       yesLabel = "Report it",
       onYes = function() UI.ShowFeedback("bug", "") end,
     })

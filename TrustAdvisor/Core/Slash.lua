@@ -17,17 +17,17 @@ end
 
 
 local HELP = {
-  "/ta - open the main window",
-  "/ta feedback - report a bug or suggest an idea (right here in game)",
-  "/ta player <name> - open your Relationship with a player",
-  "/ta privacy - layers, consents and what is recorded",
-  "/ta cloud - companion app, backup and Battle.net status",
-  "/ta welcome - show the welcome and the layer choices again",
-  "/ta invisible - toggle invisible mode (stop presence broadcasting)",
-  "/ta export - copy your local event log as text",
-  "/ta debug - toggle verbose capture logging",
-  "/ta probe on|off|show|clear - developer: record spells cast by your group for live validation",
-  "/ta status - client, interface and capture status",
+  "/fr - open the main window",
+  "/fr feedback - report a bug or suggest an idea (right here in game)",
+  "/fr player <name> - open your Relationship with a player",
+  "/fr privacy - layers, consents and what is recorded",
+  "/fr cloud - companion app, backup and Battle.net status",
+  "/fr welcome - show the welcome and the layer choices again",
+  "/fr invisible - toggle invisible mode (stop presence broadcasting)",
+  "/fr export - copy your local event log as text",
+  "/fr debug - toggle verbose capture logging",
+  "/fr probe on|off|show|clear - developer: record spells cast by your group for live validation",
+  "/fr status - client, interface and capture status",
   "Companion app: github.com/viniciuscotrim/trust-advisor",
 }
 
@@ -48,7 +48,7 @@ local function Handle(msg)
   elseif cmd == "invisible" then
     TA.Presence:SetInvisible(not TA.db.invisible)
     TA.Print(TA.db.invisible and "Invisible mode ON: nothing is broadcast." or "Invisible mode off.")
-  elseif cmd == "export" then UI.ShowText("Trust Advisor event log", UI.ExportEvents(TA.Log:Query({})))
+  elseif cmd == "export" then UI.ShowText("Forever Relationships event log", UI.ExportEvents(TA.Log:Query({})))
   elseif cmd == "debug" then
     TA.db.debug = not TA.db.debug
     TA.Print("Debug logging " .. (TA.db.debug and "ON" or "off") .. ".")
@@ -57,7 +57,7 @@ local function Handle(msg)
     if a == "on" then TA.Probe:Set(true)
     elseif a == "off" then TA.Probe:Set(false)
     elseif a == "clear" then TA.Probe:Clear(); TA.Print("Probe cleared.")
-    else UI.ShowText("Trust Advisor probe", TA.Probe:Text()) end
+    else UI.ShowText("Forever Relationships probe", TA.Probe:Text()) end
   elseif cmd == "status" then
     local _, build, _, iface = GetBuildInfo()
     TA.Print(string.format("v%s · client build %s · interface %s · %d events · schema %d", TA.version, tostring(build), tostring(iface), TA.Log.count, TA.db.schemaVersion))
@@ -72,11 +72,12 @@ local function Handle(msg)
   end
 end
 
-SLASH_TRUSTADVISOR1 = "/ta"
-SLASH_TRUSTADVISOR2 = "/trustadvisor"
+SLASH_TRUSTADVISOR1 = "/fr"
+SLASH_TRUSTADVISOR2 = "/forever"
+SLASH_TRUSTADVISOR3 = "/ta"   -- v0.3 command, kept as an alias
 SlashCmdList.TRUSTADVISOR = Handle
 TA.HandleSlash = Handle
 
 TA:Listen("LOGIN", function()
-  TA.Print("loaded. Type /ta to open, /ta help for commands." .. (TA.db.invisible and " (Invisible mode is on)" or ""))
+  TA.Print("loaded. Type /fr to open, /fr help for commands." .. (TA.db.invisible and " (Invisible mode is on)" or ""))
 end)

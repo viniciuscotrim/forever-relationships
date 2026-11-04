@@ -29,13 +29,13 @@ def("History", "history.retentionDays", 365, "Local history older than this is d
 def("History", "generosity.portalWindowMinutes", 10, "A group member's portal counts as help if you zone within this many minutes and paid them nothing.")
 -- Consent: every layer that leaves your computer starts OFF (GDD v2 §2)
 def("Consent", "consent.backup", false, "Cloud backup: an end-to-end encrypted copy of your history. Only you can read it (key + recovery code on your side).")
-def("Consent", "consent.profile", false, "Public profile: other Trust Advisor players can see the items YOU choose about yourself.")
+def("Consent", "consent.profile", false, "Public profile: other Forever Relationships players can see the items YOU choose about yourself.")
 def("Consent", "consent.community", false, "Community: contribute your group sessions, pseudonymized, to anonymous statistics.")
 def("Consent", "consent.recommend", false, "Recommend me: other participants may get you suggested as someone to play with.")
-def("Consent", "consent.shareQuests", false, "Tell group members (with Trust Advisor) when you turn in a quest.")
-def("Consent", "consent.shareAttunements", false, "Share your attunement list with group members who have Trust Advisor.")
+def("Consent", "consent.shareQuests", false, "Tell group members (with Forever Relationships) when you turn in a quest.")
+def("Consent", "consent.shareAttunements", false, "Share your attunement list with group members who have Forever Relationships.")
 -- Social (suggestions, never automatic actions)
-def("Social", "presence.enabled", false, "Show you to nearby Trust Advisor users (zone, level, LFG flag).")
+def("Social", "presence.enabled", false, "Show you to nearby Forever Relationships users (zone, level, LFG flag).")
 def("Social", "presence.intervalSeconds", 60, "Presence broadcast interval.", { min = 15 })
 def("Social", "presence.shareQuests", false, "Include active quest IDs in presence broadcasts.")
 def("Social", "presence.levelRange", 5, "Level difference that still counts as a nearby match.")
@@ -68,7 +68,7 @@ end
 
 function Params:Get(key)
   local d = BY_KEY[key]
-  if not d then error("Unknown Trust Advisor parameter: " .. tostring(key)) end
+  if not d then error("Unknown Forever Relationships parameter: " .. tostring(key)) end
   local v = self.values[key]
   if v == nil then return d.default end
   return v

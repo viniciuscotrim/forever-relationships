@@ -41,7 +41,7 @@ end
 UI.EventSummary = Summary
 
 function UI.ExportEvents(events)
-  local lines = { "# Trust Advisor event log export " .. TA.FormatDate(), "# id\tdate\tsignal\tsubject\tsource\tapi\tsummary" }
+  local lines = { "# Forever Relationships event log export " .. TA.FormatDate(), "# id\tdate\tsignal\tsubject\tsource\tapi\tsummary" }
   for _, ev in ipairs(events) do
     lines[#lines + 1] = table.concat({ ev.id, TA.FormatDate(ev.t), ev.signal, ev.subjectName or "", ev.source, ev.api, Summary(ev) }, "\t")
   end

@@ -1,6 +1,6 @@
 ## Interface: 16001
-## Title: Trust Advisor
-## Notes: An augmented view of how you relate to the people you play with, from game data only. Type /ta
+## Title: Forever Relationships
+## Notes: An augmented view of how you relate to the people you play with, from game data only. Type /fr
 ## Author: Vinicius
 ## Version: 0.4.0
 ## Category: Social

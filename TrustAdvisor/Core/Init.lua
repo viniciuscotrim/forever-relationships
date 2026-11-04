@@ -1,4 +1,4 @@
--- Trust Advisor: namespace, utilities, event bus, SavedVariables, migrations.
+-- Forever Relationships: namespace, utilities, event bus, SavedVariables, migrations.
 local ADDON, TA = ...
 TA = TA or {}
 TA.name = ADDON or "TrustAdvisor"
@@ -108,7 +108,7 @@ end
 TA.Join = Join
 
 function TA.Print(...)
-  local msg = "|cff33ccffTrust Advisor|r: " .. Join(...)
+  local msg = "|cff33ccffForever Relationships|r: " .. Join(...)
   if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage(msg) else print(msg) end
 end
 
@@ -141,7 +141,7 @@ function TA:Fire(msg, ...)
 end
 
 -------------------------------------------------------------------------------
--- Error capture. Every Trust Advisor error (caught handler errors and uncaught
+-- Error capture. Every Forever Relationships error (caught handler errors and uncaught
 -- Lua errors from our files) is recorded, deduplicated, and offered to the
 -- player as a one-click feedback report (UI/Feedback.lua). Other addons'
 -- errors are passed through untouched.
@@ -266,7 +266,7 @@ local DB_DEFAULTS = {
   ui = {},              -- tooltipFields etc.
   debug = false,
   invisible = false,
-  errors = {},          -- Trust Advisor's own errors (deduplicated), for feedback reports
+  errors = {},          -- Forever Relationships's own errors (deduplicated), for feedback reports
   feedback = {},        -- { installId, outbox = { report, ... } } sent by the companion app
 }
 
