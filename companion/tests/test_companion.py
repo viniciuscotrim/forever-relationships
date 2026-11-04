@@ -138,6 +138,25 @@ class Autostart(unittest.TestCase):
         self.assertIn('"C:\\Program Files\\TA\\TrustAdvisorCompanion.exe"', s)
         self.assertTrue(s.startswith("@echo off"))
 
+    def test_autostart_runs_in_watch_mode(self):
+        captured = {}
+        orig_paths, orig_run, orig_popen = tc.autostart_paths, tc.subprocess.run, tc.subprocess.Popen
+        tmp = tempfile.mkdtemp()
+        try:
+            tc.autostart_paths = lambda: {"file": os.path.join(tmp, "x.plist"), "log": os.path.join(tmp, "log")}
+            tc.subprocess.run = lambda *a, **k: captured.setdefault("run", a)
+            tc.subprocess.Popen = lambda *a, **k: captured.setdefault("popen", a)
+            tc.install_autostart(["--wow", "/x"])
+            text = open(os.path.join(tmp, "x.plist")).read()
+            self.assertIn("--watch", text)   # never re-enters the double-click app mode
+        finally:
+            tc.autostart_paths, tc.subprocess.run, tc.subprocess.Popen = orig_paths, orig_run, orig_popen
+            shutil.rmtree(tmp)
+
+    def test_app_mode_only_for_argumentless_app_bundle_launch(self):
+        self.assertFalse(tc.is_mac_app_launch([]))           # not frozen in tests
+        self.assertFalse(tc.is_mac_app_launch(["--once"]))
+
     def test_launch_command_points_at_this_script(self):
         cmd = tc.launch_command(["--once"])
         self.assertTrue(cmd[-2].endswith("ta_companion.py") and cmd[-1] == "--once")

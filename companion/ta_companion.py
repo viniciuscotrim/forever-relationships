@@ -31,7 +31,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 PROTOCOL = 1
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",
@@ -446,7 +446,7 @@ def autostart_paths():
 
 def install_autostart(extra_args):
     paths = autostart_paths()
-    cmd = launch_command(extra_args)
+    cmd = launch_command(list(extra_args) + ["--watch"])
     os.makedirs(os.path.dirname(paths["file"]), exist_ok=True)
     system = platform.system()
     if system == "Darwin":
@@ -481,6 +481,59 @@ def uninstall_autostart():
         print("Autostart was not installed.")
 
 
+# ---------------------------------------------------------------------------
+# macOS app mode: double-clicking "Trust Advisor Companion.app" (no arguments)
+# installs the background service and offers the Battle.net link with native dialogs.
+# ---------------------------------------------------------------------------
+def is_mac_app_launch(argv):
+    return (platform.system() == "Darwin" and getattr(sys, "frozen", False)
+            and ".app/Contents/MacOS/" in sys.executable and not argv)
+
+
+def _osascript(script):
+    r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def mac_dialog(text, buttons=("OK",), default=None):
+    btns = ", ".join('"%s"' % b for b in buttons)
+    script = 'display dialog "%s" with title "Trust Advisor Companion" buttons {%s} default button "%s" with icon note' % (
+        text.replace('"', "'"), btns, default or buttons[-1])
+    out = _osascript(script) or ""
+    return out.split("button returned:", 1)[-1].strip() if "button returned:" in out else None
+
+
+def mac_choose_region():
+    out = _osascript('choose from list {"Americas (us)", "Europe (eu)", "Korea (kr)", "Taiwan (tw)"} '
+                     'with title "Trust Advisor Companion" with prompt "Your Battle.net region:" default items {"Americas (us)"}')
+    if not out or out == "false":
+        return None
+    return out.split("(")[-1].rstrip(")")
+
+
+def mac_app_main(wow, client):
+    install_autostart([])
+    msg = "Trust Advisor Companion is installed and will run in the background whenever your Mac starts."
+    uid = find_uploader_id(wow) if wow else None
+    if not uid:
+        mac_dialog(msg + "\n\nNext: in game, turn on 'Join the Trust Advisor Network' (Transparency > Network) and /reload. "
+                   "Then open this app again to link your Battle.net account.", ("OK",))
+        return 0
+    if client.auth_status(uid).get("linked"):
+        mac_dialog(msg + "\n\nYour Battle.net account is already linked. You're all set.", ("OK",))
+        return 0
+    if mac_dialog(msg + "\n\nLink your Battle.net account now? This lets your reports count as a witness. "
+                  "Only a one-way hash of your account id is stored.", ("Later", "Link Battle.net")) != "Link Battle.net":
+        return 0
+    region = mac_choose_region()
+    if not region:
+        return 0
+    logs = []
+    ok = link_battlenet(client, wow, region, log=logs.append)
+    mac_dialog(logs[-1] if logs else ("Linked." if ok else "Not linked yet."), ("OK",))
+    return 0 if ok else 1
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Trust Advisor companion app")
     ap.add_argument("--server", default=os.environ.get("TA_SERVER", DEFAULT_SERVER), help="network server URL (default: the official Trust Advisor network)")
@@ -491,8 +544,11 @@ def main(argv=None):
     ap.add_argument("--uninstall", action="store_true", help="remove the automatic start")
     ap.add_argument("--link", action="store_true", help="link your Battle.net account (needed for your negatives to count)")
     ap.add_argument("--region", default="us", choices=["us", "eu", "kr", "tw"], help="Battle.net region for --link")
+    ap.add_argument("--watch", action="store_true", help="keep syncing in the background (default when no other action)")
     ap.add_argument("--version", action="version", version="Trust Advisor companion " + VERSION)
-    args = ap.parse_args(argv)
+    raw = sys.argv[1:] if argv is None else argv
+    app_launch = is_mac_app_launch(raw)
+    args = ap.parse_args(raw)
     if args.uninstall:
         uninstall_autostart()
         return 0
@@ -507,9 +563,15 @@ def main(argv=None):
     if not args.server:
         ap.error("--server (or TA_SERVER) is required")
     wow = args.wow or next((p for p in DEFAULT_WOW if os.path.isdir(p)), None)
+    client = Client(args.server, fallbacks=FALLBACK_SERVERS if args.server == DEFAULT_SERVER else ())
+    if app_launch:
+        if not wow:
+            mac_dialog("World of Warcraft: Forever was not found in /Applications. Install it there, or run this app "
+                       "from Terminal with --wow \"<path to _forever_>\".", ("OK",))
+            return 1
+        return mac_app_main(wow, client)
     if not wow:
         ap.error("WoW: Forever folder not found; pass --wow")
-    client = Client(args.server, fallbacks=FALLBACK_SERVERS if args.server == DEFAULT_SERVER else ())
     if args.link:
         return 0 if link_battlenet(client, wow, args.region) else 1
     state = load_state()

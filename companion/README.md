@@ -11,7 +11,7 @@ WoW addons cannot use the internet, so this small program does it for them:
 ## Install
 Download from **[Releases](https://github.com/viniciuscotrim/trust-advisor/releases)**:
 - Windows: `.exe`
-- Mac: `TrustAdvisorCompanion-macos.zip`, universal, signed and notarized by Apple, so it opens without warnings
+- Mac: `TrustAdvisorCompanion-macos-app.zip`. Open **Trust Advisor Companion.app**: it installs the background service and offers the Battle.net link, no Terminal needed. It is universal and signed + notarized + stapled. There is also a command-line build, `TrustAdvisorCompanion-macos.zip`.
 - any OS: `ta_companion.py` (needs Python 3.8+)
 
 Then run it once with `--install`:
