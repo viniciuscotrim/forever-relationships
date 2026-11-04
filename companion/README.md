@@ -1,41 +1,32 @@
-# Trust Advisor companion app
+# Forever Relationships companion app
 
-**Optional.** Trust Advisor works fully without it. It connects the addon to the Trust Advisor Network, and it delivers the feedback you write in game with `/ta feedback`, along with the developer's replies.
+**Optional.** The addon works fully without it. The companion is needed for the cloud layers (backup, public profile, community, recommend me) and to deliver the feedback you write in game with `/fr feedback`, along with the developer's replies.
 
 WoW addons cannot use the internet, so this small program does it for them:
 
-1. Reads `WTF/Account/*/SavedVariables/TrustAdvisor.lua` (written on logout or `/reload`).
-2. If you joined the network in game, it uploads your witness reports, group history, disputes and deletion requests.
-3. Downloads the network view for the players you know into `Interface/AddOns/TrustAdvisor/Network/NetData.lua`. Type `/reload` in game to see it.
+1. Reads the addon's SavedVariables (`TrustAdvisor.lua`, written on logout or `/reload`).
+2. Sends only what the layers you turned on allow: the encrypted backup, your chosen profile items, pseudonymized community sessions, feedback and deletion requests.
+3. Writes public profiles, suggestions and status into `Interface/AddOns/TrustAdvisor/Cloud/NetData.lua`. Type `/reload` in game to see them.
+
+**Cloud backup** is encrypted on your computer with AES-256-GCM before upload. The key stays on your computer (macOS Keychain, or a private file), and you get a **recovery code** once: save it in your Passwords app. Nobody else, including the developer, can read the backup. Without the code, it can't be restored.
 
 ## Install
 Download from **[Releases](https://github.com/viniciuscotrim/trust-advisor/releases)**:
-- Windows: `TrustAdvisorCompanion-windows.exe`. It isn't code-signed yet, so SmartScreen may warn: choose *More info › Run anyway*.
-- Mac: `TrustAdvisorCompanion-macos-app.zip`. Open **Trust Advisor Companion.app**: it installs the background service and offers the Battle.net link, no Terminal needed. It is universal and signed + notarized + stapled. From Terminal, the same program is at `"/Applications/Trust Advisor Companion.app/Contents/MacOS/Trust Advisor Companion"`.
-- any OS: `ta_companion.py` (needs Python 3.8+)
-
-Then run it once with `--install`:
+- Mac: `ForeverRelationshipsCompanion-macos-app.zip`. Open **Forever Relationships Companion.app**: it installs the background service, shows your recovery code and offers the Battle.net link, no Terminal needed. Universal, signed, notarized and stapled by Apple.
+- Windows: `ForeverRelationshipsCompanion-windows.exe`. It isn't code-signed yet, so SmartScreen may warn: choose *More info › Run anyway*. Put it somewhere permanent, then run it once with `--install`.
+- Any OS: `ta_companion.py` (needs Python 3.8+ and the `cryptography` package for the backup).
 
 ```sh
-TrustAdvisorCompanion-windows.exe --install       # Windows: starts with Windows (Startup folder, no admin)
-# Mac: just open Trust Advisor Companion.app (LaunchAgent, restarts if it stops)
-python3 ta_companion.py --install                 # any OS with Python
-```
-
-Then link your Battle.net account once (it opens your browser). This is needed for your negative reports to count as a witness:
-
-```sh
-TrustAdvisorCompanion-windows.exe --link --region us    # or eu / kr / tw
+ForeverRelationshipsCompanion-windows.exe --install        # starts with Windows (Startup folder, no admin)
+ForeverRelationshipsCompanion-windows.exe --link --region us   # link Battle.net once (us / eu / kr / tw)
 ```
 
 Other options:
+- `--show-recovery-code`: show your backup recovery code again.
+- `--restore CODE`: restore your history from the cloud backup (new computer, reinstall).
 - `--wow "<path to _forever_>"` if WoW isn't in the default folder.
-- `--once` for a single sync.
-- `--uninstall` to stop the automatic start.
-- `--server URL` for a self-hosted server.
+- `--once` for a single sync, `--uninstall` to stop the automatic start, `--server URL` for a self-hosted server.
 
-In game, `/ta network` shows whether the companion is syncing.
-
-Network data is sent only if `consent.network` is ON in the addon. Feedback is sent only when you pressed **Send** in `/ta feedback`. Notes, affinity and chat are never read.
+In game, `/fr cloud` shows whether the companion is syncing.
 
 Tests: `python3 -m unittest discover -s tests -v` (the end-to-end test needs `luajit`). Releases: push a `companion-v*` tag. CI tests both platforms and publishes the Windows build. Then run `companion/release-mac.sh` on a Mac to attach the signed, notarized and stapled macOS app.

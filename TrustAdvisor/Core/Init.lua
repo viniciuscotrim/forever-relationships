@@ -305,8 +305,13 @@ TA.Migrations = {
     if db.params then
       for k in pairs(db.params) do if not TA.Params.byKey[k] then db.params[k] = nil end end
     end
-    cdb.affinity, cdb.endorseGiven = nil, nil
   end,
+}
+
+-- Per-character steps run on each character's own schema version, so alts that
+-- log in later are cleaned too (v1 kept notes and yes/no per character).
+TA.CharMigrations = {
+  [2] = function(cdb) cdb.affinity, cdb.endorseGiven = nil, nil end,
 }
 
 function TA:Migrate(db, cdb)
@@ -316,6 +321,10 @@ function TA:Migrate(db, cdb)
     if step then step(db, cdb) end
   end
   db.schemaVersion = TA.SCHEMA
+  for v = (cdb.schemaVersion or 0) + 1, TA.SCHEMA do
+    local step = TA.CharMigrations[v]
+    if step then step(cdb) end
+  end
   cdb.schemaVersion = TA.SCHEMA
 end
 

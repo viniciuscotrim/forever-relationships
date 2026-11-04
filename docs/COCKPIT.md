@@ -1,9 +1,9 @@
 # Admin cockpit
 
-**URL:** https://trustadvisor.gameplaybr.com.br/admindash/ (not indexed, not linked publicly)
+**URL:** https://forever.gameplaybr.com.br/admindash/ (not indexed, not linked publicly)
 
 It reads live from the network database:
-- **Cockpit:** participants, activity, Battle.net links, feedback and disputes, plus 30-day trends and top errors.
+- **Cockpit:** participants and layers, community aggregates (groups of 10 or more only, never a unique id), Battle.net links, feedback, plus 30-day trends and top errors.
 - **Demographics:** faction, race, class, level, realm, language and region of participants' *own* characters.
 - **Network:** the verification funnel per trait, and witnesses per incident.
 - **Feedback:** read, set status, and reply. The reply reaches the player in game through their companion.

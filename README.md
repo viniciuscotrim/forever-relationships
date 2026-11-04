@@ -1,87 +1,80 @@
-<p align="center"><img src="branding/logo-400.png" width="160" alt="Trust Advisor logo"></p>
+<p align="center"><img src="branding/logo-400.png" width="160" alt="Forever Relationships logo"></p>
 
-<h1 align="center">Trust Advisor</h1>
+<h1 align="center">Forever Relationships</h1>
 
 <p align="center"><b>A World of Warcraft: Forever addon</b> · <a href="https://github.com/viniciuscotrim/trust-advisor/releases">Companion app downloads</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
-<p align="center"><b>Bug or idea? Type <code>/ta feedback</code> in game.</b> It's the only feedback channel: no account, no leaving the game, and replies come back in game.</p>
+<p align="center"><b>Bug or idea? Type <code>/fr feedback</code> in game.</b> It's the only feedback channel: no account, no leaving the game, and replies come back in game.</p>
 
 <!-- The section below is copied from branding/curseforge-description.md by tools/sync_docs.py. Edit it there. -->
 <!-- PUBLIC-DESCRIPTION:START -->
-### Remember who you'd play with again.
+### Every group leaves a story. Forever Relationships keeps it.
 
-You've had a great run with a stranger. They stayed after their quest was done, waited while you finished yours, and gave you a buff on the way out. A week later you can't remember their name.
+You spent an evening clearing a dungeon with a stranger. A week later they whisper you, and you can't remember the name.
 
-You've also met the other kind: the one who grabbed the drop and was gone before the last boss.
+**Hover them and it's all there:** *"6h 40m together · 3 days · last together yesterday in Stratholme · 4 dungeons completed · 112 kills · 2 trades."*
 
-**Trust Advisor remembers both for you, and it's fair about it.**
+Forever Relationships is an augmented view of how you relate to the people you play with. It only uses what your game recorded. There are no ratings, no notes about people and no guesses.
 
-> **Found a bug or have an idea? Type `/ta feedback` in game.**
-> It's the one place for all feedback. You never need to leave the game, and replies from the developer show up right there. If Trust Advisor ever hits an error, it offers to send a report for you with one click.
+> **Found a bug or have an idea? Type `/fr feedback` in game.**
+> It's the one place for all feedback. You never need to leave the game, and replies from the developer show up right there. If the addon ever hits an error, it offers to send a report for you with one click.
 
 ### What it does
 
-- **Hover a player, see your history.** One tooltip line shows how much you've grouped with them and what stood out, for example *"Finishing Solid · Paying Exemplary · 4 sessions"*. LFG listings get the same line, plus a small marker for leaders you know.
-- **Twelve separate traits, never one score.** Showing up, finishing runs, arriving ready, paying what's owed, loot honesty, delivering carries, small generosity, being a higher-level partner, crafting for others, staying to help, Hardcore steadfastness, and endorsements. Each one is shown on its own as a band (*Unknown, Building, Solid, Exemplary*, or *Concern*), together with how confident it is.
-- **Built from what the game saw, not from gossip.** Trust Advisor records group sessions, boss kills, loot, trades and ready checks. Only an event your own game client witnessed can lower a band, so it can't be used to badmouth anyone.
-- **Your private notes.** A personal note, a private yes/no, and a summary like *"Grouped 4 times, 3h 20m, you both play weekday evenings"*. This never leaves your computer and never affects anyone's reputation.
-- **Keep the good ones.** After a few good sessions it suggests adding the player as a friend. When a past partner comes online, it offers a one-click invite. It only suggests; you always click.
-- **Works with Questie.** If your partner has Questie announcements on, Trust Advisor notices when they finish a shared quest and stay to help you.
-- **Raid and GDKP tools.** Import soft reserves (softres.it CSV) and GDKP ledgers, and track raid signups against who actually showed up.
+- **Hover a player, see your shared history.** You choose the 6 facts the tooltip shows, from time together, last time together, days played, dungeons and raids completed, kills, trades, first meeting, typical play time, level gap, zones, shared quests, help, crafts, loot and more. LFG listings show a small marker for people you've played with before.
+- **Right-click any player, then choose *Relationship*.** You get the full picture on one page:
+  - **Information:** the facts the game recorded, such as group time, places, completed content, kills, trades, buffs, resurrections, summons and portals, ready checks, loot, and Hardcore deaths you witnessed together.
+  - **Knowledge:** patterns computed for you from those facts. Examples: when you usually play together, your favorite zones together, and where they rank in your circle.
+- **My circle.** Everyone you've played with, sorted by time together, searchable by name or guild.
+- **Keep the good ones.** After you've spent real time together, it suggests adding the player as a friend, and offers a one-click invite when a past partner comes online. It only suggests; you always click.
+- **Works with Questie.** If your partner has Questie announcements on, shared quest completions are recorded too.
 
-### Fair by design
+### Game facts only
 
-- **New players start as *Unknown*, never as bad.** Little data shows as low confidence, not as a low score.
-- **Old mistakes fade, while good behavior keeps adding up.**
-- **Bad luck isn't punished.** Disconnects, being kicked, wipe streaks and groups that disband are excused automatically. An early leave only counts when the game itself reported a voluntary leave.
+Forever Relationships records **information** (what happened) and **knowledge** (patterns in it). It never records opinions:
+- no scores, ratings, likes or dislikes;
+- no notes about anyone;
+- no chat text;
+- no guesses about anyone's intentions.
 
-### Fully transparent, no black box
+Nobody can use it to badmouth anyone, because there is nothing to type.
 
-Every weight, timer, threshold and formula is visible in the **Transparency** tab, and you can change any of them. Click **"Why?"** on any rating to see every event behind it and the exact math. You can also browse the raw event log, export it, or delete everything with one button.
+### Four optional layers, all off by default
 
-### Private and opt-in
+Everything above works on your computer, alone. If you want more, the welcome screen lets you turn on any of these:
 
-- Chat text is **never** stored. Only message counts are kept.
-- Notes and private opinions are **never** sent to anyone.
-- **Every sharing feature starts off.** A welcome screen on first login lets you choose: endorsement prompts, sharing endorsements, quest and attunement sharing, the "nearby players" presence channel, and the Network. Invisible mode stops all broadcasting with one click.
+1. **Cloud backup.** Your history survives a reinstall, a new computer or a wiped WTF folder. It's encrypted on your computer before it leaves, and only you hold the key, as a recovery code you save in your password manager. Nobody else can read it, including us.
+2. **Public profile.** Show off the stats *you* pick about yourself, like hours in groups, dungeons completed or people met. Stats Blizzard confirms for your Battle.net-linked character get an *Official* badge; the others say *Recorded by the addon*.
+3. **Community.** Share your group sessions for anonymous statistics. Names never leave your computer, every character code is pseudonymized on arrival, and results are only shown in aggregate.
+4. **Recommend me.** Get suggested to other players looking for company, and see suggestions yourself. Only players who also turned this on are ever suggested.
 
-### Trust Advisor Network (optional)
-
-Join the Network to also see what *other* players witnessed.
-- **It needs the free companion app,** because WoW addons can't use the internet. Download it from the GitHub page linked below.
-- **Mac:** open *Trust Advisor Companion.app*, which is signed and notarized by Apple, and it sets itself up.
+The cloud layers need the free **companion app**, because WoW addons can't use the internet:
+- **Mac:** open *Forever Relationships Companion.app* (signed and notarized by Apple). It sets itself up.
 - **Windows:** run the companion once with `--install`.
 
-The rules are built so the Network can't be used to harm anyone:
-- **Only game-witnessed facts are shared.** They're computed with the published rules, never your local edits. Debts, signup lists, notes and chat stay on your computer.
-- **For anonymous statistics,** the Network also receives your *own* character's class, race, faction, level, realm and game language. It never receives any of that about the players you meet.
-- **A negative only counts when two or more independent players, from two or more different guilds, witnessed it.** Each of those witnesses must:
-  - have been in the same group as you and as each other at that moment;
-  - have an established, cross-checked history;
-  - be linked to a real Battle.net account. One account counts as one witness, however many installs it has.
-- **Witnesses stay anonymous.** You can see everything the Network says about you and dispute it, and a disputed event is excluded until it's reviewed.
-- **"Delete my network data" removes everything you shared** and hides you from the Network.
-- **You don't have to link Battle.net.** Linking is what lets *your* negative reports count. Your positive reports count either way. Only a one-way hash of your account id is stored.
+### Your data, your rules
 
-### Better with friends, works alone
-
-Everything works even if nobody else has the addon. If your group mates also run Trust Advisor, you can exchange "I'd play with you again" endorsements and see who's questing nearby. Both are opt-in.
+- **See, download and delete** your cloud data anytime, in game or at https://forever.gameplaybr.com.br/me with your Battle.net login. That page works even if you never installed the addon.
+- **Opt out for good.** If you ask to be excluded, the server throws away any data about you that arrives later.
+- Built to follow **GDPR** and **LGPD**. Read the privacy policy at https://forever.gameplaybr.com.br/privacy.
+- **Delete everything here** wipes the local history with one button.
 
 ### Commands
 
-`/ta` opens the window. Other useful commands:
-- `/ta feedback`: report a bug or suggest an idea, without leaving the game
-- `/ta network`: Network status and companion setup
-- `/ta welcome`: your sharing choices
-- `/ta why <name> <trait>`: the math behind a band
-- `/ta help`: every command
+`/fr` opens the window (`/forever` and the old `/ta` work too). Other useful commands:
+- `/fr feedback`: report a bug or suggest an idea, without leaving the game
+- `/fr privacy`: your layers, the companion app and your data
+- `/fr player <name>`: your relationship with a player
+- `/fr help`: every command
 
 ### Good to know
 
 - Made for **WoW: Forever**. The interface is in English.
-- **Early release.** If a game feature isn't available on your client, that part turns itself off safely and shows as "unavailable" in Transparency › Captures instead of throwing errors.
-- **Feedback and bug reports: `/ta feedback` in game.** It's the only channel, so please don't use comments for bug reports. That way nothing gets lost.
+- **Formerly Trust Advisor.** Your history carries over automatically when you update.
+- **Early release.** If a game feature isn't available on your client, that part turns itself off safely instead of throwing errors.
+- **Feedback and bug reports: `/fr feedback` in game.** It's the only channel, so please don't use comments for bug reports. That way nothing gets lost.
 - **The companion app also delivers your feedback.** Without it, reports are saved and sent the first time it runs.
+- Unofficial addon, not affiliated with Blizzard Entertainment.
 - Source code and companion downloads: **https://github.com/viniciuscotrim/trust-advisor**
 <!-- PUBLIC-DESCRIPTION:END -->
 

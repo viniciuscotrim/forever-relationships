@@ -89,11 +89,16 @@ test("v1 -> v2 migration deletes opinions and manual inputs", function()
     { signal = "lootNeed" }, { signal = "attendance" }, { signal = "trade" } },
     signups = {}, softReserves = {}, obligations = {}, net = { uploaderId = "abc" }, params = { ["consent.network"] = true, ["session.minMinutes"] = 7 } }
   local cdb = { affinity = { x = { note = "secret opinion" } }, endorseGiven = {} }
-  TA.Migrations[2](db, cdb)
+  db.schemaVersion, cdb.schemaVersion = 1, 1
+  TA:Migrate(db, cdb)
   eq(#db.events, 2, "only facts kept"); eq(db.events[1].details.srRolls, nil, "sr rolls dropped")
   eq(cdb.affinity, nil, "notes and private yes/no deleted"); eq(db.signups, nil, "signups deleted")
   eq(db.cloud.uploaderId, "abc", "cloud identity kept"); eq(db.params["consent.network"], nil, "obsolete params dropped")
   eq(db.params["session.minMinutes"], 7, "valid params kept")
+  -- an alt that logs in later, after the account data was already migrated
+  local alt = { schemaVersion = 1, affinity = { y = { note = "alt opinion" } } }
+  TA:Migrate(db, alt)
+  eq(alt.affinity, nil, "alt notes deleted too"); eq(alt.schemaVersion, 2, "alt schema updated")
 end)
 
 print(("\n%d passed, %d failed"):format(passed, failed))

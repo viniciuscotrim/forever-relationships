@@ -1,10 +1,24 @@
-# Unreleased
+# Forever Relationships 0.4.0
 
-### Changed
-- **Network only:** when you've joined the Network, it also receives your *own* character's class, race, faction, level, realm and game language, for anonymous statistics. Nothing like this is sent about other players. The data list in Transparency › Network and Data inventory shows it.
+**Trust Advisor is now Forever Relationships.** Your history carries over automatically. The command is now `/fr` (`/forever` and `/ta` still work).
 
-### Fixed
-- **Your own warlock summons now count as generosity.** Summons you receive were already credited to the warlock, but the summons you cast were ignored, because a summon always targets someone in your group.
+The addon was rebuilt around one idea: an augmented view of how you relate to the people you play with, made only from facts the game recorded. Ratings, endorsements, notes and the witness Network are gone. Nothing about anyone can be typed in, so nothing can be used against anyone.
+
+### New
+- **Tooltip with your 6 facts.** Pick what the player tooltip shows: time together, last time together, days, dungeons and raids completed, kills, trades, first meeting, typical play time, level gap, zones, quests, help, crafts, loot, ready checks, Hardcore deaths witnessed, guild history or circle rank.
+- **Relationship window.** Right-click any player you've played with and choose *Relationship*: **Information** (what the game recorded) next to **Knowledge** (patterns computed for you), plus the public profile they chose to publish.
+- **My circle.** Everyone you've played with, sorted by time together, with search. Also: suggestions and nearby players.
+- **Four optional layers, all off by default** (Privacy tab and welcome screen):
+  - **Cloud backup:** encrypted on your computer, only you hold the key (a recovery code). Your history survives a reinstall or a new computer.
+  - **Public profile:** show off the stats you pick about yourself. Blizzard-confirmed stats get an *Official* badge.
+  - **Community:** anonymous statistics from group sessions. No names; character codes are pseudonymized on arrival.
+  - **Recommend me:** suggestions among players who also opted in.
+- **Your rights in one place:** see, download and delete your cloud data in game or at https://forever.gameplaybr.com.br/me (Battle.net login, works without the addon). Opting out is permanent: later data about you is discarded on arrival. Privacy policy: https://forever.gameplaybr.com.br/privacy.
+- **History retention:** local history keeps 365 days by default (Settings).
+- **Companion app 0.4.0** with the encrypted backup, `--restore` and `--show-recovery-code`. The old companion (0.3.x) won't sync with this version: update it from GitHub Releases.
+
+### Removed
+- Trait bands, scores, endorsements, private notes and yes/no, the Transparency tab, soft reserves, GDKP ledgers and raid signups, chat message counts, and the witness Network. Their stored data is deleted on update.
 
 # Trust Advisor 0.3.0
 

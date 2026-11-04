@@ -22,7 +22,7 @@ META=$(python3 -I - "$VERSION" "$TYPE" "$FOREVER_VERSION_ID" "$HERE/CHANGELOG.md
 import json, sys
 v, t, gv, cl = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 print(json.dumps({
-  "displayName": "Trust Advisor " + v,
+  "displayName": "Forever Relationships " + v,
   "releaseType": t,
   "gameVersions": [gv],
   "changelogType": "markdown",

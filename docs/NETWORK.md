@@ -1,46 +1,25 @@
-# Trust Advisor Network
+# Server protocol (v2)
 
-## Architecture
-```
-Addon (in game)            Companion (desktop)              Server
- events -> reports  --SV-->  parse SavedVariables  --HTTPS-->  /v1/upload  -> SQLite
- NetData.lua  <--write--     write NetData.lua    <--HTTPS--  /v1/players, /v1/self
-```
-Addons cannot reach the internet, so the companion reads SavedVariables and writes a Lua data file that the addon loads on `/reload`.
+The addon can't reach the internet. The companion app reads the addon's SavedVariables, talks to the server and writes `Cloud/NetData.lua` back. Full design and legal basis: `GDD-v2.md`. Public policy: https://forever.gameplaybr.com.br/privacy.
 
-## What leaves the player's machine (only with `consent.network`)
-- Witness reports for **game-witnessed** dimensions only: finish, ready, loot, carry, generosity, teach, craft, help, hc, and endorsements the player gave.
-- Never sent: paying and showing up (they depend on human-entered debts and signup lists), notes, affinity, chat.
-- Reports use the **published protocol parameters** (`Params:DefaultSnapshot`), never local edits.
-- Report = `{subject guid, dimension, outcome x, multiplier m, incident time t, kind k}`. The time is a moment all witnesses share (the leave time, last boss kill, or ready check).
-- Group history: for each session in the last year, its time window and the GUIDs of its members. This is what lets the server cross-check witnesses.
-- The uploader's **own** characters: name, guild, class, race, faction, level, realm, game language. These feed anonymous statistics in the admin cockpit. Nothing of this kind is sent about other players.
+## What is sent, per layer (all off by default)
 
-## Fairness rules (locked, protocol v1): `server/trustnet/aggregate.py`
-| Rule | Value |
-|---|---|
-| Same incident | same subject + dimension + kind, within `net.matchWindowSeconds` (600 s) |
-| Each uploader counts | once per incident |
-| Positive counts with | 1 witness |
-| Negative or partial counts with | ≥ `net.minWitnesses` (2) **eligible** witnesses from ≥ `net.minGuilds` (2) guild groups; all unguilded witnesses form one group |
-| Eligible witness (negatives) | in good standing **and** had the subject in their own group at that moment **and** is *mutually present* with another witness: each lists the other as a group member then (`net.presenceSlackSeconds` = 300 s tolerance) |
-| Battle.net identity | witnesses of negatives must be linked to a Battle.net account (`net.requireBattlenet`); uploaders sharing one account count as **one** witness; if Blizzard lists the account's Forever characters (`profile-forever-<region>`), the witness character must be one of them. Verified ownership also beats self-declared character claims for self view, disputes and deletion |
-| Good standing | account ≥ `net.minUploaderAgeDays` (2) days old **and** ≥ `net.minCorroborated` (3) past shared reports matched by another uploader with mutual presence |
-| Self-reports | ignored (witness = subject, or subject among the uploader's own characters) |
-| Disputes | open or upheld: excluded; rejected: counts. Only about your own characters |
-| Deletion | removes everything you uploaded and hides your characters from the network view (positives and negatives) |
-| Witness identity | never exposed; the public view shows only counts |
+| Layer | Sent | Stored as | Kept |
+|---|---|---|---|
+| Cloud backup | the addon's SavedVariables, AES-256-GCM encrypted on the computer | opaque blob, id and write token derived from the user's key | 180 days after the last sync |
+| Public profile | the items the player ticked about their own character | per pseudonymized character; Battle.net-verified values marked Official | until turned off |
+| Community | group sessions (times, place, type, kills) with members' class, race, faction, level; no names | every character id replaced by an HMAC pseudonym on arrival; excluded players dropped at ingest | 400 days |
+| Recommend me | own name, class, level, realm | shown only to other opted-in players | until turned off |
+| Feedback | what the player wrote, optional diagnostics | as is | 2 years |
 
-The addon computes network bands with the same engine and published parameters, from verified incidents only.
+Turning every layer off makes the server forget the install. "Delete my cloud data" (in game) or https://forever.gameplaybr.com.br/me (Battle.net login, no addon needed) deletes everything and adds the character to the permanent exclusion list. Only a Battle.net-verified owner can lift an exclusion.
 
-## Known risks (read before launch)
-1. **Identity / sockpuppets.** Encrypting SavedVariables would not help: the addon is open Lua code on the player's machine, so any key in it is public. Defense therefore lives on the server, where it is layered:
-   - a negative needs two eligible witnesses from two guild groups;
-   - each witness must be mutually present with another in their group histories, and the subject must be in those histories;
-   - witnesses need 2+ days and 3+ corroborated reports, which can only be earned by actually grouping with *other, independent* uploaders, so copying public incidents earns nothing;
-   - each witness must be a distinct, linked Battle.net account (OAuth on the server; the client secret never ships in the companion; only a salted SHA-256 of the account id is stored, and the access token is discarded after one use).
+## Endpoints
 
-   What remains: an attacker who owns several paid Battle.net accounts, which genuinely group with the target and with each other over days, from different guilds. That is costly and visible, and disputes and admin review cover it.
-2. **Character claims.** Characters are self-declared. A GUID claimed by two uploaders is *contested*: neither can see its events or hide it, and an admin must resolve it.
-3. **Moderation.** Disputes need a human reviewer (admin endpoints). Budget time for this.
-4. **Hosting.** Live at https://trustadvisor.gameplaybr.com.br behind Cloudflare, with daily backups. See [DEPLOY.md](DEPLOY.md).
+- `POST /v1/sync`: consents, own character, profile, community sessions, profile lookups → profiles, suggestions, feedback replies, link status.
+- `PUT|GET|DELETE /v1/backup/<id>`: encrypted backup (write token required to change it).
+- `POST /v1/feedback`, `GET /v1/protocol`, `GET /healthz`.
+- `/v1/auth/begin|status|callback`: Battle.net OAuth (link an install, or log in to `/me`).
+- `/me`, `/privacy`: public pages. `/admindash`: cockpit (passkey + TOTP), aggregates only, minimum group size 10.
+
+Limits: 120 requests/minute per IP; 2,000 profile lookups per request and 5,000 per day per install.

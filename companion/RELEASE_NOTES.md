@@ -1,16 +1,14 @@
-**Optional.** Trust Advisor works fully without this app. It's needed to join the Trust Advisor Network, and to deliver the feedback you write in game with `/ta feedback` (and bring the developer's replies back).
+**Optional.** Forever Relationships works fully without this app. It's needed for the cloud layers (encrypted backup, public profile, community, recommend me) and to deliver the feedback you write in game with `/fr feedback` (and bring the developer's replies back). It only sends what the layers you turned on in game allow.
 
-WoW addons cannot use the internet. This small app syncs Trust Advisor's network data for you. It only reads Trust Advisor's own saved data, and it only sends anything if you turned on **Join the Trust Advisor Network** in game.
+**Version 0.4.0 needs addon 0.4.0** (Forever Relationships, formerly Trust Advisor).
 
 ### Install
-- **Windows:** download `TrustAdvisorCompanion-windows.exe`, put it somewhere permanent (e.g. `Documents\TrustAdvisor`), then open a terminal there and run
-  `TrustAdvisorCompanion-windows.exe --install`
-  From then on it starts with Windows. Windows SmartScreen may warn about an unsigned app: choose *More info › Run anyway*.
-- **Mac (Apple Silicon and Intel, signed and notarized by Apple):** download `TrustAdvisorCompanion-macos-app.zip`, double-click it, drag **Trust Advisor Companion** into Applications and open it. It sets itself up to run in the background and offers to link Battle.net. No Terminal needed.
-- **Any OS with Python 3.8+:** `python3 ta_companion.py --install`
+- **Mac (Apple Silicon and Intel, signed and notarized by Apple):** download `ForeverRelationshipsCompanion-macos-app.zip`, double-click it, drag **Forever Relationships Companion** into Applications and open it. It sets itself up to run in the background, shows your backup **recovery code** (save it in Passwords) and offers to link Battle.net. No Terminal needed.
+- **Windows:** download `ForeverRelationshipsCompanion-windows.exe`, put it somewhere permanent (e.g. `Documents\ForeverRelationships`), then open a terminal there and run
+  `ForeverRelationshipsCompanion-windows.exe --install`
+  From then on it starts with Windows. SmartScreen may warn about an unsigned app: choose *More info › Run anyway*.
+- **Any OS with Python 3.8+:** `pip install cryptography`, then `python3 ta_companion.py --install`
 
-On Windows or with Python, link Battle.net once (opens your browser): `--link --region us` (or `eu`, `kr`, `tw`). On Mac, the app offers it when you open it. Only a one-way hash of your account id is stored.
+Restore your history on a new computer: `--restore <recovery code>`. Show the code again: `--show-recovery-code`. Link Battle.net (Windows/Python): `--link --region us` (or `eu`, `kr`, `tw`). Remove the autostart with `--uninstall`.
 
-If your game is not in the default folder, add `--wow "<path to _forever_>"`. Remove the autostart with `--uninstall`.
-
-In game: `/reload`, then check `/ta network`.
+In game: `/reload`, then check `/fr cloud`.
