@@ -37,7 +37,8 @@ UI:RegisterView("profile", function(frame)
     UI.Tooltip(row, "Network event", function()
       local inc = row.inc
       if not inc then return {} end
-      return { string.format("%s, outcome %.2f", inc.d, inc.x), string.format("%d witness(es) from %d guild group(s)", inc.w or 0, inc.g or 0),
+      return { string.format("%s, outcome %.2f", inc.d, inc.x),
+        string.format("%d witness(es), %d cross-checked, from %d guild group(s)", inc.w or 0, inc.c or inc.w or 0, inc.g or 0),
         inc.verified and "Counts in the network view." or "Not verified: needs more independent witnesses. Does not count.",
         inc.disputed and "Disputed: excluded until reviewed." or "" }
     end)

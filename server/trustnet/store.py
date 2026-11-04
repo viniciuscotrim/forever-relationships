@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS disputes (
   reason TEXT, status TEXT, created_at INTEGER, reviewed_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS optout (guid TEXT PRIMARY KEY, at INTEGER);
+CREATE TABLE IF NOT EXISTS presence (
+  uploader TEXT, a INTEGER, b INTEGER, member TEXT, UNIQUE (uploader, a, member)
+);
+CREATE INDEX IF NOT EXISTS presence_u ON presence (uploader);
 """
 
 
@@ -58,6 +62,42 @@ class Store:
             self.db.commit()
             return n
 
+    def add_presence(self, uploader, sessions):
+        """sessions: [(a, b, [member guids])] - the uploader's own group history."""
+        with self.lock:
+            c = self.db.cursor()
+            for a, b, members in sessions:
+                for g in members:
+                    c.execute("INSERT OR IGNORE INTO presence (uploader, a, b, member) VALUES (?, ?, ?, ?)", (uploader, a, b, g))
+            self.db.commit()
+
+    def presence_of(self, uploader):
+        with self.lock:
+            rows = self.db.execute("SELECT a, b, member FROM presence WHERE uploader = ?", (uploader,)).fetchall()
+        sessions = {}
+        for a, b, m in rows:
+            sessions.setdefault((a, b), set()).add(m)
+        return [(a, b, frozenset(ms)) for (a, b), ms in sessions.items()]
+
+    def uploader_created(self, uploader):
+        with self.lock:
+            r = self.db.execute("SELECT created_at FROM uploaders WHERE id = ?", (uploader,)).fetchone()
+        return r[0] if r else None
+
+    def shared_reports_by(self, uploader, dims, limit=500):
+        q = ",".join("?" * len(dims))
+        with self.lock:
+            rows = self.db.execute("SELECT witness, s, d, k, t FROM reports WHERE uploader = ? AND d IN (%s) "
+                                   "ORDER BY t DESC LIMIT ?" % q, [uploader] + list(dims) + [limit]).fetchall()
+        return [dict(r) for r in rows]
+
+    def matching_reports(self, r, window, exclude_uploader):
+        with self.lock:
+            rows = self.db.execute("SELECT uploader, witness FROM reports WHERE s = ? AND d = ? AND k = ? "
+                                   "AND t BETWEEN ? AND ? AND uploader != ?",
+                                   (r["s"], r["d"], r["k"], r["t"] - window, r["t"] + window, exclude_uploader)).fetchall()
+        return [dict(x) for x in rows]
+
     def add_dispute(self, uploader, inc, reason, now=None):
         now = now or int(time.time())
         with self.lock:
@@ -85,6 +125,7 @@ class Store:
                     continue
                 self.db.execute("INSERT OR REPLACE INTO optout (guid, at) VALUES (?, ?)", (g, now))
             self.db.execute("DELETE FROM reports WHERE uploader = ?", (uploader,))
+            self.db.execute("DELETE FROM presence WHERE uploader = ?", (uploader,))
             self.db.execute("DELETE FROM characters WHERE uploader = ?", (uploader,))
             self.db.execute("DELETE FROM disputes WHERE uploader = ?", (uploader,))
             self.db.execute("DELETE FROM uploaders WHERE id = ?", (uploader,))

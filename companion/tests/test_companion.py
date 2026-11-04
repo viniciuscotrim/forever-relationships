@@ -82,8 +82,10 @@ class EndToEnd(unittest.TestCase):
         os.makedirs(self.svdir)
         os.makedirs(os.path.join(self.wow, "Interface", "AddOns", "TrustAdvisor", "Network"))
         tc.STATE_PATH = os.path.join(self.tmp, "state.json")
-        # same clock as the LuaJIT mock client (Tests/test_ingame_sim.lua)
-        self.service = Service(Store(":memory:"), clock=lambda: 1800000000 + 7200)
+        # same clock as the LuaJIT mock client (Tests/test_ingame_sim.lua). Standing thresholds are
+        # zeroed here only because a fresh test database has no history; server tests cover them.
+        self.service = Service(Store(":memory:"), clock=lambda: 1800000000 + 7200,
+                               params={"net.minUploaderAgeDays": 0, "net.minCorroborated": 0})
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.service))
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.url = "http://127.0.0.1:%d" % self.httpd.server_address[1]
@@ -107,14 +109,26 @@ class EndToEnd(unittest.TestCase):
         neg = [r for r in tc.as_list(db["net"]["outbox"]["reports"]) if r["s"] == leafy and r["d"] == "finish"][0]
 
         client = tc.Client(self.url)
-        # a second, independent witness from another guild saw the same loot-and-leave
+        # Tanky (in the same party, another guild) also runs Trust Advisor and saw the same loot-and-leave.
+        me, tanky = "Player-1-00000001", "Player-1-0000000A"
         second = {k: neg[k] for k in ("s", "d", "x", "m", "k")}
         second["t"] = int(neg["t"]) + 30
-        client.upload({"uploaderId": "b" * 32, "protocol": 1, "witness": "Player-2-000000EE",
-                       "witnessGuild": "Other Guild", "characters": [], "reports": [second]})
+        sess = tc.as_list(db["net"]["outbox"]["presence"])[0]
+        tanky_body = {"uploaderId": "b" * 32, "protocol": 1, "witness": tanky, "witnessGuild": "Other Guild",
+                      "characters": [], "reports": [second],
+                      "presence": [{"a": int(sess["a"]), "b": int(sess["b"]), "m": [tanky, me, leafy]}]}
+        # a forger who was never in that group claims the same thing: must not help
+        client.upload({"uploaderId": "c" * 32, "protocol": 1, "witness": "Player-3-000000CC", "witnessGuild": "Third",
+                       "characters": [], "reports": [second], "presence": [{"a": int(sess["a"]), "b": int(sess["b"]), "m": ["Player-3-000000CC", leafy]}]})
         logs = []
         self.assertTrue(tc.sync_file(sv, client, self.wow, {}, log=logs.append))
         netdata = tc.netdata_path(self.wow)
+        nd = tc.parse_saved_variables(open(netdata, encoding="utf-8").read())["TrustAdvisorNetData"]
+        incs = (nd["players"].get(leafy) or {}).get("incidents", [])
+        self.assertFalse(any(i["d"] == "finish" and i["x"] == 0 for i in incs), "forger + me must not verify")
+        # now the real second witness uploads
+        client.upload(tanky_body)
+        tc.sync_file(sv, client, self.wow, {}, log=logs.append)
         nd = tc.parse_saved_variables(open(netdata, encoding="utf-8").read())["TrustAdvisorNetData"]
         incs = nd["players"][leafy]["incidents"]
         self.assertTrue(any(i["d"] == "finish" and i["x"] == 0 and i["w"] == 2 for i in incs), incs)

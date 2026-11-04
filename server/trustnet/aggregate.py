@@ -8,9 +8,15 @@ The fairness rules ARE the product, so they live here, small and tested:
     of the first report are one incident. Each uploader counts once per incident.
   * Positive incidents (x >= 1) count with one witness.
   * Negative or partial incidents (x < 1) count only with >= minWitnesses
-    distinct uploaders from >= minGuilds distinct guild groups.
+    ELIGIBLE witnesses from >= minGuilds distinct guild groups.
     Witnesses without a guild form ONE group ("no guild"), so unguilded
     sockpuppets cannot satisfy the guild-diversity rule on their own.
+  * An eligible witness of a negative must:
+      - be in good standing (account age and corroborated history, see standing()),
+      - have the subject in their own group at that time (presence), and
+      - be mutually present with at least one other witness: each lists the
+        other as a group member at that time. Forging a witness therefore means
+        forging two coherent group histories, not one report.
   * Open or upheld disputes exclude the incident. Rejected disputes do not.
   * Opted-out (deleted) players produce no incidents at all.
 """
@@ -25,7 +31,13 @@ PARAMS = {
     "net.minWitnesses": 2,
     "net.minGuilds": 2,
     "net.matchWindowSeconds": 600,
+    "net.presenceSlackSeconds": 300,
+    "net.minUploaderAgeDays": 2,
+    "net.minCorroborated": 3,
 }
+
+# Dimensions whose incidents are shared by a group (presence applies)
+SHARED = {"finish", "ready", "loot", "carry", "teach", "help", "hc"}
 
 ELIGIBLE = {"finish", "ready", "loot", "carry", "generosity", "teach", "craft", "help", "hc", "endorse"}
 
@@ -64,14 +76,40 @@ def _dispute_for(inc, disputes, window):
     return None
 
 
-def build_incidents(reports, params=None, disputes=(), opted_out=(), self_claims=None):
+def present(sessions, guid, t, slack):
+    """True if `guid` is listed in one of `sessions` [(a, b, members)] covering t."""
+    for a, b, members in sessions or ():
+        if a - slack <= t <= b + slack and guid in members:
+            return True
+    return False
+
+
+def mutually_present(pres_u, w_u, pres_v, w_v, t, slack):
+    return present(pres_u, w_v, t, slack) and present(pres_v, w_u, t, slack)
+
+
+def standing(age_days, corroborations, params=None):
+    """Good standing: old enough and corroborated by others enough times."""
+    p = dict(PARAMS)
+    if params:
+        p.update(params)
+    return age_days >= p["net.minUploaderAgeDays"] and corroborations >= p["net.minCorroborated"]
+
+
+def build_incidents(reports, params=None, disputes=(), opted_out=(), self_claims=None,
+                    presence=None, trusted=None):
     """reports: dicts with uploader, witness, wguild, s, d, x, m, t, k.
     self_claims: {uploader: set(guids)} characters each uploader claims as their own.
+    presence: {uploader: [(a, b, frozenset(member guids))]} group history per uploader.
+    trusted: set of uploaders in good standing.
     Returns {subject: [incident, ...]} with every incident (verified or not)."""
     p = dict(PARAMS)
     if params:
         p.update(params)
     window = p["net.matchWindowSeconds"]
+    slack = p["net.presenceSlackSeconds"]
+    presence = presence or {}
+    trusted = trusted or set()
     opted_out = set(opted_out)
     self_claims = self_claims or {}
     clean = []
@@ -88,19 +126,34 @@ def build_incidents(reports, params=None, disputes=(), opted_out=(), self_claims
         uploaders = {}
         for r in group:
             uploaders.setdefault(r["uploader"], r)
-        guilds = {(r.get("wguild") or NO_GUILD) for r in uploaders.values()}
         x = median([r["x"] for r in uploaders.values()])
         m = median([r["m"] for r in uploaders.values()])
+        t_mid = int(median([r["t"] for r in group]))
         inc = {
             "id": incident_id(first["s"], first["d"], first["k"], first["t"]),
             "s": first["s"], "d": first["d"], "k": first["k"],
-            "t0": first["t"], "t": int(median([r["t"] for r in group])),
-            "x": x, "m": m, "w": len(uploaders), "g": len(guilds),
+            "t0": first["t"], "t": t_mid, "x": x, "m": m, "w": len(uploaders),
         }
         if x >= 1:
+            guilds = {(r.get("wguild") or NO_GUILD) for r in uploaders.values()}
+            inc["c"] = len(uploaders)
+            inc["g"] = len(guilds)
             inc["verified"] = inc["w"] >= 1
         else:
-            inc["verified"] = inc["w"] >= p["net.minWitnesses"] and inc["g"] >= p["net.minGuilds"]
+            eligible = []
+            for u, r in uploaders.items():
+                if u not in trusted:
+                    continue
+                pu = presence.get(u)
+                if first["d"] in SHARED and not present(pu, first["s"], t_mid, slack):
+                    continue
+                if any(v != u and mutually_present(pu, r["witness"], presence.get(v), rv["witness"], t_mid, slack)
+                       for v, rv in uploaders.items()):
+                    eligible.append(r)
+            guilds = {(r.get("wguild") or NO_GUILD) for r in eligible}
+            inc["c"] = len(eligible)
+            inc["g"] = len(guilds)
+            inc["verified"] = inc["c"] >= p["net.minWitnesses"] and inc["g"] >= p["net.minGuilds"]
         dispute = _dispute_for(inc, disputes, window)
         inc["disputed"] = bool(dispute and dispute["status"] in ("open", "upheld"))
         inc["disputeStatus"] = dispute["status"] if dispute else None
@@ -113,12 +166,12 @@ def public_view(incidents):
     out = []
     for inc in incidents:
         if inc["verified"] and not inc["disputed"]:
-            out.append({"id": inc["id"], "d": inc["d"], "x": inc["x"], "m": inc["m"], "t": inc["t"], "w": inc["w"], "g": inc["g"]})
+            out.append({"id": inc["id"], "d": inc["d"], "x": inc["x"], "m": inc["m"], "t": inc["t"], "w": inc["c"], "g": inc["g"]})
     return out
 
 
 def self_view(incidents):
     """What the subject may see about themselves: everything, with counts."""
-    return [{"id": i["id"], "d": i["d"], "x": i["x"], "m": i["m"], "t": i["t"], "w": i["w"], "g": i["g"],
+    return [{"id": i["id"], "d": i["d"], "x": i["x"], "m": i["m"], "t": i["t"], "w": i["w"], "c": i["c"], "g": i["g"],
              "verified": i["verified"], "disputed": i["disputed"], "disputeStatus": i["disputeStatus"]}
             for i in incidents]

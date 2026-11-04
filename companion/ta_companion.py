@@ -320,6 +320,8 @@ def sync_file(sv_path, client, wow, state, log=print):
         body = {"uploaderId": uploader, "protocol": PROTOCOL, "witness": outbox["witness"],
                 "witnessGuild": outbox.get("witnessGuild", ""), "characters": characters,
                 "reports": [{k: r[k] for k in ("s", "d", "x", "m", "t", "k") if k in r} for r in as_list(outbox.get("reports"))],
+                "presence": [{"a": int(p["a"]), "b": int(p["b"]), "m": as_list(p.get("m"))}
+                             for p in as_list(outbox.get("presence")) if isinstance(p, dict)],
                 "disputes": disputes}
         res = client.upload(body)
         st["builtAt"] = outbox.get("builtAt")

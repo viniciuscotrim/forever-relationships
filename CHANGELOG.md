@@ -2,7 +2,7 @@
 
 ### New
 - **Trust Advisor Network (opt-in).** Join from Transparency › Network. The free companion app (see the project's GitHub) shares your game-witnessed reports and brings back a **Network** column on every player card.
-  - A negative only counts when **2+ independent players from 2+ different guilds** witnessed it.
+  - A negative only counts when **2+ independent players from 2+ different guilds** witnessed it. Each witness must have been in the same group as the player and as each other at that moment, and must have an established, cross-checked history. Forged or copied reports don't count.
   - Only game-witnessed facts are shared, computed with the published rules, never your local edits.
   - Debts, signup lists, notes and chat never leave your computer.
   - Witnesses stay anonymous. You can see every network event about yourself and **dispute** it, and a disputed event is excluded until reviewed.

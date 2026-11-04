@@ -83,13 +83,39 @@ function Net:BuildReports(now)
   return reports, myGuild
 end
 
+-- Group history for cross-witness verification: for every session in the last
+-- year, its time window and the GUIDs of everyone in it (you included).
+-- The server only lets two witnesses confirm a negative if each lists the
+-- other (and the subject) in a group at that moment.
+local MAX_SESSIONS = 2000
+function Net:BuildPresence(now)
+  now = now or TA.Now()
+  local out = {}
+  local events = TA.Log:All()
+  for i = #events, 1, -1 do
+    local ev = events[i]
+    if ev.signal == "session" and ev.sessionId and #out < MAX_SESSIONS then
+      local d = ev.details
+      local a, b = math.floor(d.startedAt or ev.t), math.floor(d.endedAt or ev.t)
+      if now - b <= YEAR and b >= a and b - a <= 86400 then
+        local members = {}
+        for _, m in ipairs(TA.Log:ForSession(ev.sessionId)) do
+          if m.signal == "member" and m.subjectGUID and #members < 40 then members[#members + 1] = m.subjectGUID end
+        end
+        if #members > 0 then out[#out + 1] = { a = a, b = b, m = members } end
+      end
+    end
+  end
+  return out
+end
+
 function Net:WriteOutbox()
   if not self:Enabled() or not TA.db or not TA.playerGUID then return end
   local n = self:State()
   local reports, guild = self:BuildReports()
   n.characters[TA.playerGUID] = { name = TA.playerName, guild = guild, t = TA.Now() }
   n.outbox = { protocol = TA.Params:Get("net.protocolVersion"), builtAt = TA.Now(), witness = TA.playerGUID,
-    witnessGuild = guild, reports = reports }
+    witnessGuild = guild, reports = reports, presence = self:BuildPresence() }
 end
 
 TA:On("PLAYER_LOGOUT", function() Net:WriteOutbox() end, "network")

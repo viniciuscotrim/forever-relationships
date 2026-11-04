@@ -18,11 +18,49 @@ def rep(uploader, witness, guild, x=0.0, t=NOW - 3600, d="finish", k="finish:0.0
     return {"uploader": uploader, "witness": witness, "wguild": guild, "s": s, "d": d, "x": x, "m": 1, "t": t, "k": k}
 
 
+def group(*members, a=NOW - 7200, b=NOW):
+    return [(a, b, frozenset(members))]
+
+
+# u1 (A), u2 (B), u3 (C) all grouped with T; everyone trusted unless a test says otherwise
+PRESENCE = {"u1": group(A, B, C, T), "u2": group(A, B, C, T), "u3": group(A, B, C, T)}
+TRUSTED = {"u1", "u2", "u3"}
+
+
 class Aggregate(unittest.TestCase):
     def one(self, reports, **kw):
+        kw.setdefault("presence", PRESENCE)
+        kw.setdefault("trusted", TRUSTED)
         incs = aggregate.build_incidents(reports, **kw).get(T, [])
         self.assertEqual(len(incs), 1)
         return incs[0]
+
+    # --- presence and standing (anti-forgery) ---
+    def test_untrusted_witness_does_not_count(self):
+        inc = self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], trusted={"u1"})
+        self.assertFalse(inc["verified"])
+        self.assertEqual(inc["c"], 1)
+
+    def test_witness_without_subject_in_group_does_not_count(self):
+        pres = {"u1": group(A, B, T), "u2": group(A, B)}   # u2 never grouped with T
+        self.assertFalse(self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], presence=pres)["verified"])
+
+    def test_witnesses_must_list_each_other(self):
+        pres = {"u1": group(A, T), "u2": group(B, T)}      # same target, but not the same group
+        self.assertFalse(self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], presence=pres)["verified"])
+
+    def test_presence_must_cover_the_incident_time(self):
+        old = {"u1": group(A, B, T, a=NOW - 90000, b=NOW - 86400), "u2": group(A, B, T, a=NOW - 90000, b=NOW - 86400)}
+        self.assertFalse(self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], presence=old)["verified"])
+
+    def test_one_way_presence_is_not_enough(self):
+        pres = {"u1": group(A, B, T), "u2": group(B, T)}   # u2 does not list A
+        self.assertFalse(self.one([rep("u1", A, "G1"), rep("u2", B, "G2")], presence=pres)["verified"])
+
+    def test_standing_rule(self):
+        self.assertFalse(aggregate.standing(1.9, 10))
+        self.assertFalse(aggregate.standing(10, 2))
+        self.assertTrue(aggregate.standing(2, 3))
 
     def test_single_witness_negative_does_not_count(self):
         self.assertFalse(self.one([rep("u1", A, "G1")])["verified"])
@@ -73,18 +111,42 @@ class Aggregate(unittest.TestCase):
 
 class Api(unittest.TestCase):
     def setUp(self):
-        self.svc = Service(Store(":memory:"), admin_token="adm", clock=lambda: NOW)
+        self.clock = [NOW]
+        self.svc = Service(Store(":memory:"), admin_token="adm", clock=lambda: self.clock[0])
 
-    def upload(self, uid, witness, guild, reports, **extra):
+    def session(self, *members, a=NOW - 7200, b=NOW):
+        return {"a": a, "b": b, "m": list(members)}
+
+    def upload(self, uid, witness, guild, reports, presence=None, **extra):
+        if presence is None:
+            presence = [self.session(A, B, C, T)]
         body = {"uploaderId": uid, "protocol": 1, "witness": witness, "witnessGuild": guild,
-                "characters": [{"guid": witness, "name": "x", "guild": guild}], "reports": reports}
+                "characters": [{"guid": witness, "name": "x", "guild": guild}], "reports": reports,
+                "presence": presence}
         body.update(extra)
         return self.svc.upload(body)
 
     def r(self, x=0.0, t=NOW - 3600):
         return {"s": T, "n": "Target", "d": "finish", "x": x, "m": 1, "t": t, "k": "finish:%.2f:1.00" % x}
 
+    def build_standing(self, uids_witnesses):
+        """Give uploaders a corroborated history: 3 past group runs they all reported,
+        then let 3 days pass."""
+        for i in range(3):
+            t = NOW - 86400 * 10 + i * 3600
+            other = "Player-1-0000%04X" % (100 + i)
+            for uid, (w, g) in uids_witnesses.items():
+                self.upload(uid, w, g, [{"s": other, "d": "finish", "x": 1, "m": 1, "t": t, "k": "finish:1.00:1.00"}],
+                            presence=[self.session(A, B, C, T, other, a=t - 1800, b=t + 1800)])
+        self.clock[0] = NOW + 3 * 86400
+
+    def test_new_accounts_cannot_verify_negatives(self):
+        self.upload("a" * 32, A, "G1", [self.r()])
+        self.upload("b" * 32, B, "G2", [self.r(t=NOW - 3550)])
+        self.assertEqual(self.svc.players([T])["players"], {})       # no standing yet
+
     def test_end_to_end_verification_and_dispute(self):
+        self.build_standing({"a" * 32: (A, "G1"), "b" * 32: (B, "G2")})
         self.upload("a" * 32, A, "G1", [self.r()])
         self.assertEqual(self.svc.players([T])["players"], {})        # one witness: hidden
         self.upload("b" * 32, B, "G2", [self.r(t=NOW - 3550)])
@@ -99,6 +161,20 @@ class Api(unittest.TestCase):
         self.assertEqual(self.svc.players([T])["players"], {})        # excluded while open
         self.svc.store.review_dispute(mine[0]["id"], "rejected")
         self.assertEqual(len(self.svc.players([T])["players"][T]["incidents"]), 1)
+
+    def test_forged_reports_without_shared_history_fail(self):
+        # two trusted accounts each claim to have seen T leave, but their group histories never overlap
+        self.build_standing({"a" * 32: (A, "G1"), "b" * 32: (B, "G2")})
+        self.upload("a" * 32, A, "G1", [self.r()], presence=[self.session(A, T)])
+        self.upload("b" * 32, B, "G2", [self.r()], presence=[self.session(B, T, a=NOW - 100000, b=NOW - 90000)])
+        # their earlier shared sessions do not cover the incident time either
+        self.assertEqual(self.svc.players([T])["players"], {})
+
+    def test_presence_validation(self):
+        with self.assertRaises(BadRequest):
+            self.upload("a" * 32, A, "G1", [], presence=[{"a": NOW, "b": NOW - 10, "m": [A]}])
+        with self.assertRaises(BadRequest):
+            self.upload("a" * 32, A, "G1", [], presence=[{"a": NOW - 10, "b": NOW, "m": ["nope"]}])
 
     def test_cannot_dispute_someone_else(self):
         self.upload("a" * 32, A, "G1", [self.r()])

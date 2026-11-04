@@ -27,6 +27,8 @@ UPLOADER_RE = re.compile(r"^[0-9a-f]{32}$")
 MAX_BODY = 4 * 1024 * 1024
 MAX_REPORTS = 20000
 MAX_GUIDS = 500
+MAX_SESSIONS = 5000
+MAX_MEMBERS = 40
 RATE_PER_MIN = 60
 YEAR = 400 * 86400
 
@@ -55,19 +57,38 @@ def validate_report(r, now):
     return {"s": s, "d": d, "x": float(x), "m": float(m), "t": t, "k": k}
 
 
+def validate_presence(raw, now):
+    out = []
+    if not isinstance(raw, list) or len(raw) > MAX_SESSIONS:
+        raise BadRequest("bad presence")
+    for sess in raw:
+        if not isinstance(sess, dict):
+            raise BadRequest("bad presence session")
+        a, b, members = sess.get("a"), sess.get("b"), sess.get("m")
+        if not (isinstance(a, int) and isinstance(b, int) and now - YEAR <= a <= b <= now + 86400 and b - a <= 86400):
+            raise BadRequest("bad presence window")
+        if not (isinstance(members, list) and 0 < len(members) <= MAX_MEMBERS and all(isinstance(g, str) and GUID_RE.match(g) for g in members)):
+            raise BadRequest("bad presence members")
+        out.append((a, b, members))
+    return out
+
+
 class Service:
     """Transport-independent API logic (tested directly)."""
 
-    def __init__(self, store, admin_token=None, clock=time.time):
+    def __init__(self, store, admin_token=None, clock=time.time, params=None):
         self.store = store
         self.admin_token = admin_token
         self.clock = clock
+        self.params = dict(aggregate.PARAMS)
+        if params:  # tests only; production always uses the published protocol
+            self.params.update(params)
 
     def now(self):
         return int(self.clock())
 
     def protocol(self):
-        return {"protocol": aggregate.PROTOCOL_VERSION, "params": aggregate.PARAMS,
+        return {"protocol": aggregate.PROTOCOL_VERSION, "params": self.params,
                 "eligible": sorted(aggregate.ELIGIBLE)}
 
     def _uploader(self, body):
@@ -107,7 +128,10 @@ class Service:
         if len(raw) > MAX_REPORTS:
             raise BadRequest("too many reports")
         reports = [validate_report(r, now) for r in raw]
+        presence = validate_presence(body.get("presence") or [], now)
         stored = self.store.upload(uploader, witness, wguild, chars, reports, now)
+        if presence:
+            self.store.add_presence(uploader, presence)
 
         disputed = 0
         own = self.store.claimed_by(uploader) - self._contested()
@@ -121,12 +145,44 @@ class Service:
                     disputed += 1
         return {"stored": stored, "received": len(reports), "disputes": disputed}
 
+    def _corroborations(self, uploader, presence_cache, need):
+        """How many of this uploader's shared reports were matched by another
+        uploader with mutual presence. Stops counting at `need`."""
+        p = self.params
+        pu = presence_cache.setdefault(uploader, self.store.presence_of(uploader))
+        seen, n = set(), 0
+        for r in self.store.shared_reports_by(uploader, aggregate.SHARED):
+            for other in self.store.matching_reports(r, p["net.matchWindowSeconds"], uploader):
+                v = other["uploader"]
+                pv = presence_cache.setdefault(v, self.store.presence_of(v))
+                key = (r["s"], r["d"], r["k"], r["t"] // max(1, p["net.matchWindowSeconds"]))
+                if key not in seen and aggregate.mutually_present(pu, r["witness"], pv, other["witness"], r["t"], p["net.presenceSlackSeconds"]):
+                    seen.add(key)
+                    n += 1
+                    break
+            if n >= need:
+                break
+        return n
+
     def _incidents(self, guids):
+        reports = self.store.reports_about(guids)
+        involved = {r["uploader"] for r in reports if r["x"] < 1}
+        presence_cache, trusted = {}, set()
+        now = self.now()
+        for u in involved:
+            created = self.store.uploader_created(u) or now
+            age = (now - created) / 86400.0
+            need = self.params["net.minCorroborated"]
+            if age >= self.params["net.minUploaderAgeDays"] and aggregate.standing(age, self._corroborations(u, presence_cache, need), self.params):
+                trusted.add(u)
+        for u in involved:
+            presence_cache.setdefault(u, self.store.presence_of(u))
         return aggregate.build_incidents(
-            self.store.reports_about(guids),
+            reports, params=self.params,
             disputes=self.store.disputes_about(guids),
             opted_out=self.store.optouts(),
             self_claims=self.store.self_claims(),
+            presence=presence_cache, trusted=trusted,
         )
 
     def players(self, guids):

@@ -299,6 +299,7 @@ for _, r in ipairs(outbox.reports) do
   if r.s == "Player-1-0000000B" and r.d == "finish" and r.x == 0 then sawLeafyNeg = true; assert(r.m == 3, "published weight, not local edit") end
 end
 assert(sawLeafyNeg, "Leafy's loot-and-leave reported")
+assert(#outbox.presence >= 1 and #outbox.presence[1].m == 3, "group history uploaded with all 3 members")
 print(string.format("  ok   network outbox: %d reports, published parameters only", #outbox.reports))
 
 -- optional: dump SavedVariables for the cross-language end-to-end test

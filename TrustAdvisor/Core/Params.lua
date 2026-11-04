@@ -134,6 +134,9 @@ def("Storage", "log.maxEvents", 100000, "Oldest events are pruned beyond this co
 def("Network", "net.minWitnesses", 2, "Independent witnesses required for a network-view negative.", { locked = true })
 def("Network", "net.minGuilds", 2, "Distinct guilds required among those witnesses (no guild counts as one group).", { locked = true })
 def("Network", "net.matchWindowSeconds", 600, "Reports from different witnesses within this window describe the same incident.", { locked = true })
+def("Network", "net.presenceSlackSeconds", 300, "Tolerance when checking that witnesses and the subject were in the same group at the incident time.", { locked = true })
+def("Network", "net.minUploaderAgeDays", 2, "A witness account must be at least this old for its negatives to count.", { locked = true })
+def("Network", "net.minCorroborated", 3, "A witness must have this many past reports confirmed by other players who were in the same group.", { locked = true })
 def("Network", "net.protocolVersion", 1, "Published network protocol version. Network scores always use the protocol's default parameters.", { locked = true })
 
 Params.defs = DEFS
