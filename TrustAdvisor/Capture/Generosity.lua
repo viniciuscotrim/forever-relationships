@@ -1,7 +1,9 @@
 -- Small generosity (5.8). Positive only.
 --  * Others -> you: a helpful aura from a non-group player, a resurrection
---    offer from a non-group player, a summon. Detected generically.
---  * You -> others: your buff/rez cast on a non-group player (Data/Generosity.lua).
+--    offer from a non-group player, a summon (warlock ritual or meeting stone),
+--    a free mage portal. Detected generically.
+--  * You -> others: your buff/rez cast on a non-group player, and your summons
+--    (Ritual of Summoning on a group member). Spells in Data/Generosity.lua.
 local _, TA = ...
 
 local Gen = {}
@@ -103,7 +105,9 @@ TA:On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, castGUID, spellID)
   local kind = ok and spellKind[n]
   if not kind then return end
   local guid = GUIDForName(p.target)
-  if guid and guid ~= TA.playerGUID and not InMyGroup(guid) then
+  -- Buffs and rezzes count when given to strangers (outside your group). A summon is
+  -- always cast on a group member, so it counts inside the group.
+  if guid and guid ~= TA.playerGUID and (kind == "summon" or not InMyGroup(guid)) then
     -- the act is yours: subject is you, the recipient is kept for context
     local key = TA.playerGUID .. ":" .. kind .. ":" .. guid
     if dedupe[key] and TA.Now() - dedupe[key] < 600 then return end

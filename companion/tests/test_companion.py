@@ -239,7 +239,7 @@ class EndToEnd(unittest.TestCase):
         me, tanky = "Player-1-00000001", "Player-1-0000000A"
         second = {k: neg[k] for k in ("s", "d", "x", "m", "k")}
         second["t"] = int(neg["t"]) + 30
-        sess = tc.as_list(db["net"]["outbox"]["presence"])[0]
+        sess = [p for p in tc.as_list(db["net"]["outbox"]["presence"]) if leafy in tc.as_list(p["m"])][0]
         tanky_body = {"uploaderId": "b" * 32, "protocol": 1, "witness": tanky, "witnessGuild": "Other Guild",
                       "characters": [], "reports": [second],
                       "presence": [{"a": int(sess["a"]), "b": int(sess["b"]), "m": [tanky, me, leafy]}]}

@@ -1,3 +1,8 @@
+# Unreleased
+
+### Fixed
+- **Your own warlock summons now count as generosity.** Summons you receive were already credited to the warlock, but the summons you cast were ignored, because a summon always targets someone in your group.
+
 # Trust Advisor 0.3.0
 
 ### New

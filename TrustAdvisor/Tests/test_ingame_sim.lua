@@ -284,6 +284,31 @@ TrustAdvisorNetData = { protocol = 1, generatedAt = 0, players = {} }
 TA.Params:Set("consent.network", false)
 print("  ok   welcome screen, companion detection (off/waiting/missing/ok), /ta network")
 
+-- Warlock summons, both directions
+party = { { guid = "Player-1-0000000A", name = "Tanky", class = "WARRIOR", level = 38 } }
+fire("GROUP_ROSTER_UPDATE"); advance(1)
+C_SummonInfo = { GetSummonConfirmSummoner = function() return "Tanky" end }
+fire("CONFIRM_SUMMON")                                                     -- Tanky summons me
+fire("UNIT_SPELLCAST_SENT", "player", "Tanky", "cast-summon-1", 698)        -- I summon Tanky (group member)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-summon-1", 698)
+local gotIn, gotOut = false, false
+for _, ev in ipairs(TA.Log:All()) do
+  if ev.signal == "generosity" and ev.details.kind == "summon" then
+    if ev.subjectGUID == "Player-1-0000000A" then gotIn = true end
+    if ev.subjectGUID == TA.playerGUID and ev.details.recipientGUID == "Player-1-0000000A" then gotOut = true end
+  end
+end
+assert(gotIn, "summon received from a warlock is credited to them")
+assert(gotOut, "my own summon of a group member is credited to me")
+-- a buff on a group member is NOT generosity (only strangers count)
+fire("UNIT_SPELLCAST_SENT", "player", "Tanky", "cast-buff-1", 1459)
+fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-buff-1", 1459)
+for _, ev in ipairs(TA.Log:All()) do
+  assert(not (ev.signal == "generosity" and ev.details.kind == "buff" and ev.details.recipientGUID == "Player-1-0000000A"), "group buff not counted")
+end
+party = {}; fire("GROUP_LEFT"); advance(5)
+print("  ok   warlock summons: received and given (inside the group); group buffs still excluded")
+
 -- In-game feedback and error capture
 local okFb, report = TA.Feedback:Submit("idea", "Please add a minimap button", true)
 assert(okFb and report.id and report.diag and report.diag.addon == TA.version, "feedback saved with diagnostics")
@@ -348,7 +373,9 @@ for _, r in ipairs(outbox.reports) do
   if r.s == "Player-1-0000000B" and r.d == "finish" and r.x == 0 then sawLeafyNeg = true; assert(r.m == 3, "published weight, not local edit") end
 end
 assert(sawLeafyNeg, "Leafy's loot-and-leave reported")
-assert(#outbox.presence >= 1 and #outbox.presence[1].m == 3, "group history uploaded with all 3 members")
+local dungeonSession = false
+for _, sess in ipairs(outbox.presence) do if #sess.m == 3 then dungeonSession = true end end
+assert(dungeonSession, "group history uploaded, including the dungeon with all 3 members")
 print(string.format("  ok   network outbox: %d reports, published parameters only", #outbox.reports))
 
 -- optional: dump SavedVariables for the cross-language end-to-end test
