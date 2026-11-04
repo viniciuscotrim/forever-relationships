@@ -23,6 +23,17 @@ function UI.TooltipLine(guid)
   return "|cff33ccffTrust Advisor:|r " .. table.concat(bits, " · ") .. " · " .. tail .. mark
 end
 
+function UI.LFGMarker(guid)
+  local prof = TA.Dimensions.Profile(guid)
+  local star, concern = false, false
+  for _, k in ipairs(prof.order) do
+    local b = prof.dims[k].band
+    if b == "Exemplary" then star = true elseif b == "Concern" then concern = true end
+  end
+  if prof.sessions == 0 then return "" end
+  return (star and "|cff66bfff*|r" or "") .. (concern and "|cffff9933!|r" or "") .. "|cff33ccffTA|r|cff999999x" .. prof.sessions .. "|r"
+end
+
 local function AddToUnitTooltip(tooltip)
   if not TA.db or not TA.Params:Get("tooltip.enabled") then return end
   if tooltip ~= GameTooltip then return end
@@ -52,6 +63,25 @@ TA:Listen("LOGIN", function()
       tooltip:AddLine(" ")
       tooltip:AddLine(UI.TooltipLine(guid), 1, 1, 1, true)
       tooltip:Show()
+    end)
+  end
+
+  -- LFG "column": a small marker after the listing name for leaders you know.
+  -- Never a composite score: a star if any trait is Exemplary, "!" if any is Concern, and the session count.
+  if LFGListSearchEntry_Update and C_LFGList and C_LFGList.GetSearchResultInfo then
+    hooksecurefunc("LFGListSearchEntry_Update", function(button)
+      if not button or not button.resultID then return end
+      if not button.TAMark then
+        button.TAMark = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        button.TAMark:SetPoint("RIGHT", button, "RIGHT", -6, 0)
+      end
+      button.TAMark:SetText("")
+      if not TA.Params:Get("tooltip.lfgMarker") then return end
+      local ok, info = pcall(C_LFGList.GetSearchResultInfo, button.resultID)
+      local leader = ok and info and TA.Clean(info.leaderName)
+      local guid = leader and TA.Sessions:GUIDByName(leader)
+      if not guid then return end
+      button.TAMark:SetText(UI.LFGMarker(guid))
     end)
   end
 end)

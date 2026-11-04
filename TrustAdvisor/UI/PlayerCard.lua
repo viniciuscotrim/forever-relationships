@@ -7,14 +7,14 @@ local UI = TA.UI
 -- Reusable trust panel (also used by My profile)
 function UI.TrustPanel(parent)
   local p = CreateFrame("Frame", nil, parent)
-  local hdr = { { "Dimension", 6 }, { "Band", 200 }, { "Confidence", 300 }, { "Evidence", 390 } }
+  local hdr = { { "Dimension", 6 }, { "Band", 200 }, { "Confidence", 300 }, { "Evidence", 390 }, { "Network", 540 } }
   for _, h in ipairs(hdr) do
     local l = UI.Label(p, h[1], "GameFontNormalSmall"); l:SetPoint("TOPLEFT", h[2], 0)
   end
   p.rows = {}
   for i, d in ipairs(TA.Dimensions.list) do
     local row = CreateFrame("Frame", nil, p)
-    row:SetSize(560, 20)
+    row:SetSize(700, 20)
     row:SetPoint("TOPLEFT", 0, -16 - (i - 1) * 21)
     row.label = UI.Label(row, d.label, "GameFontHighlight"); row.label:SetPoint("LEFT", 6, 0)
     row.band = UI.Label(row, "", "GameFontHighlight"); row.band:SetPoint("LEFT", 200, 0)
@@ -25,6 +25,7 @@ function UI.TrustPanel(parent)
       UI.ShowText("Why this band? " .. (p.name or "") .. " · " .. d.label, lines)
     end)
     row.why:SetPoint("LEFT", 470, 0)
+    row.net = UI.Label(row, "", "GameFontHighlightSmall"); row.net:SetPoint("LEFT", 540, 0)
     UI.Tooltip(row, d.label, function()
       return { d.type == "ratio" and "Ratio dimension: can go up or down (Bayesian average with a prior)."
         or "Accumulating dimension: positive evidence only, soft-capped. Cannot show Concern." }
@@ -40,11 +41,16 @@ function UI.TrustPanel(parent)
   function p:SetGUID(guid, name)
     self.guid, self.name = guid, name
     local prof = TA.Dimensions.Profile(guid)
+    local net = TA.Network:Profile(guid)
     for _, row in ipairs(self.rows) do
       local r = prof.dims[row.key]
       row.band:SetText(UI.BandText(r.band))
       row.conf:SetText(r.confidence)
       row.ev:SetText(string.format("%.1f", r.evidence))
+      local nr = net and net.dims[row.key]
+      if not TA.Network.ELIGIBLE[row.key] then row.net:SetText("|cff666666local only|r")
+      elseif nr then row.net:SetText(UI.BandText(nr.band) .. " |cff888888" .. nr.confidence .. "|r")
+      else row.net:SetText("|cff666666-|r") end
     end
     -- context facts (never scored)
     local lines = {}
@@ -171,7 +177,7 @@ UI:RegisterView("card", function(frame)
   function view:Refresh()
     local guid = UI.cardGUID
     self.guid = guid
-    local p = guid and TA.db.players[guid]
+    local p = guid and (TA.db.players[guid] or (UI.transient and UI.transient.guid == guid and UI.transient))
     local has = p ~= nil
     self.empty:SetShown(not has)
     for _, w in ipairs({ self.trust, self.aff, self.endorseBtn, self.friendBtn, self.inviteBtn, self.logBtn, trustBtn, affBtn }) do w:SetShown(has) end
@@ -179,8 +185,20 @@ UI:RegisterView("card", function(frame)
     self.name = p.name
     self.header:SetText(UI.ClassColored(p.name, p.class))
     local nd = TA.Params:AnyScoringNonDefault() and (" " .. UI.NONDEFAULT_MARK .. " non-default parameters") or ""
-    self.sub:SetText(string.format("Level %s · first seen %s · last seen %s · |cff888888Your view%s|r",
-      p.level or "?", TA.FormatAgo(p.firstSeen), TA.FormatAgo(p.lastSeen), nd))
+    -- match-card facts: presence and endorsements received
+    local extra = {}
+    local near = TA.Presence.nearby[guid]
+    if near then
+      extra[#extra + 1] = string.format("|cff66ccffNearby: %s · lvl %s%s%s|r", near.zone or "?", near.level or "?",
+        near.lfg and " · LFG" or "", (near.overlap or 0) > 0 and (" · " .. near.overlap .. " shared quests") or "")
+    end
+    local endorsements = 0
+    for _, ev in ipairs(TA.Log:ForSubject(guid)) do if ev.signal == "endorse" then endorsements = endorsements + 1 end end
+    extra[#extra + 1] = endorsements .. " endorsement" .. (endorsements == 1 and "" or "s") .. " received"
+    if TA.Network and TA.Network:HasData(guid) then extra[#extra + 1] = "|cffb48cffNetwork data available|r" end
+    self.sub:SetText(string.format("%s · %s · |cff888888Your view%s|r\n%s",
+      p.transient and "Never grouped with you" or ("Level " .. tostring(p.level or "?") .. " · first seen " .. TA.FormatAgo(p.firstSeen)),
+      p.transient and ("level " .. tostring(p.level or "?")) or ("last seen " .. TA.FormatAgo(p.lastSeen)), nd, table.concat(extra, " · ")))
     self.trust:SetShown(self.tab == "trust")
     self.aff:SetShown(self.tab == "affinity")
     if self.tab == "trust" then

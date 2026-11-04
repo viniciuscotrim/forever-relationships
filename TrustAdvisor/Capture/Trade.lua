@@ -27,6 +27,23 @@ local function SlotEnchant(fn)
   end
 end
 
+-- 5.10 crafted items: the tooltip of a crafted item carries "<Made by %s>".
+local madeByPattern
+local function CrafterOf(getter, i)
+  if not (C_TooltipInfo and getter) then return nil end
+  madeByPattern = madeByPattern or TA.PatternFromFormat(ITEM_CREATED_BY)
+  if not madeByPattern then return nil end
+  local ok, data = pcall(getter, i)
+  if not ok or type(data) ~= "table" or not data.lines then return nil end
+  for _, line in ipairs(data.lines) do
+    local text = line.leftText
+    if type(text) == "string" and not TA.IsSecret(text) then
+      local who = text:match(madeByPattern)
+      if who then return (who:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+    end
+  end
+end
+
 local function Snapshot()
   if not current then return end
   current.givenCopper = TA.SafeCall(GetPlayerTradeMoney) or current.givenCopper or 0
@@ -41,6 +58,17 @@ local function Snapshot()
   end
   current.givenItems = ng > 0 and given or nil
   current.receivedItems = nr > 0 and received or nil
+  -- crafted items handed over by the person who made them
+  local myName = TA.ShortName(TA.playerName or "")
+  local craftedByMe, craftedByThem = 0, 0
+  for i = 1, 6 do
+    local mine = CrafterOf(C_TooltipInfo and C_TooltipInfo.GetTradePlayerItem, i)
+    if mine and TA.ShortName(mine) == myName then craftedByMe = craftedByMe + 1 end
+    local theirs = CrafterOf(C_TooltipInfo and C_TooltipInfo.GetTradeTargetItem, i)
+    if theirs and TA.ShortName(theirs) == TA.ShortName(current.name or "") then craftedByThem = craftedByThem + 1 end
+  end
+  current.craftedByMe = craftedByMe > 0 and craftedByMe or nil
+  current.craftedByThem = craftedByThem > 0 and craftedByThem or nil
   -- they enchanted MY item (sits in my slot 7), or I enchanted THEIRS
   current.enchantByThem = SlotEnchant(GetTradePlayerItemInfo) ~= nil
   current.enchantByMe = SlotEnchant(GetTradeTargetItemInfo) ~= nil
@@ -55,10 +83,12 @@ local function Commit()
     givenCopper = c.givenCopper, receivedCopper = c.receivedCopper,
     givenItems = c.givenItems, receivedItems = c.receivedItems,
     enchantByThem = c.enchantByThem or nil, enchantByMe = c.enchantByMe or nil,
+    craftedByThem = c.craftedByThem, craftedByMe = c.craftedByMe,
     inInstance = TA.Sessions:InInstanceSession() or nil,
   }
   if (c.givenCopper or 0) == 0 and (c.receivedCopper or 0) == 0 and not c.givenItems
-    and not c.receivedItems and not c.enchantByMe and not c.enchantByThem then
+    and not c.receivedItems and not c.enchantByMe and not c.enchantByThem
+    and not c.craftedByMe and not c.craftedByThem then
     return
   end
   TA.Log:Append({ signal = "trade", subjectGUID = c.guid, subjectName = c.name, sessionId = s and s.id,
@@ -119,4 +149,41 @@ function Trade:AddObligation(debtorGUID, debtorName, creditorGUID, creditorName,
     api = "/ta owe", details = { creditorGUID = creditorGUID, creditorName = creditorName, copper = copper } })
   TA:Fire("DATA_CHANGED")
   return true
+end
+
+-- Bulk ledger import (GDKP pots, cuts, spreadsheets). One "Name amount" per line.
+-- direction "owedToMe": Name owes me; "iOwe": I owe Name. Unknown players are skipped.
+function Trade.ParseLedger(text)
+  local out = {}
+  for line in (text or ""):gmatch("[^\r\n]+") do
+    local clean = line:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    local name = clean:match("([%a\128-\255][%a\128-\255%-']+)")
+    local amount = clean:match("(%d[%d,%.]*)%s*[gG]?")
+    if name and amount then
+      amount = tonumber((amount:gsub(",", "")))
+      if amount and amount > 0 then out[#out + 1] = { name = name, gold = amount } end
+    end
+  end
+  return out
+end
+
+function Trade:ImportLedger(text, direction)
+  local ok, skipped = 0, {}
+  for _, row in ipairs(Trade.ParseLedger(text)) do
+    local guid = TA.Sessions:GUIDByName(row.name)
+    if guid then
+      local pname = TA.db.players[guid].name
+      if direction == "iOwe" then
+        self:AddObligation(TA.playerGUID, TA.playerName, guid, pname, row.gold)
+      else
+        self:AddObligation(guid, pname, TA.playerGUID, TA.playerName, row.gold)
+      end
+      ok = ok + 1
+    else
+      skipped[#skipped + 1] = row.name
+    end
+  end
+  local msg = string.format("Imported %d debts (deadline %dh).", ok, TA.Params:Get("pay.deadlineHours"))
+  if #skipped > 0 then msg = msg .. " Skipped (never grouped with, unknown GUID): " .. table.concat(skipped, ", ") end
+  return msg
 end

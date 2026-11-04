@@ -266,6 +266,79 @@ fire("CHAT_MSG_ADDON", "TrustAdv", "garbage", "PARTY", "Tanky")
 fire("CHAT_MSG_ADDON", "TrustAdv", "1|QUEST|Player-1-DEADBEEF;5", "WHISPER", "Stranger")
 advance(10)
 print(string.format("  ok   %d malformed/spoofed messages dropped", TA.Protocol.dropped or 0))
+-- Ledger import (GDKP) parsing
+local rows = TA.Trade.ParseLedger("Tanky 1,500g\nLeafy: 200\n|cffffffffJosé|r - 75.5 gold\njunk line")
+assert(#rows == 3 and rows[1].gold == 1500 and rows[2].name == "Leafy" and rows[3].gold == 75.5, "ledger parse")
+local msg = TA.Trade:ImportLedger("Tanky 100\nNobody 5", "owedToMe")
+assert(msg:find("Imported 1") and msg:find("Nobody"), "ledger import skips unknown players: " .. msg)
+print("  ok   ledger import (GDKP) parses and skips unknown players")
+
+-- Crafted item gift: Tanky hands me an item he made
+C_TooltipInfo = { GetTradeTargetItem = function(i) if i == 1 then return { lines = { { leftText = "<Made by Tanky>" } } } end end,
+  GetTradePlayerItem = function() end }
+ITEM_CREATED_BY = "<Made by %s>"
+GetTargetTradeMoney = function() return 0 end
+GetTradePlayerItemInfo = function() end
+units.npc = { guid = "Player-1-0000000A", name = "Tanky", class = "WARRIOR", level = 38 }
+fire("TRADE_SHOW"); fire("TRADE_TARGET_ITEM_CHANGED"); fire("UI_INFO_MESSAGE", 0, "Trade complete.")
+TA.Dimensions.Invalidate()
+local crafts = TA.Dimensions.Profile("Player-1-0000000A").dims.craft.items
+assert(crafts[#crafts].label:find("crafted item") and crafts[#crafts].mult == 2, "free crafted gift counted at-cost x2")
+print("  ok   crafted item gift detected from tooltip, free = x2")
+
+-- Network (Phase 3): outbox built at logout with published parameters only
+TA.Params:Set("finish.lootLeaveWeight", 9) -- a local edit must NOT leak into network reports
+TA.Params:Set("consent.network", true)
+fire("PLAYER_LOGOUT")
+local outbox = TA.db.net.outbox
+assert(outbox and #outbox.reports > 0, "network outbox built")
+local sawLeafyNeg = false
+for _, r in ipairs(outbox.reports) do
+  assert(r.d ~= "pay" and r.d ~= "attend", "human-declared dimensions never uploaded")
+  assert(r.s ~= TA.playerGUID, "no reports about yourself")
+  if r.s == "Player-1-0000000B" and r.d == "finish" and r.x == 0 then sawLeafyNeg = true; assert(r.m == 3, "published weight, not local edit") end
+end
+assert(sawLeafyNeg, "Leafy's loot-and-leave reported")
+print(string.format("  ok   network outbox: %d reports, published parameters only", #outbox.reports))
+
+-- optional: dump SavedVariables for the cross-language end-to-end test
+if os.getenv("TA_DUMP_SV") then
+  local function ser(v, ind)
+    ind = ind or ""
+    local t = type(v)
+    if t == "string" then return string.format("%q", v) end
+    if t == "number" or t == "boolean" then return tostring(v) end
+    if t ~= "table" then return "nil" end
+    local parts = { "{\n" }
+    for k, val in pairs(v) do
+      local key = type(k) == "number" and ("[" .. k .. "]") or ("[" .. string.format("%q", tostring(k)) .. "]")
+      parts[#parts + 1] = ind .. "\t" .. key .. " = " .. ser(val, ind .. "\t") .. ",\n"
+    end
+    parts[#parts + 1] = ind .. "}"
+    return table.concat(parts)
+  end
+  local f = assert(io.open(os.getenv("TA_DUMP_SV"), "w"))
+  f:write("\nTrustAdvisorDB = " .. ser(TrustAdvisorDB) .. "\n")
+  f:close()
+  print("  dumped SavedVariables to " .. os.getenv("TA_DUMP_SV"))
+end
+
+-- optional: load companion-written NetData and check the network view
+if os.getenv("TA_NETDATA") then
+  dofile(os.getenv("TA_NETDATA"))
+  local np = TA.Network:Profile("Player-1-0000000B")
+  assert(np, "network data present for Leafy")
+  print("  network view for Leafy: finish " .. np.dims.finish.band .. string.format(" (S=%.3f, N=%.1f, %d incidents)", np.dims.finish.score, np.dims.finish.evidence, np.incidents))
+  -- the verified negative (2 witnesses, 2 guilds, weight 3) is counted and pulls the score below band.concern;
+  -- the band itself is Unknown until evidence reaches conf.minEvidence (decay makes N just under 3 here)
+  assert(#np.dims.finish.items == 1 and np.dims.finish.items[1].x == 0, "verified multi-witness negative counted")
+  assert(np.dims.finish.score < 0.5, "score in Concern territory")
+  TA.UI:OpenPlayer("Player-1-0000000B")
+  TA.UI.SelectTab("profile")
+  TA.UI.views.transparency.sub = "Network"; TA.UI.views.transparency:Refresh()
+  print("  ok   network view rendered in card, profile and Transparency")
+end
+
 TA:WipeEverything()
 assert(TA.Log.count == 0, "delete everything")
 print("  ok   delete everything")

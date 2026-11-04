@@ -1,3 +1,22 @@
+# Trust Advisor 0.2.0
+
+### New
+- **Trust Advisor Network (opt-in).** Join from Transparency › Network. The free companion app (see the project's GitHub) shares your game-witnessed reports and brings back a **Network** column on every player card.
+  - A negative only counts when **2+ independent players from 2+ different guilds** witnessed it.
+  - Only game-witnessed facts are shared, computed with the published rules, never your local edits.
+  - Debts, signup lists, notes and chat never leave your computer.
+  - Witnesses stay anonymous. You can see every network event about yourself and **dispute** it, and a disputed event is excluded until reviewed.
+  - "Delete my network data" removes everything you shared and hides you from the network.
+- **Free portals:** a group member's portal you take without paying counts as generosity for them.
+- **Crafted gifts:** handing over an item you made (the "Made by" line) now counts as crafting for others, alongside enchants.
+- **Ledger import (GDKP):** `/ta ledger` (they owe you) and `/ta ledger iowe` (you owe them). Paste one "Name amount" per line.
+- **Match card:** click a nearby player to open their card, even if you've never grouped with them. It shows their zone, level, LFG flag and shared quests.
+- **LFG marker:** listings whose leader you know show a small marker: TA, a star if any trait is Exemplary, "!" if any is Concern, and your session count.
+- Player cards now show how many endorsements the player has received.
+
+### Fixed
+- A trade that only contained a crafted item could be ignored.
+
 # Trust Advisor 0.1.1
 
 Now on the **Release** channel, so it shows up for everyone in the CurseForge app. Same features as 0.1.0.
@@ -38,7 +57,6 @@ First public release for **WoW: Forever**. Type `/ta` to open.
 
 ### Known limitations
 - Early release: not every live-client API has been verified yet. A capture whose API is unavailable turns itself off and shows as "unavailable" in Transparency › Captures instead of throwing errors.
-- Portals and gifts of crafted items are not tracked yet. Only enchants count as crafting.
 - Consumable, attunement and buff spell IDs are still being verified on the live client.
 
 Bug reports and feedback are very welcome.

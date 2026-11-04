@@ -74,7 +74,18 @@ function Dims.MergeIntervals(intervals, graceSec)
   return out
 end
 
-local function FinalInterval(member, P)
+local FinalInterval
+-- A moment every witness of a session agrees on: the last boss kill if any,
+-- otherwise the subject's first join. Used to match reports across witnesses.
+function Dims.AnchorTime(member, P)
+  local s = SessionOf(member)
+  local kills = s and s.details.kills
+  if kills and #kills > 0 then return kills[#kills] end
+  local _, merged = FinalInterval(member, P)
+  return merged[1] and merged[1].join or member.t
+end
+
+FinalInterval = function(member, P)
   local merged = Dims.MergeIntervals(member.details.intervals, P["finish.dcGraceMinutes"] * MIN)
   return merged[#merged], merged
 end
@@ -146,7 +157,7 @@ C.finish = function(guid, P)
         local final, merged = FinalInterval(ev, P)
         local where = sd.instanceName or sd.zone or "instance"
         if final and (final.leave == nil or final.leave >= lastKill or PresentAt(merged, lastKill)) then
-          out[#out + 1] = { t = ev.t, x = 1, label = "Completed " .. where, eventId = ev.id }
+          out[#out + 1] = { t = ev.t, it = lastKill, x = 1, label = "Completed " .. where, eventId = ev.id }
         elseif final then
           local scored, why = EarlyLeaveVerdict(final, P)
           if scored then
@@ -157,9 +168,9 @@ C.finish = function(guid, P)
                 and (final.leave - lt) <= P["finish.lootLeaveMinutes"] * MIN then lootLeave = true end
             end
             if lootLeave then
-              out[#out + 1] = { t = ev.t, x = 0, mult = P["finish.lootLeaveWeight"], label = "Loot-and-leave in " .. where, eventId = ev.id }
+              out[#out + 1] = { t = ev.t, it = final.leave, x = 0, mult = P["finish.lootLeaveWeight"], label = "Loot-and-leave in " .. where, eventId = ev.id }
             else
-              out[#out + 1] = { t = ev.t, x = 0, label = "Left " .. where .. " before the final boss", eventId = ev.id }
+              out[#out + 1] = { t = ev.t, it = final.leave, x = 0, label = "Left " .. where .. " before the final boss", eventId = ev.id }
             end
           else
             out[#out + 1] = { t = ev.t, x = nil, skip = true, label = "Early leave in " .. where .. ": " .. why, eventId = ev.id }
@@ -272,7 +283,7 @@ C.loot = function(guid, P)
   end
   for _, ev in ipairs(MemberEvents(guid, P)) do
     if (ev.details.srRolls or 0) > 0 and not strikeSessions[ev.sessionId] then
-      out[#out + 1] = { t = ev.t, x = 1, label = "Clean rolls in a soft-reserve run", eventId = ev.id }
+      out[#out + 1] = { t = ev.t, it = Dims.AnchorTime(ev, P), x = 1, label = "Clean rolls in a soft-reserve run", eventId = ev.id }
     end
   end
   return out
@@ -291,11 +302,11 @@ C.carry = function(guid, P)
       if lastKill and cy.paidAt <= lastKill then
         local final, merged = FinalInterval(ev, P)
         if final.leave == nil or final.leave >= lastKill or PresentAt(merged, lastKill) then
-          out[#out + 1] = { t = ev.t, x = 1, label = "Delivered a paid carry", eventId = ev.id }
+          out[#out + 1] = { t = ev.t, it = lastKill, x = 1, label = "Delivered a paid carry", eventId = ev.id }
         else
           local scored, why = EarlyLeaveVerdict(final, P)
           if scored then
-            out[#out + 1] = { t = ev.t, x = 0, mult = P["finish.lootLeaveWeight"], label = "Left a paid carry early", eventId = ev.id }
+            out[#out + 1] = { t = ev.t, it = final.leave, x = 0, mult = P["finish.lootLeaveWeight"], label = "Left a paid carry early", eventId = ev.id }
           else
             out[#out + 1] = { t = ev.t, skip = true, label = "Carry early leave: " .. why, eventId = ev.id }
           end
@@ -339,7 +350,7 @@ C.teach = function(guid, P)
         local _, merged = FinalInterval(ev, P)
         local stayed = TimeIn(merged, s and s.details.endedAt)
         if ev.details.level - median >= P["teach.levelGap"] and stayed >= P["teach.minMinutes"] * MIN then
-          out[#out + 1] = { t = ev.t, x = 1, mult = (s and s.details.learning) and P["teach.learningBonus"] or 1,
+          out[#out + 1] = { t = ev.t, it = Dims.AnchorTime(ev, P), x = 1, mult = (s and s.details.learning) and P["teach.learningBonus"] or 1,
             label = string.format("Grouped %d levels above median for %s", ev.details.level - median, TA.FormatDuration and TA.FormatDuration(stayed) or stayed), eventId = ev.id }
         end
       end
@@ -352,18 +363,25 @@ end
 C.craft = function(guid, P)
   local out = {}
   local selfGUID = TA.playerGUID
-  local function add(ev, paidCopper)
+  local function add(ev, paidCopper, what)
     local atCost = (paidCopper or 0) <= P["craft.atCostGold"] * 10000
     out[#out + 1] = { t = ev.t, x = 1, mult = atCost and P["craft.atCostMultiplier"] or 1, eventId = ev.id,
-      label = atCost and "Enchanted for free/at cost" or "Enchanted for gold" }
+      label = what .. (atCost and " for free/at cost" or " for gold") }
+  end
+  local function scan(ev, mine)
+    local d = ev.details
+    local paid = mine and d.receivedCopper or d.givenCopper
+    if (mine and d.enchantByMe) or (not mine and d.enchantByThem) then add(ev, paid, "Enchanted") end
+    local crafted = mine and d.craftedByMe or d.craftedByThem
+    if crafted then add(ev, paid, "Gave crafted item" .. (crafted > 1 and "s" or "")) end
   end
   if guid == selfGUID then
     for _, ev in ipairs(TA.Log:All()) do
-      if ev.signal == "trade" and ev.details.enchantByMe then add(ev, ev.details.receivedCopper) end
+      if ev.signal == "trade" then scan(ev, true) end
     end
   else
     for _, ev in ipairs(TA.Log:ForSubject(guid)) do
-      if ev.signal == "trade" and ev.details.enchantByThem then add(ev, ev.details.givenCopper) end
+      if ev.signal == "trade" then scan(ev, false) end
     end
   end
   return out
@@ -435,7 +453,7 @@ C.endorse = function(guid, P)
         lastByPair[who] = ev.t
         local trust = Dims.MeanTrust(who, P)
         local mult = Engine.EndorseMultiplier(trust, d.sameGuild, P)
-        out[#out + 1] = { t = ev.t, x = 1, mult = mult, eventId = ev.id,
+        out[#out + 1] = { t = ev.t, x = 1, mult = mult, eventId = ev.id, endorser = who,
           label = string.format("Endorsed by %s (trust %.2f%s)", d.endorserName or "?", trust, d.sameGuild and ", same guild" or "") }
       end
     end

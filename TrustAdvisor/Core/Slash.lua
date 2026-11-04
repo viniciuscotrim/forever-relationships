@@ -26,34 +26,48 @@ local function FindDimension(q)
   end
 end
 
--- Paste window for soft-reserve imports
+-- Paste window for soft-reserve and ledger imports
+local MODES = {
+  sr = { title = "Import soft reserves", hint = "Paste a softres.it CSV export, or lines like 'Name: 12345' (item ID).",
+    run = function(text) return string.format("Imported %d soft reserves.", TA.Loot:ImportSoftReserves(text)) end,
+    clear = function() TA.Loot:ClearSoftReserves(); return "Soft reserves cleared." end },
+  owed = { title = "Import ledger: they owe you", hint = "One debt per line: 'Name 1500' or 'Name, 1,500g' (e.g. GDKP buyers who owe the pot).",
+    run = function(text) return TA.Trade:ImportLedger(text, "owedToMe") end },
+  iowe = { title = "Import ledger: you owe them", hint = "One debt per line: 'Name 250' (e.g. GDKP cuts you must pay out).",
+    run = function(text) return TA.Trade:ImportLedger(text, "iOwe") end },
+}
 local importWindow
-local function ShowImport()
+local function ShowImport(mode)
+  local m = MODES[mode] or MODES.sr
   if not importWindow then
     local f = UI.Window("TrustAdvisorImportWindow", 520, 360, "DIALOG")
-    UI.Label(f, "Import soft reserves", "GameFontHighlight"):SetPoint("TOP", 0, -5)
-    UI.Label(f, "Paste a softres.it CSV export, or lines like 'Name: 12345' (item ID).", "GameFontHighlightSmall"):SetPoint("TOPLEFT", 12, -30)
+    f.titleText = UI.Label(f, "", "GameFontHighlight"); f.titleText:SetPoint("TOP", 0, -5)
+    f.hint = UI.Label(f, "", "GameFontHighlightSmall"); f.hint:SetPoint("TOPLEFT", 12, -30)
     local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
     sf:SetPoint("TOPLEFT", 12, -50); sf:SetPoint("BOTTOMRIGHT", -32, 40)
     local eb = CreateFrame("EditBox", nil, sf)
     eb:SetMultiLine(true); eb:SetFontObject(ChatFontNormal); eb:SetWidth(460); eb:SetAutoFocus(false)
     eb:SetScript("OnEscapePressed", function() f:Hide() end)
     sf:SetScrollChild(eb)
-    local go = UI.Button(f, "Import", 100, 22, function()
-      local n = TA.Loot:ImportSoftReserves(eb:GetText())
-      TA.Print(string.format("Imported %d soft reserves.", n))
+    f.go = UI.Button(f, "Import", 100, 22, function()
+      TA.Print(f.mode.run(eb:GetText()))
       f:Hide()
     end)
-    go:SetPoint("BOTTOMRIGHT", -12, 10)
-    local clear = UI.Button(f, "Clear current list", 140, 22, function() TA.Loot:ClearSoftReserves(); TA.Print("Soft reserves cleared."); f:Hide() end)
-    clear:SetPoint("BOTTOMLEFT", 12, 10)
+    f.go:SetPoint("BOTTOMRIGHT", -12, 10)
+    f.clear = UI.Button(f, "Clear current list", 140, 22, function() TA.Print(f.mode.clear()); f:Hide() end)
+    f.clear:SetPoint("BOTTOMLEFT", 12, 10)
     f.edit = eb
     importWindow = f
   end
+  importWindow.mode = m
+  importWindow.titleText:SetText(m.title)
+  importWindow.hint:SetText(m.hint)
+  importWindow.clear:SetShown(m.clear ~= nil)
   importWindow.edit:SetText("")
   importWindow:Show()
   importWindow.edit:SetFocus()
 end
+TA.UI.ShowImport = ShowImport
 
 local HELP = {
   "/ta - open the main window",
@@ -66,6 +80,7 @@ local HELP = {
   "/ta reset params - reset all local parameters",
   "/ta owe <name> <gold> - record that <name> owes you gold  |  /ta iowe <name> <gold> - you owe them",
   "/ta sr - import soft reserves  |  /ta sr clear",
+  "/ta ledger - import debts owed to you (GDKP)  |  /ta ledger iowe - import debts you owe",
   "/ta signup add <names> | start <minutes> | withdraw <name> | close | show",
   "/ta lfg - toggle your looking-for-group flag in presence",
   "/ta status - client, interface and capture status",
@@ -108,7 +123,9 @@ local function Handle(msg)
     local who = cmd == "owe" and (TA.ShortName(pname) .. " owes you") or ("you owe " .. TA.ShortName(pname))
     TA.Print(ok and string.format("Recorded: %s %sg (deadline %dh).", who, gold, TA.Params:Get("pay.deadlineHours")) or err)
   elseif cmd == "sr" then
-    if rest:lower() == "clear" then TA.Loot:ClearSoftReserves(); TA.Print("Soft reserves cleared.") else ShowImport() end
+    if rest:lower() == "clear" then TA.Loot:ClearSoftReserves(); TA.Print("Soft reserves cleared.") else ShowImport("sr") end
+  elseif cmd == "ledger" then
+    ShowImport(rest:lower() == "iowe" and "iowe" or "owed")
   elseif cmd == "signup" then
     local sub, args = rest:match("^(%S*)%s*(.-)$")
     sub = (sub or ""):lower()

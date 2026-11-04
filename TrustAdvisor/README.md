@@ -30,5 +30,6 @@ luajit Tests/test_ingame_sim.lua  # loads every file on a mock WoW API, replays 
 - **Early leaves need proof.** With `finish.requireLeaveMessage` on (the default), an early leave is scored only when the game printed a voluntary-leave message. A leader's kick by someone else can't be told apart from a leave, so unconfirmed leaves are shown but not scored.
 - **Carry detection is heuristic.** A gold trade inside an instance before the final boss counts as a carry. Turn it off with `carry.autoDetect`.
 - **Obligations are human-entered** (`/ta owe`), and only the trades you take part in are witnessed.
-- **Not yet captured:** portals (the client can't tell a free portal from a paid one), crafted-item gifts (enchants only), and Gargul ledger import.
+- **Portals** count only when you zone shortly after a group member's portal and gave them no gold. **Crafted gifts** are detected from the item's "Made by" tooltip line.
+- **Network (Phase 3)** needs the companion app and a hosted server. See `../docs/NETWORK.md`, including the known identity risks.
 - **Opt-in by default.** Presence, quest sharing, attunement sharing, endorsement sharing, and endorsement prompts all start OFF (Transparency › Consent / Social).

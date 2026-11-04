@@ -4,7 +4,7 @@
 local _, TA = ...
 local UI = TA.UI
 
-local SUBVIEWS = { "Parameters", "Formulas", "Captures", "Change log", "Data inventory" }
+local SUBVIEWS = { "Parameters", "Formulas", "Captures", "Change log", "Data inventory", "Network" }
 
 local function InlineText(parent)
   local sf = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
@@ -84,6 +84,9 @@ UI.DATA_INVENTORY = {
   "  affinity     - sessions together (times, zone, party message COUNT), private yes/no, personal notes",
   "  endorseGiven - when you last endorsed each player (cooldown)",
   "",
+  "|cffffd100TrustAdvisorDB.net (only if you join the network)|r",
+  "  uploaderId, your characters, outbox of witness reports, disputes, deletion request - read by the companion app",
+  "",
   "|cffffd100Never stored|r: chat text, whisper content, presence data from other players.",
   "",
   "|cffffd100Ever transmitted (only with consent, only to Trust Advisor users)|r",
@@ -103,7 +106,7 @@ UI:RegisterView("transparency", function(frame)
   local subButtons = {}
   local prev
   for _, name in ipairs(SUBVIEWS) do
-    local b = UI.Button(frame, name, 118, 20, function() view.sub = name; view:Refresh() end)
+    local b = UI.Button(frame, name, 104, 20, function() view.sub = name; view:Refresh() end)
     if prev then b:SetPoint("LEFT", prev, "RIGHT", 3, 0) else b:SetPoint("TOPLEFT", 4, -2) end
     subButtons[name] = b
     prev = b
@@ -212,6 +215,52 @@ UI:RegisterView("transparency", function(frame)
   inventory:SetPoint("TOPLEFT", 4, -4); inventory:SetPoint("BOTTOMRIGHT", -26, 4)
 
   ---------------------------------------------------------------------------
+  -- Network
+  ---------------------------------------------------------------------------
+  local nf = subFrames.Network
+  local ntext = InlineText(nf)
+  ntext:SetPoint("TOPLEFT", 4, -4); ntext:SetPoint("BOTTOMRIGHT", -26, 34)
+  local nToggle = UI.Button(nf, "", 200, 22, function()
+    TA.Params:Set("consent.network", not TA.Params:Get("consent.network")); view:Refresh()
+  end)
+  nToggle:SetPoint("BOTTOMLEFT", 4, 4)
+  local nDelete = UI.Button(nf, "Delete my network data", 190, 22, function() StaticPopup_Show("TRUSTADVISOR_NET_DELETE") end)
+  nDelete:SetPoint("LEFT", nToggle, "RIGHT", 6, 0)
+
+  function view:RefreshNetwork()
+    nToggle:SetText(TA.Network:Enabled() and "|cff66ff66Network: ON|r (click to leave)" or "Join the network")
+    local n = TA.db.net or {}
+    local synced = TA.Network:SyncedAt()
+    local outbox = n.outbox
+    local L = {
+      "|cffffd100How the network works|r",
+      "Addons cannot use the internet. The Trust Advisor companion app (outside the game) uploads your",
+      "witness reports from SavedVariables and downloads the network view into Network/NetData.lua (/reload to load it).",
+      "",
+      "|cffffd100What is uploaded (only with consent.network ON)|r",
+      "  Game-witnessed outcomes only: finishing, ready checks, loot honesty, carries, generosity, higher-level partner,",
+      "  crafting, stayed to help, hardcore steadfastness, and endorsements YOU gave. Computed with the published",
+      "  protocol parameters, never your local edits.",
+      "  Never uploaded: paying (human-entered debts), showing up (human signup lists), notes, affinity, chat.",
+      "",
+      "|cffffd100Fairness rules (locked, protocol v" .. TA.Params:Get("net.protocolVersion") .. ")|r",
+      string.format("  A negative counts only with >= %d independent witnesses from >= %d different guilds (no guild = one group).",
+        TA.Params:Get("net.minWitnesses"), TA.Params:Get("net.minGuilds")),
+      string.format("  Reports within %d s of each other describe the same incident. Positives need one witness.", TA.Params:Get("net.matchWindowSeconds")),
+      "  Witness identities are never shown. Disputed events are excluded until reviewed. Decay still applies.",
+      "  Deleting your network data removes everything you uploaded AND hides you from the network view.",
+      "",
+      "|cffffd100Status|r",
+      "  Consent: " .. (TA.Network:Enabled() and "ON" or "off"),
+      "  Uploader id: " .. (n.uploaderId and (n.uploaderId:sub(1, 6) .. "... (secret, kept local)") or "created when you join"),
+      "  Last outbox: " .. (outbox and string.format("%d reports, built %s", #outbox.reports, TA.FormatAgo(outbox.builtAt)) or "none yet (built at logout or /reload)"),
+      "  Last sync: " .. (synced and TA.FormatAgo(synced) or "never"),
+      "  Pending disputes: " .. #(n.disputes or {}) .. (n.deleteRequested and "   |cffff9933Deletion requested|r" or ""),
+    }
+    ntext:SetText(L)
+  end
+
+  ---------------------------------------------------------------------------
   -- Captures
   ---------------------------------------------------------------------------
   local clist = UI.List(subFrames.Captures, 20, 20, function(row)
@@ -242,6 +291,7 @@ UI:RegisterView("transparency", function(frame)
     if self.sub == "Parameters" then self:RefreshParams()
     elseif self.sub == "Formulas" then formulas:SetText(UI.FormulaText())
     elseif self.sub == "Data inventory" then inventory:SetText(UI.DATA_INVENTORY)
+    elseif self.sub == "Network" then self:RefreshNetwork()
     elseif self.sub == "Captures" then
       local items = {}
       for _, n in ipairs(TA.CaptureOrder) do items[#items + 1] = TA.Captures[n] end
@@ -277,6 +327,11 @@ function UI.FullExport()
   return L
 end
 
+StaticPopupDialogs["TRUSTADVISOR_NET_DELETE"] = {
+  text = "Delete your Trust Advisor network data? The companion app will remove everything you uploaded and hide you from the network view (positives and negatives). Local data is kept.",
+  button1 = DELETE or "Delete", button2 = CANCEL, timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
+  OnAccept = function() TA.Network:RequestDeletion(); TA.Print("Network deletion requested. It is sent on the next companion sync.") end,
+}
 StaticPopupDialogs["TRUSTADVISOR_RESET_PARAMS"] = {
   text = "Reset every Trust Advisor parameter to its default? Each change is logged.",
   button1 = YES, button2 = NO, timeout = 0, whileDead = true, hideOnEscape = true,

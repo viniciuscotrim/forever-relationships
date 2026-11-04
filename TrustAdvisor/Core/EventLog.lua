@@ -8,7 +8,7 @@
 local _, TA = ...
 TA = TA or {}
 
-local Log = { ready = false, bySubject = {}, bySession = {}, count = 0 }
+local Log = { ready = false, bySubject = {}, bySession = {}, byId = {}, count = 0 }
 TA.Log = Log
 
 local VALID_SOURCES = { game = true, peer = true, human = true, questie = true, system = true }
@@ -33,12 +33,13 @@ function Log:Bind(db)
 end
 
 function Log:Reindex()
-  self.bySubject, self.bySession = {}, {}
+  self.bySubject, self.bySession, self.byId = {}, {}, {}
   for _, ev in ipairs(self.db.events) do self:_index(ev) end
   self.count = #self.db.events
 end
 
 function Log:_index(ev)
+  if ev.id then self.byId[ev.id] = ev end
   if ev.subjectGUID then
     local l = self.bySubject[ev.subjectGUID]
     if not l then l = {}; self.bySubject[ev.subjectGUID] = l end

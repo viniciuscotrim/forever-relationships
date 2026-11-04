@@ -64,6 +64,7 @@ def("Loot honesty", "loot.returnMinutes", 60, "An item traded back to its reserv
 def("Carry", "carry.minGold", 1, "Minimum gold traded to mark a run as a paid carry.", { affects = { "carry" } })
 def("Carry", "carry.autoDetect", true, "Treat a gold trade inside an instance, before the final boss, as carry payment.", { affects = { "carry" } })
 -- Generosity
+def("Generosity", "generosity.portalWindowMinutes", 10, "A group member's portal counts as free if you zone within this many minutes and gave them no gold in the same window.", { affects = { "generosity" } })
 def("Generosity", "generosity.dailyCap", 10, "Maximum acts of generosity counted per player per day.", { affects = { "generosity" } })
 -- Teaching
 def("Teaching", "teach.levelGap", 5, "Levels above the group median to count as a higher-level partner.", { affects = { "teach" } })
@@ -121,15 +122,19 @@ def("Consent", "consent.endorsePrompts", false, "Show the 'Play with them again?
 def("Consent", "consent.shareEndorsements", false, "Send your endorsements to the endorsed player and your group (Phase 2).", { scoring = false })
 def("Consent", "consent.shareQuests", false, "Tell group members (with Trust Advisor) when you turn in a quest.", { scoring = false })
 def("Consent", "consent.shareAttunements", false, "Share your attunement list with group members who have Trust Advisor.", { scoring = false })
+def("Consent", "consent.network", false, "Join the Trust Advisor network (Phase 3): the companion app uploads your game-witnessed reports and downloads the network view. Requires the companion app.", { scoring = false })
 def("Consent", "consent.acceptPeerEndorsements", true, "Count endorsements other Trust Advisor users send about people you witnessed grouping with them.", { affects = { "endorse" } })
 -- Display
 def("Display", "tooltip.enabled", true, "Show the Trust Advisor line in unit tooltips.", { scoring = false })
+def("Display", "tooltip.lfgMarker", true, "Show a small Trust Advisor marker on LFG listings whose leader you've grouped with.", { scoring = false })
 def("Display", "tooltip.onlyNotable", false, "Tooltip shows only Concern and Exemplary bands, to reduce noise.", { scoring = false })
 -- Storage
 def("Storage", "log.maxEvents", 100000, "Oldest events are pruned beyond this count (the log is the source of truth, keep it large).", { scoring = false, min = 1000 })
 -- Network (Phase 3, visible but locked to the published protocol)
 def("Network", "net.minWitnesses", 2, "Independent witnesses required for a network-view negative.", { locked = true })
-def("Network", "net.minGuilds", 2, "Distinct guilds required among those witnesses.", { locked = true })
+def("Network", "net.minGuilds", 2, "Distinct guilds required among those witnesses (no guild counts as one group).", { locked = true })
+def("Network", "net.matchWindowSeconds", 600, "Reports from different witnesses within this window describe the same incident.", { locked = true })
+def("Network", "net.protocolVersion", 1, "Published network protocol version. Network scores always use the protocol's default parameters.", { locked = true })
 
 Params.defs = DEFS
 Params.byKey = BY_KEY
@@ -221,6 +226,13 @@ function Params:NonDefaultList()
     if not self:IsDefault(d.key) then table.insert(out, d) end
   end
   return out
+end
+
+-- Snapshot of the published defaults (network view ignores local overrides).
+function Params:DefaultSnapshot()
+  local P = {}
+  for _, d in ipairs(DEFS) do P[d.key] = d.default end
+  return P
 end
 
 -- Flat snapshot table used by the scoring engine.

@@ -115,5 +115,55 @@ TA:On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, castGUID, spellID)
   end
 end, "generosityOut")
 
+-- Free portals: a group member casts a portal, you zone, and you paid them nothing.
+local portalNames
+local lastPortal -- { guid, name, t }
+local function IsPortal(spellID)
+  if not portalNames then
+    portalNames = {}
+    local getName = (C_Spell and C_Spell.GetSpellName) or (GetSpellInfo and function(id) return (GetSpellInfo(id)) end)
+    for _, id in ipairs(TA.GenerositySpells.portal or {}) do
+      portalNames[id] = true
+      local ok, n = pcall(getName, id)
+      if ok and type(n) == "string" then portalNames[n] = true end
+    end
+  end
+  if portalNames[spellID] then return true end
+  local getName = (C_Spell and C_Spell.GetSpellName) or (GetSpellInfo and function(id) return (GetSpellInfo(id)) end)
+  local ok, n = pcall(getName, spellID)
+  return ok and n and portalNames[n] or false
+end
+
+TA:On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
+  if type(unit) ~= "string" or not (unit:find("^party%d") or unit:find("^raid%d")) then return end
+  spellID = TA.Clean(spellID)
+  if not spellID or not IsPortal(spellID) then return end
+  local guid = TA.Clean(UnitGUID(unit))
+  if not guid then return end
+  local n, r = UnitName(unit)
+  lastPortal = { guid = guid, name = TA.FullName(TA.Clean(n), TA.Clean(r)), t = TA.Now(), spell = spellID }
+end, "generosityIn")
+
+local function PaidCaster(p, since)
+  for _, ev in ipairs(TA.Log:ForSubject(p.guid)) do
+    if ev.signal == "trade" and ev.t >= since and (ev.details.givenCopper or 0) > 0 then return true end
+  end
+  return false
+end
+
+TA:On("PLAYER_ENTERING_WORLD", function()
+  local p = lastPortal
+  if not p then return end
+  local window = TA.Params:Get("generosity.portalWindowMinutes") * 60
+  if TA.Now() - p.t > window then lastPortal = nil; return end
+  lastPortal = nil
+  -- give a tip made right after arrival a chance to land before judging
+  C_Timer.After(window, function()
+    if not PaidCaster(p, p.t - window) then
+      Record(p.guid, p.name, "portal", "UNIT_SPELLCAST_SUCCEEDED (party portal) + zone change", p.spell)
+    end
+  end)
+end, "generosityIn")
+
 -- keep the pending table small
 C_Timer.NewTicker(120, function() wipe(pending) end)

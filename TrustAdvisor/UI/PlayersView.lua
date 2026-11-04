@@ -39,9 +39,16 @@ UI:RegisterView("players", function(frame)
     row.sessions = UI.Label(row, "", "GameFontHighlightSmall"); row.sessions:SetPoint("LEFT", 320, 0)
     row.strip = UI.BandStrip(row, 12); row.strip:SetPoint("LEFT", 400, 0)
     row.extra = UI.Label(row, "", "GameFontHighlightSmall"); row.extra:SetPoint("LEFT", 570, 0); row.extra:SetWidth(190)
-    row:SetScript("OnClick", function(self) if self.guid then UI:OpenPlayer(self.guid) end end)
+    row:SetScript("OnClick", function(self)
+      if not self.guid then return end
+      if self.item and self.item.nearby and not TA.db.players[self.guid] then
+        UI.transient = { guid = self.guid, name = self.item.name, level = self.item.level, transient = true }
+      end
+      UI:OpenPlayer(self.guid)
+    end)
   end, function(row, item)
     row.guid = item.guid
+    row.item = item
     row.name:SetText(UI.ClassColored(TA.ShortName(item.name), item.class) .. (item.level and ("  |cff888888" .. item.level .. "|r") or ""))
     local prof = TA.Dimensions.Profile(item.guid)
     row.seen:SetText(item.nearby and ("|cff66ccff" .. (item.zone or "nearby") .. "|r") or TA.FormatAgo(item.lastSeen))
