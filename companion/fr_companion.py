@@ -640,6 +640,8 @@ def migrate_legacy(wow):
             subprocess.run(["launchctl", "unload", "-w", plist], capture_output=True)
             os.remove(plist)
             done.append("old background service")
+        # unload alone doesn't stop a running job on current macOS
+        subprocess.run(["launchctl", "bootout", "gui/%d/com.%s.companion" % (os.getuid(), _OLD_LOWER)], capture_output=True)
         log = os.path.join(home, "Library", "Logs", _OLD + "Companion.log")
         if os.path.exists(log):
             os.remove(log)
@@ -755,6 +757,7 @@ def uninstall_autostart():
     paths = autostart_paths()
     if platform.system() == "Darwin" and os.path.exists(paths["file"]):
         subprocess.run(["launchctl", "unload", "-w", paths["file"]], capture_output=True)
+        subprocess.run(["launchctl", "bootout", "gui/%d/%s" % (os.getuid(), LABEL)], capture_output=True)
     elif platform.system() not in ("Darwin", "Windows") and shutil.which("systemctl"):
         subprocess.run(["systemctl", "--user", "disable", "--now", "forever-relationships-companion.service"], capture_output=True)
     if os.path.exists(paths["file"]):
