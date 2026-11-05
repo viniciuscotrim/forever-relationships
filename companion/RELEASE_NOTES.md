@@ -1,6 +1,6 @@
 **Optional.** Forever Relationships works fully without this app. It's needed for the cloud layers (encrypted backup, public profile, community, recommend me) and to deliver the feedback you write in game with `/fr feedback` (and bring the developer's replies back). It only sends what the layers you turned on in game allow.
 
-**Version 0.4.1 needs addon 0.4.1.** It moves your saved history to the new folder automatically (while WoW is closed).
+**Version 0.4.2 works with addon 0.4.1 and later (update the addon to 0.4.2 so the cloud layers sync).** Mac: it keeps starting with your computer even if you first opened it from Downloads. It also moves history saved under the previous name to the new folder automatically (while WoW is closed).
 
 ### Install
 - **Mac (Apple Silicon and Intel, signed and notarized by Apple):** download `ForeverRelationshipsCompanion-macos-app.zip`, double-click it, drag **Forever Relationships Companion** into Applications and open it. It sets itself up to run in the background, shows your backup **recovery code** (save it in Passwords) and offers to link Battle.net. No Terminal needed.

@@ -34,7 +34,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 PROTOCOL = 2
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",

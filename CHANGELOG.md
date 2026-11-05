@@ -1,3 +1,11 @@
+# Forever Relationships 0.4.2
+
+### Fixed
+- **Cloud layers now reach the companion app.** In 0.4.1 the addon hit an error at logout and `/reload`, so backup, public profile, community and recommend me never synced, and the companion kept asking for a `/reload`.
+- **`/fr feedback` works again.** The same error stopped feedback from being saved.
+- Loot quality is read correctly on the current client.
+- Companion app 0.4.2 (Mac): if you opened it straight from Downloads, it now still starts after you restart your computer, as long as a copy is in Applications.
+
 # Forever Relationships 0.4.1
 
 ### Changed
