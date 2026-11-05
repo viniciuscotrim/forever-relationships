@@ -22,7 +22,8 @@ mkdir -p "$OUT"
 VENV="$(pwd)/../.venv-server"   # tests start the real server, which needs `cryptography`
 [ -x "$VENV/bin/python" ] || { python3 -m venv "$VENV" && "$VENV/bin/pip" install -q -r ../server/requirements.txt; }
 "$VENV/bin/python" -m unittest discover -s tests 2>&1 | tail -1
-python3 -m venv "$WORK/venv" && "$WORK/venv/bin/pip" install -q pyinstaller==6.11.1
+# cryptography is REQUIRED: without it the app cannot encrypt the cloud backup
+python3 -m venv "$WORK/venv" && "$WORK/venv/bin/pip" install -q pyinstaller==6.11.1 -r ../server/requirements.txt
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict></dict></plist>\n' > "$WORK/ent.plist"
 cp fr_companion.py "$WORK/"
 
@@ -51,6 +52,7 @@ xcrun notarytool submit submit.zip --keychain-profile "$PROFILE" --wait
 xcrun stapler staple "dist/$APP.app"
 spctl --assess --type execute -vv "dist/$APP.app"
 "dist/$APP.app/Contents/MacOS/$APP" --version
+"dist/$APP.app/Contents/MacOS/$APP" --self-test   # fails the release if encryption is missing
 
 (cd dist && ditto -c -k --sequesterRsrc --keepParent "$APP.app" "$OUT/ForeverRelationshipsCompanion-macos-app.zip")
 echo "Built in $OUT"

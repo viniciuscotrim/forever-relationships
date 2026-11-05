@@ -34,7 +34,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 
-VERSION = "0.4.2"
+VERSION = "0.4.3"
 PROTOCOL = 2
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",
@@ -686,6 +686,9 @@ def migrate_legacy(wow):
 # Autostart (--install / --uninstall): start with the computer, no admin rights
 # ---------------------------------------------------------------------------
 LABEL = "com.foreverrelationships.companion"
+# WoW writes SavedVariables only at /reload, logout or exit: those are synced at once.
+# Besides that, everything is synced again every hour (server replies, profiles, retries).
+RESYNC_EVERY = 3600
 
 
 def stable_executable(exe):
@@ -862,10 +865,16 @@ def main(argv=None):
     ap.add_argument("--show-recovery-code", action="store_true", help="show the recovery code of your cloud backup again")
     ap.add_argument("--region", default="us", choices=["us", "eu", "kr", "tw"], help="Battle.net region for --link")
     ap.add_argument("--watch", action="store_true", help="keep syncing in the background (default when no other action)")
+    ap.add_argument("--self-test", action="store_true", help="check that encryption works in this build, then exit")
     ap.add_argument("--version", action="version", version="Forever Relationships companion " + VERSION)
     raw = sys.argv[1:] if argv is None else argv
     app_launch = is_mac_app_launch(raw)
     args = ap.parse_args(raw)
+    if args.self_test:
+        key = os.urandom(32)
+        ok = decrypt_blob(key, encrypt_blob(key, b"self-test")) == b"self-test"
+        print("self-test ok: encryption available" if ok else "self-test FAILED")
+        return 0 if ok else 1
     if args.uninstall:
         uninstall_autostart()
         return 0
@@ -902,17 +911,18 @@ def main(argv=None):
         print(recovery_code(key) if key else "No cloud backup key on this computer.")
         return 0
     state = load_state()
-    seen = {}
+    seen, synced_at = {}, {}
     print("Forever Relationships companion %s - %s - server %s" % (VERSION, wow, args.server))
     while True:
         for what in migrate_legacy(wow):
             print("Moved from the previous name: " + what)
         for sv in find_saved_variables(wow):
             mtime = os.path.getmtime(sv)
-            if seen.get(sv) == mtime:
+            changed = seen.get(sv) != mtime
+            if not changed and time.time() - synced_at.get(sv, 0) < RESYNC_EVERY:
                 continue
-            seen[sv] = mtime
-            print("[%s] %s changed" % (time.strftime("%H:%M:%S"), sv))
+            seen[sv], synced_at[sv] = mtime, time.time()
+            print("[%s] %s %s" % (time.strftime("%H:%M:%S"), sv, "changed" if changed else "hourly sync"))
             try:
                 res = sync_file(sv, client, wow, state)
                 save_state(state)
@@ -920,7 +930,7 @@ def main(argv=None):
                     mac_show_code(res["newRecoveryCode"])
             except Exception as e:  # keep watching on network/parse errors
                 print("  sync failed: %s" % e)
-                seen.pop(sv, None)
+                seen.pop(sv, None); synced_at.pop(sv, None)
         if args.once:
             return 0
         time.sleep(args.interval)

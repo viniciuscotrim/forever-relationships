@@ -43,7 +43,7 @@ jobs:
       - name: Smoke test
         working-directory: companion
         shell: bash
-        run: ./dist/${{ matrix.exe }} --version
+        run: ./dist/${{ matrix.exe }} --version && ./dist/${{ matrix.exe }} --self-test
       - name: Rename
         shell: bash
         run: cp companion/dist/${{ matrix.exe }} ${{ matrix.asset }}

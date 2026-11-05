@@ -359,5 +359,38 @@ class Translocation(unittest.TestCase):
             self.assertEqual(tc.stable_executable("/Applications/X.app/Contents/MacOS/X"), "/Applications/X.app/Contents/MacOS/X")
 
 
+class WatchLoop(unittest.TestCase):
+    def test_self_test_passes_with_encryption(self):
+        self.assertEqual(tc.main(["--self-test"]), 0)
+
+    def test_syncs_on_change_and_again_every_hour(self):
+        clock = [1000.0]
+        calls = []
+
+        class Stop(Exception):
+            pass
+
+        def sleep(sec):
+            clock[0] += sec
+            if clock[0] > 1000 + 2 * 3600 + 60:
+                raise Stop()
+
+        with tempfile.TemporaryDirectory() as wow, tempfile.TemporaryDirectory() as home:
+            sv = os.path.join(wow, "a.lua")
+            open(sv, "w").close()
+            with mock.patch.object(tc, "find_saved_variables", return_value=[sv]), \
+                 mock.patch.object(tc, "sync_file", side_effect=lambda *a: calls.append(clock[0]) or {}), \
+                 mock.patch.object(tc, "migrate_legacy", return_value=[]), \
+                 mock.patch.object(tc, "STATE_PATH", os.path.join(home, "s.json")), \
+                 mock.patch.object(tc.time, "time", side_effect=lambda: clock[0]), \
+                 mock.patch.object(tc.time, "sleep", side_effect=sleep), \
+                 mock.patch("builtins.print"):
+                with self.assertRaises(Stop):
+                    tc.main(["--wow", wow, "--server", "http://127.0.0.1:9", "--interval", "30"])
+        # first sight, then once per hour with the file unchanged (not every 30 s)
+        self.assertEqual(len(calls), 3, calls)
+        self.assertGreaterEqual(calls[1] - calls[0], 3600)
+
+
 if __name__ == "__main__":
     unittest.main()

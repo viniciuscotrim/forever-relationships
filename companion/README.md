@@ -27,6 +27,8 @@ Other options:
 - `--wow "<path to _forever_>"` if WoW isn't in the default folder.
 - `--once` for a single sync, `--uninstall` to stop the automatic start, `--server URL` for a self-hosted server.
 
+When it syncs: right after each `/reload`, logout or game exit (WoW only saves addon data at those moments), and again every hour. Your account's data reaches the server at most a few seconds after you `/reload` or log out.
+
 In game, `/fr cloud` shows whether the companion is syncing.
 
 Tests: `python3 -m unittest discover -s tests -v` (the end-to-end test needs `luajit`). Releases: push a `companion-v*` tag. CI tests both platforms and publishes the Windows build. Then run `companion/release-mac.sh` on a Mac to attach the signed, notarized and stapled macOS app.
