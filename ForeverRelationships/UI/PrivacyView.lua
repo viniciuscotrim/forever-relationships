@@ -25,6 +25,10 @@ UI.CONSENT_TEXT = {
     "(class, race, faction, level) are sent for anonymous statistics. No names. Every character",
     "identifier is replaced by a keyed code on the server. Players who opted out are discarded.",
     "Results are only shown in aggregate, never per person.",
+    "Population census: for characters you see (mouseover, target, nameplates, group) the addon keeps",
+    "only faction, race, class, level and the realm number from their character code, for 30 days.",
+    "The server replaces each code by a keyed code and publishes only totals per realm type, faction",
+    "and race (the Population tab). Turning Community off deletes it here and on the server.",
   },
   recommend = {
     "|cffffd100Recommend me|r",

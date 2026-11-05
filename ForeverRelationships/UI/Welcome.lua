@@ -7,7 +7,7 @@ local UI = FR.UI
 local CHOICES = {
   { key = "consent.backup", label = "Cloud backup", note = "Keep your history even after reinstalling. Encrypted: only you can read it.", text = "backup" },
   { key = "consent.profile", label = "Public profile", note = "Show others the numbers YOU pick about yourself.", text = "profile" },
-  { key = "consent.community", label = "Community", note = "Help anonymous statistics about how people play together.", text = "community" },
+  { key = "consent.community", label = "Community", note = "Anonymous statistics about how people play together, and the realm population census.", text = "community" },
   { key = "consent.recommend", label = "Recommend me", note = "Be suggested to other players who also opted in.", text = "recommend" },
 }
 

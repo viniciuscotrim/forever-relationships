@@ -261,7 +261,7 @@ function simpleTable(host, head, rows) {
 
 // ------------------------------------------------------------------ views
 let data = null, feedback = [], selectedFb = null;
-const VIEWS = { cockpit: "Cockpit", participants: "Participants", community: "Community", feedback: "Feedback" };
+const VIEWS = { cockpit: "Cockpit", participants: "Participants", community: "Community", realms: "Realms", feedback: "Feedback" };
 
 function showView(v) {
   if (!VIEWS[v]) v = "cockpit";
@@ -270,6 +270,7 @@ function showView(v) {
   $$(".side a").forEach(a => a.classList.toggle("active", a.dataset.view === v));
   current = v;
   if (v === "feedback") loadFeedback();
+  if (v === "realms") loadRealms();
   render();   // charts are drawn at the visible card's real width
 }
 
@@ -282,6 +283,7 @@ function render() {
   banner.hidden = !data.demoRows;
   banner.textContent = data.demoRows ? `Demo data present (${fmt.format(data.demoRows)} demo rows). Remove it on the server with: python -m frnet.demo clean` : "";
   $("#nav-fb").hidden = !k.feedbackNew; $("#nav-fb").textContent = k.feedbackNew;
+  $("#nav-realms").hidden = !k.realmsUnclassified; $("#nav-realms").textContent = k.realmsUnclassified;
   $$(".min-note").forEach(n => n.textContent = `Aggregates only, never individuals. Any group with fewer than ${data.minGroup} distinct people is folded into "Other (small groups)".`);
 
   if (current === "cockpit") {
@@ -309,7 +311,7 @@ function render() {
   } else if (current === "community") {
     kpis($("#com-kpis"), [
       ["Group sessions shared", k.communitySessions, true], ["Players observed", k.observedCharacters],
-      ["Sharing participants", k.layerCommunity], ["Excluded players", k.optedOut],
+      ["Sharing participants", k.layerCommunity], ["Census: characters seen (30 d)", k.censusCharacters], ["Excluded players", k.optedOut],
     ]);
     const c = data.community, o = data.population;
     barList($("#ch-pairs"), c.classPairs, { max: 15 }); barList($("#ch-places"), c.places);
@@ -322,6 +324,31 @@ function render() {
 async function loadOverview() {
   try { data = await api("GET", "overview"); render(); }
   catch (e) { if (e.status === 401) return toLogin(); console.error(e); }
+}
+
+// realms (population census)
+let realms = [];
+async function loadRealms() {
+  try { realms = (await api("GET", "realms")).realms; drawRealms(); }
+  catch (e) { if (e.status === 401) toLogin(); }
+}
+function drawRealms() {
+  const total = realms.reduce((a, r) => a + r.n, 0);
+  kpis($("#realm-kpis"), [["Realms seen", realms.length, true], ["Not classified yet", realms.filter(r => !r.type).length],
+    ["Characters seen (30 d)", total]]);
+  $("#tbl-realms tbody").replaceChildren(...realms.map(r => {
+    const sel = el("select", { "aria-label": "Realm type" },
+      el("option", { value: "", text: "Not classified" }), el("option", { value: "pvp", text: "PvP" }), el("option", { value: "pve", text: "PvE (Normal)" }));
+    sel.value = r.type || "";
+    sel.addEventListener("change", async () => {
+      sel.disabled = true;
+      try { await api("POST", "realms/" + r.id, { type: sel.value || null }); r.type = sel.value || null; drawRealms(); loadOverview(); }
+      catch (e) { alert(e.message); sel.value = r.type || ""; }
+      sel.disabled = false;
+    });
+    return el("tr", {}, el("td", { text: r.name || "(name not seen yet)" }), el("td", { class: "num", text: String(r.id) }),
+      el("td", { class: "num", text: fmt.format(r.n) }), el("td", {}, sel));
+  }));
 }
 
 // feedback
@@ -394,7 +421,7 @@ $("#btn-passkey").addEventListener("click", startLogin);
 $("#form-code").addEventListener("submit", submitCode);
 $("#btn-create").addEventListener("click", createPasskey);
 $("#form-setup-code").addEventListener("submit", confirmSetupCode);
-$("#btn-refresh").addEventListener("click", () => { loadOverview(); if (!$('[data-section="feedback"]').hidden) loadFeedback(); });
+$("#btn-refresh").addEventListener("click", () => { loadOverview(); if (!$('[data-section="feedback"]').hidden) loadFeedback(); if (!$('[data-section="realms"]').hidden) loadRealms(); });
 $("#btn-logout").addEventListener("click", async () => { try { await api("POST", "logout"); } catch (_) { /* ignore */ } toLogin(); });
 ["#fb-status", "#fb-kind"].forEach(s => $(s).addEventListener("change", drawFeedback));
 $("#fb-search").addEventListener("input", drawFeedback);

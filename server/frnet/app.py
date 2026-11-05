@@ -3,6 +3,7 @@
 Public API (companion app)
   POST /v1/sync                 layers the player consented to; returns public profiles + suggestions
   POST /v1/feedback             in-game feedback, returns status/replies
+  GET  /v1/population           realm population by realm type, faction and race (public aggregate)
   PUT/GET/DELETE /v1/backup/<id> opaque end-to-end encrypted backups (write token required)
   POST /v1/auth/begin|status, GET /v1/auth/callback   Battle.net link (character ownership)
 Public pages
@@ -42,6 +43,11 @@ MAX_BACKUP = 25 * 1024 * 1024
 MAX_SESSIONS = 2000
 MAX_MEMBERS = 40
 MAX_LOOKUPS = 2000
+MAX_CENSUS = 5000
+CENSUS_WINDOW = 30 * 86400
+POPULATION_CACHE = 300
+REALM_TYPES = ("pvp", "pve")
+FACTIONS = ("Alliance", "Horde")
 LOOKUPS_PER_DAY = 5000
 RATE_PER_MIN = 120
 YEAR = 400 * 86400
@@ -82,6 +88,7 @@ class Service:
         self.public_urls = [u.rstrip("/") for u in public_urls if u]
         self.hash_salt = hash_salt
         self.pseudo = Pseudo(hash_salt)
+        self._population = (0, None)
 
     def now(self):
         return int(self.clock())
@@ -155,8 +162,10 @@ class Service:
                 sess, members = self._validate_session(s, now, optout)
                 if sess and self.store.add_session(uploader, sess, members, now):
                     stored += 1
+            self._census(uploader, body, now, optout)
         else:
             self.store.forget_sessions("uploader = ?", (uploader,))
+            self.store.q("DELETE FROM census WHERE uploader = ?", (uploader,), commit=True)
 
         out = {"protocol": PROTOCOL, "optedOut": opted_out, "storedSessions": stored,
                "me": {"linked": bool(link), "verifiedCharacters": len(self.store.owned_by(link["account"])) if link else 0}}
@@ -164,6 +173,52 @@ class Service:
             out["profiles"] = self._lookups(uploader, body.get("lookups") or [], now)
         if consents["community"] and not opted_out:
             out["suggestions"] = self.suggestions(uploader, me_h)
+        return out
+
+    def _census(self, uploader, body, now, optout):
+        """Characters seen nearby: only faction, race, class, level and the realm id from the GUID."""
+        rows, realms = {}, {}
+        for c in (body.get("census") or [])[:MAX_CENSUS]:
+            if not (isinstance(c, dict) and isinstance(c.get("g"), str) and GUID_RE.match(c["g"])):
+                continue
+            faction = c.get("f")
+            t = _int(c.get("t"), now - CENSUS_WINDOW - 86400, now + 3600)
+            if faction not in FACTIONS or t is None:
+                continue
+            h = self.pseudo(c["g"])
+            if h in optout:
+                continue
+            rid = int(c["g"].split("-")[1])
+            if rid > 999999:
+                continue
+            realms.setdefault(rid, None)
+            if h not in rows or rows[h]["t"] < t:
+                rows[h] = {"h": h, "realm": rid, "race": _word(c.get("r")), "faction": faction, "class": _word(c.get("c")),
+                           "level": _int(c.get("l"), 1, 100), "t": t}
+        names = body.get("realms") if isinstance(body.get("realms"), dict) else {}
+        for k, v in list(names.items())[:200]:
+            if str(k).isdigit() and int(k) <= 999999:
+                realms[int(k)] = _word(v, 48)
+        self.store.add_census(uploader, list(rows.values()), realms, now)
+        return len(rows)
+
+    def population(self):
+        """Characters seen in the last 30 days, by realm type -> faction -> race (cached 5 minutes)."""
+        now = self.now()
+        at, cached = self._population
+        if cached is not None and now - at < POPULATION_CACHE:
+            return cached
+        q = self.store.q
+        types = {}
+        for rtype, faction, race, n in q("SELECT r.type, c.faction, coalesce(c.race, 'Unknown'), count(*) FROM census c "
+                                         "JOIN realms r ON r.id = c.realm WHERE c.seen_at >= ? AND r.type IN ('pvp', 'pve') "
+                                         "GROUP BY 1, 2, 3", (now - CENSUS_WINDOW,)):
+            f = types.setdefault(rtype, {}).setdefault(faction, {"total": 0, "races": {}})
+            f["total"] += n
+            f["races"][race] = n
+        realms = {str(r[0]): {"name": r[1], "type": r[2]} for r in q("SELECT id, name, type FROM realms")}
+        out = {"updatedAt": now, "windowDays": CENSUS_WINDOW // 86400, "types": types, "realms": realms}
+        self._population = (now, out)
         return out
 
     def _validate_session(self, s, now, optout):
@@ -540,6 +595,14 @@ def make_handler(service, admin=None):
                 if method == "GET" and api == "feedback":
                     st = parse_qs(urlparse(self.path).query).get("status", [None])[0]
                     return self._send(200, {"feedback": admin.feedback_list(st)}, SEC_HEADERS)
+                if method == "GET" and api == "realms":
+                    return self._send(200, {"realms": admin.realms()}, SEC_HEADERS)
+                if method == "POST" and api.startswith("realms/"):
+                    rid, rtype = api.split("/", 1)[1], self._body().get("type")
+                    if not rid.isdigit() or rtype not in REALM_TYPES + (None,):
+                        raise BadRequest("type must be pvp, pve or null")
+                    service._population = (0, None)
+                    return self._send(200, {"updated": service.store.set_realm_type(int(rid), rtype)}, SEC_HEADERS)
                 if method == "POST" and api.startswith("feedback/"):
                     body = self._body()
                     if body.get("status") not in FEEDBACK_STATUSES:
@@ -591,6 +654,8 @@ def make_handler(service, admin=None):
                     return self._send(200, {"protocol": PROTOCOL, "profileItems": PROFILE_LABELS})
                 if method == "POST" and url.path == "/v1/sync":
                     return self._send(200, service.sync(self._body()))
+                if method == "GET" and url.path == "/v1/population":
+                    return self._send(200, service.population())
                 if method == "POST" and url.path == "/v1/feedback":
                     return self._send(200, service.feedback(self._body()))
                 if url.path.startswith("/v1/backup/"):

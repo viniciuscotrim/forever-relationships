@@ -52,6 +52,7 @@
     <a href="#cockpit" data-view="cockpit">Cockpit</a>
     <a href="#participants" data-view="participants">Participants</a>
     <a href="#community" data-view="community">Community</a>
+    <a href="#realms" data-view="realms">Realms <span id="nav-realms" class="pill" hidden></span></a>
     <a href="#feedback" data-view="feedback">Feedback <span id="nav-fb" class="pill" hidden></span></a>
     <div class="side-foot">
       <button id="btn-refresh">Refresh</button>
@@ -109,6 +110,13 @@
         <figure class="card"><figcaption>Sessions by hour of day (UTC)</figcaption><div id="ch-hours"></div></figure>
         <figure class="card"><figcaption>Group size</figcaption><div id="ch-sizes"></div></figure>
       </div>
+    </section>
+
+    <section data-section="realms" hidden>
+      <div id="realm-kpis" class="kpis"></div>
+      <p class="muted note">Realms appear here as soon as a Community participant sees a character from them. Mark each one PvP or PvE:
+        only classified realms count in the in-game Population tab. Counts are characters seen in the last 30 days.</p>
+      <div class="card table-wrap"><table id="tbl-realms" class="table"><thead><tr><th>Realm</th><th>ID</th><th>Characters (30 d)</th><th>Type</th></tr></thead><tbody></tbody></table></div>
     </section>
 
     <section data-section="feedback" hidden>

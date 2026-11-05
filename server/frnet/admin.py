@@ -285,6 +285,8 @@ class Admin:
                 "verifiedCharacters": count("SELECT count(*) FROM owned"),
                 "communitySessions": count("SELECT count(*) FROM community_sessions"),
                 "observedCharacters": count("SELECT count(DISTINCT member_h) FROM community_members"),
+                "censusCharacters": count("SELECT count(*) FROM census WHERE seen_at >= ?", (now - 30 * day,)),
+                "realmsUnclassified": count("SELECT count(*) FROM realms WHERE type IS NULL"),
                 "optedOut": count("SELECT count(*) FROM optout"),
                 "feedbackNew": count("SELECT count(*) FROM feedback WHERE status = 'received'"),
                 "feedbackTotal": count("SELECT count(*) FROM feedback"),
@@ -323,6 +325,14 @@ class Admin:
                 "addonVersions": top(versions), "companions": top(companions), "locales": top(locales), "topErrors": top(errors, 8),
             },
         }
+
+    def realms(self):
+        """Every realm seen in the census, with its type and how many characters were seen (30 days)."""
+        since = self.now() - 30 * 86400
+        rows = self.store.q("SELECT r.id, r.name, r.type, r.first_seen, "
+                            "(SELECT count(*) FROM census c WHERE c.realm = r.id AND c.seen_at >= ?) AS n "
+                            "FROM realms r ORDER BY n DESC, r.id", (since,))
+        return [dict(r) for r in rows]
 
     def feedback_list(self, status=None):
         return self.store.list_feedback(status or None, 500)

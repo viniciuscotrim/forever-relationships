@@ -34,7 +34,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 
-VERSION = "0.4.3"
+VERSION = "0.5.0"
 PROTOCOL = 2
 DEFAULT_WOW = [
     "/Applications/World of Warcraft/_forever_",
@@ -275,6 +275,9 @@ class Client:
 
     def sync(self, body):
         return self._req("POST", "/v1/sync", body)
+
+    def population(self):
+        return self._req("GET", "/v1/population")
 
     def feedback(self, install_id, items):
         return self._req("POST", "/v1/feedback", {"installId": install_id, "items": items})
@@ -519,6 +522,10 @@ def sync_file(sv_path, client, wow, state, log=print, keystore=None):
     feedback = sync_feedback(db, client, state, log)   # sent whenever the player pressed Send
     if feedback is not None:
         data["feedback"] = feedback
+    try:   # realm population for /fr (public aggregate): for everyone running the companion
+        data["population"] = client.population()
+    except Exception as e:
+        log("  population unavailable: %s" % e)
 
     cloud = db.get("cloud") or {}
     uploader, outbox = cloud.get("uploaderId"), cloud.get("outbox") or {}
@@ -536,7 +543,8 @@ def sync_file(sv_path, client, wow, state, log=print, keystore=None):
         elif outbox:
             consents = {k: bool((outbox.get("consents") or {}).get(k)) for k in ("backup", "profile", "community", "recommend")}
             body = {"uploaderId": uploader, "protocol": PROTOCOL, "consents": consents, "me": outbox.get("me"),
-                    "profile": outbox.get("profile"), "community": as_list(outbox.get("community")), "lookups": as_list(outbox.get("lookups"))}
+                    "profile": outbox.get("profile"), "community": as_list(outbox.get("community")), "lookups": as_list(outbox.get("lookups")),
+                    "census": as_list(outbox.get("census")), "realms": outbox.get("realms") if isinstance(outbox.get("realms"), dict) else {}}
             res = client.sync(body)
             data["profiles"] = res.get("profiles") or {}
             data["suggestions"] = res.get("suggestions") or []
@@ -853,6 +861,10 @@ def mac_app_main(wow, client):
 
 
 def main(argv=None):
+    try:   # launchd/Task Scheduler write stdout to a file: flush every line so the log is live
+        sys.stdout.reconfigure(line_buffering=True)
+    except (AttributeError, ValueError):
+        pass
     ap = argparse.ArgumentParser(description="Forever Relationships companion app")
     ap.add_argument("--server", default=os.environ.get("FR_SERVER", DEFAULT_SERVER), help="network server URL (default: the official Forever Relationships server)")
     ap.add_argument("--wow", help="WoW: Forever folder (contains WTF and Interface)")

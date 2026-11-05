@@ -109,8 +109,10 @@ function Cloud:WriteOutbox()
     backup = FR.Params:Get("consent.backup"), profile = FR.Params:Get("consent.profile"),
     community = FR.Params:Get("consent.community"), recommend = FR.Params:Get("consent.recommend"),
   }
-  c.outbox = { protocol = 2, builtAt = FR.Now(), consents = consents,
-    me = (consents.profile or consents.community or consents.recommend or c.deleteRequested) and self:OwnCharacter() or nil,
+  local me = (consents.profile or consents.community or consents.recommend or c.deleteRequested) and self:OwnCharacter() or nil
+  local census, realms
+  if consents.community and FR.Census then census, realms = FR.Census:Outbox(me) end
+  c.outbox = { protocol = 2, builtAt = FR.Now(), consents = consents, me = me, census = census, realms = realms,
     profile = consents.profile and self:ProfileValues() or nil,
     community = consents.community and self:CommunitySessions() or nil,
     lookups = consents.profile and self:Lookups() or nil }

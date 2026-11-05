@@ -1,4 +1,4 @@
--- Main window (/fr) with five tabs: Players, Player card, My profile, Event log, Transparency.
+-- Main window (/fr) with six tabs: Circle, Relationship, My profile, Population, Event log, Privacy.
 local _, FR = ...
 local UI = FR.UI
 
@@ -6,6 +6,7 @@ UI.TABS = {
   { key = "circle", label = "Circle" },
   { key = "relationship", label = "Relationship" },
   { key = "profile", label = "My profile" },
+  { key = "population", label = "Population" },
   { key = "log", label = "Event log" },
   { key = "privacy", label = "Privacy" },
 }
@@ -34,7 +35,8 @@ local function SelectTab(key)
     UI.views[key] = v
   end
   if v then v.frame:Show(); if v.Refresh then v:Refresh() end end
-  main.viewMark:SetText("|cff888888What the game recorded while you played together|r")
+  main.viewMark:SetText(key == "population" and "|cff888888Census of Forever Relationships players|r"
+    or "|cff888888What the game recorded while you played together|r")
 end
 UI.SelectTab = SelectTab
 
@@ -48,7 +50,7 @@ function UI:Build()
   main.tabButtons = {}
   local prev
   for _, t in ipairs(UI.TABS) do
-    local b = UI.Button(main, t.label, 120, 22, function() SelectTab(t.key) end)
+    local b = UI.Button(main, t.label, 104, 22, function() SelectTab(t.key) end)
     if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 12, -30) end
     main.tabButtons[t.key] = b
     prev = b
@@ -57,7 +59,7 @@ function UI:Build()
   fb:SetPoint("TOPRIGHT", -12, -30)
   UI.Tooltip(fb, "Feedback", { "Report a bug or suggest an idea without leaving the game. Replies show up here too." })
   main.viewMark = UI.Label(main, "", "GameFontNormalSmall")
-  main.viewMark:SetPoint("RIGHT", fb, "LEFT", -10, 0)
+  main.viewMark:SetPoint("TOPRIGHT", -36, -7)
 
   main.content = CreateFrame("Frame", nil, main)
   main.content:SetPoint("TOPLEFT", 12, -60)

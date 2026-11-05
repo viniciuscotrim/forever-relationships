@@ -22,6 +22,7 @@ local HELP = {
   "/fr player <name> - open your Relationship with a player",
   "/fr privacy - layers, consents and what is recorded",
   "/fr cloud - companion app, backup and Battle.net status",
+  "/fr population - realm population by faction and race (PvP / PvE)",
   "/fr welcome - show the welcome and the layer choices again",
   "/fr invisible - toggle invisible mode (stop presence broadcasting)",
   "/fr export - copy your local event log as text",
@@ -41,6 +42,7 @@ local function Handle(msg)
     local guid = FindPlayer(rest)
     if guid and FR.db.players[guid] then UI:OpenPlayer(guid) else FR.Print("You haven't played with '" .. rest .. "' yet.") end
   elseif cmd == "privacy" or cmd == "config" then UI:Open("privacy")
+  elseif cmd == "population" or cmd == "pop" then UI:Open("population")
   elseif cmd == "cloud" or cmd == "network" then UI.ShowText("Companion app", FR.Cloud:SetupText())
   elseif cmd == "welcome" then UI.ShowWelcome()
   elseif cmd == "feedback" or cmd == "bug" or cmd == "idea" then

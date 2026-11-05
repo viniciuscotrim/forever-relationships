@@ -40,6 +40,13 @@ CREATE TABLE IF NOT EXISTS feedback (
   received_at INTEGER, status TEXT, reply TEXT, updated_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS feedback_install ON feedback (install);
+-- population census: one row per (pseudonymous) character seen by a Community participant
+CREATE TABLE IF NOT EXISTS census (h TEXT PRIMARY KEY, realm INTEGER, race TEXT, faction TEXT, class TEXT, level INTEGER,
+  seen_at INTEGER, uploader TEXT);
+CREATE INDEX IF NOT EXISTS census_seen ON census (seen_at);
+CREATE INDEX IF NOT EXISTS census_uploader ON census (uploader);
+-- realm ids come from character GUIDs; the type (pvp/pve) is set by the admin in the cockpit
+CREATE TABLE IF NOT EXISTS realms (id INTEGER PRIMARY KEY, name TEXT, type TEXT, first_seen INTEGER);
 CREATE TABLE IF NOT EXISTS admin_credentials (id TEXT PRIMARY KEY, public_key BLOB, sign_count INTEGER, created_at INTEGER, last_used INTEGER, label TEXT);
 CREATE TABLE IF NOT EXISTS admin_kv (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS admin_setup (token_hash TEXT PRIMARY KEY, created_at INTEGER, used_at INTEGER);
@@ -50,6 +57,7 @@ CREATE TABLE IF NOT EXISTS admin_failures (t INTEGER, ip TEXT, what TEXT);
 # v1 reputation tables are removed in v2 (witness reports, presence, disputes, raw-GUID characters)
 DROPPED_V1 = ("reports", "presence", "disputes", "characters")
 COMMUNITY_RETENTION = 400 * 86400
+CENSUS_RETENTION = 90 * 86400
 BACKUP_RETENTION = 180 * 86400
 
 
@@ -131,6 +139,7 @@ class Store:
         self.ex([("DELETE FROM profiles WHERE guid_h = ?", (guid_h,)),
                  ("DELETE FROM community_members WHERE member_h = ?", (guid_h,)),
                  ("DELETE FROM participants WHERE guid_h = ?", (guid_h,)),
+                 ("DELETE FROM census WHERE h = ?", (guid_h,)),
                  ("INSERT OR REPLACE INTO optout (guid_h, at) VALUES (?, ?)", (guid_h, now))])
 
     def forget_sessions(self, where, args):
@@ -143,6 +152,7 @@ class Store:
         self.ex([("DELETE FROM profiles WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM participants WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM lookups WHERE uploader = ?", (uploader,)),
+                 ("DELETE FROM census WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM links WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM uploaders WHERE id = ?", (uploader,))])
 
@@ -194,8 +204,30 @@ class Store:
             self.db.commit()
             return True
 
+    # -- population census ---------------------------------------------------------------
+    def add_census(self, uploader, rows, realms, now):
+        """rows: [{h, realm, race, faction, class, level, t}]; realms: {id: name or None}."""
+        stmts = [("INSERT INTO realms (id, name, type, first_seen) VALUES (?, ?, NULL, ?) "
+                  "ON CONFLICT(id) DO UPDATE SET name = COALESCE(excluded.name, realms.name)", (rid, name, now))
+                 for rid, name in realms.items()]
+        stmts += [("INSERT INTO census (h, realm, race, faction, class, level, seen_at, uploader) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                   "ON CONFLICT(h) DO UPDATE SET realm = excluded.realm, race = COALESCE(excluded.race, census.race), "
+                   "faction = excluded.faction, class = COALESCE(excluded.class, census.class), "
+                   "level = COALESCE(excluded.level, census.level), seen_at = excluded.seen_at, uploader = excluded.uploader "
+                   "WHERE excluded.seen_at >= census.seen_at",
+                   (r["h"], r["realm"], r["race"], r["faction"], r["class"], r["level"], r["t"], uploader)) for r in rows]
+        if stmts:
+            self.ex(stmts)
+
+    def set_realm_type(self, rid, rtype):
+        with self.lock:
+            cur = self.db.execute("UPDATE realms SET type = ? WHERE id = ?", (rtype, rid))
+            self.db.commit()
+            return cur.rowcount
+
     def cleanup(self, now):
         self.forget_sessions("b < ?", (now - COMMUNITY_RETENTION,))
+        self.q("DELETE FROM census WHERE seen_at < ?", (now - CENSUS_RETENTION,), commit=True)
         for r in self.q("SELECT id FROM backups WHERE updated_at < ?", (now - BACKUP_RETENTION,)):
             self.delete_backup(r[0])
 

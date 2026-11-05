@@ -303,6 +303,28 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(nd["companion"]["version"], tc.VERSION)
         out = self.run_sim(FR_NETDATA=tc.netdata_path(self.wow))
         self.assertIn("ok   NetData: public profile", out)
+        # population census: pseudonymized on arrival, published by realm type once the realm is classified
+        census = self.service.store.q("SELECT * FROM census")
+        self.assertGreaterEqual(len(census), 3)
+        self.assertNotIn("Player-", "\n".join(str(tuple(r)) for r in census))
+        self.assertEqual(self.service.store.q("SELECT name FROM realms WHERE id = 2", one=True)[0], "Other Realm")
+        self.service.store.set_realm_type(1, "pvp")
+        self.service.store.set_realm_type(2, "pve")
+        self.service._population = (0, None)
+        tc.sync_file(sv, client, self.wow, {}, log=lambda *_: None, keystore=tc.KeyStore(use_keychain=False))
+        nd = tc.parse_saved_variables(open(tc.netdata_path(self.wow), encoding="utf-8").read())["ForeverRelationshipsNetData"]
+        pop = nd["population"]
+        self.assertGreaterEqual(pop["types"]["pvp"]["Horde"]["total"], 2)          # me (Undead) + the Orc I targeted
+        self.assertEqual(pop["types"]["pve"]["Alliance"]["races"], {"Night Elf": 1})
+        self.assertEqual(pop["realms"]["1"]["type"], "pvp")
+
+    def test_population_reaches_players_with_every_layer_off(self):
+        sv = os.path.join(self.svdir, "ForeverRelationships.lua")
+        with open(sv, "w") as f:
+            f.write("ForeverRelationshipsDB = {\n}\n")
+        tc.sync_file(sv, tc.Client(self.url), self.wow, {}, log=lambda *_: None, keystore=tc.KeyStore(use_keychain=False))
+        nd = tc.parse_saved_variables(open(tc.netdata_path(self.wow), encoding="utf-8").read())["ForeverRelationshipsNetData"]
+        self.assertIn("updatedAt", nd["population"])
 
 
 

@@ -1,3 +1,14 @@
+# Forever Relationships 0.5.0
+
+### New
+- **Realm population (`/fr population`, or the Population tab).** See the Horde/Alliance balance and every race, in numbers and percentages. Filter by PvP or PvE realms (yours is selected first) and by faction. The tab shows the date and time the numbers were updated.
+- Needs the free **companion app 0.5.0**. It refreshes the numbers every hour, even with every layer off. WoW shows new numbers after a login or `/reload`.
+- The numbers come from a **population census** that is part of the **Community** layer (off by default). For characters you see (mouseover, target, nameplates, your group), the addon keeps only faction, race, class, level and the realm number from their character code. It never keeps names or locations. The server replaces each code with a keyed code and publishes only totals. Turning Community off deletes the census on your computer and on the server.
+- This is a sample from Forever Relationships players, not Blizzard's numbers: Blizzard's API doesn't publish population for WoW: Forever.
+
+### Changed
+- Companion app 0.5.0: syncs right after each `/reload` or logout and again every hour; its log is now written live.
+
 # Forever Relationships 0.4.2
 
 ### Fixed

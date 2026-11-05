@@ -111,16 +111,17 @@ function GetNumSubgroupMembers() return #party end
 function GetNumGroupMembers() return #party + 1 end
 local function U(unit)
   if unit == "player" then return units.player end
+  if unit ~= "npc" and units[unit] then return units[unit] end
   local i = tonumber((unit or ""):match("^party(%d)$"))
   if i then return party[i] end
   if unit == "NPC" then return units.npc end
   if unit == "mouseover" then return party[1] end
 end
 function UnitGUID(u) local x = U(u); return x and x.guid end
-function UnitName(u) local x = U(u); return x and x.name, nil end
+function UnitName(u) local x = U(u); return x and x.name, x and x.realm end
 function UnitClass(u) local x = U(u); return x and x.class, x and x.class end
-function UnitRace(u) if u == "player" then return "Undead", "Scourge" elseif U(u) then return "Orc", "Orc" end end
-function UnitFactionGroup(u) if U(u) then return "Horde", "Horde" end end
+function UnitRace(u) local x = U(u); if u == "player" then return "Undead", "Scourge" elseif x then return x.race or "Orc", x.race or "Orc" end end
+function UnitFactionGroup(u) local x = U(u); if x then return x.faction or "Horde", x.faction or "Horde" end end
 function GetRealmName() return "Forever" end
 function GetLocale() return "ptBR" end
 function UnitLevel(u) local x = U(u); return x and x.level end
@@ -401,6 +402,45 @@ assert(sawDungeon, "community includes the dungeon session with its 3 members")
 assert(#ob.lookups >= 2, "profile lookups for players in my circle")
 print(string.format("  ok   cloud outbox: consent-gated profile (%d items) and community (%d sessions, no names)",
   (function() local n = 0 for _ in pairs(ob.profile) do n = n + 1 end return n end)(), #ob.community))
+
+-- Population census (Community layer): characters seen nearby, no names
+units.stranger = { guid = "Player-2-000000C1", name = "Elfy", realm = "Other Realm", class = "DRUID", level = 22, race = "NightElf", faction = "Alliance" }
+units.target = { guid = "Player-1-000000C2", name = "Grunt", class = "ROGUE", level = 40, race = "Orc", faction = "Horde" }
+fire("NAME_PLATE_UNIT_ADDED", "stranger")
+fire("PLAYER_TARGET_CHANGED")
+fire("PLAYER_LOGOUT")
+ob = FR.db.cloud.outbox
+local byG = {}
+for _, c in ipairs(ob.census) do assert(c.name == nil, "census carries no names"); byG[c.g] = c end
+local elf = byG["Player-2-000000C1"]
+assert(elf and elf.r == "Night Elf" and elf.f == "Alliance" and elf.c == "Druid" and elf.l == 22, "nameplate sighting")
+assert(byG["Player-1-000000C2"] and byG["Player-1-000000C2"].f == "Horde", "target sighting")
+assert(byG[FR.playerGUID] and byG[FR.playerGUID].r == "Undead", "own character counted")
+assert(ob.realms["2"] == "Other Realm" and ob.realms["1"] == "Forever", "realm names by id")
+-- Population tab from the companion's NetData
+local savedND = ForeverRelationshipsNetData
+ForeverRelationshipsNetData = { protocol = 2, population = { updatedAt = FR.Now(), windowDays = 30,
+  realms = { ["1"] = { name = "Forever", type = "pvp" } },
+  types = { pvp = { Alliance = { total = 3, races = { Human = 2, Gnome = 1 } }, Horde = { total = 1, races = { Orc = 1 } } } } } }
+assert(FR.Census:MyRealmType() == "pvp", "my realm type")
+local sum = FR.Census:Summary("pvp", "all")
+assert(sum.total == 4 and sum.alliance == 3 and sum.rows[1].race == "Human" and math.abs(sum.rows[1].pct - 50) < 0.01, "summary, both factions")
+sum = FR.Census:Summary("pvp", "Horde")
+assert(#sum.rows == 1 and sum.rows[1].pct == 100 and sum.total == 4, "Horde filter: % within the faction")
+assert(FR.Census:Summary("pve", "all").total == 0, "no PvE data")
+FR.HandleSlash("population")
+FR.UI.SelectTab("population")
+ForeverRelationshipsNetData = savedND
+-- Community off: the local census is deleted
+FR.Params:Set("consent.community", false)
+assert(FR.db.census == nil, "census deleted when Community is turned off")
+fire("NAME_PLATE_UNIT_ADDED", "stranger")
+assert(FR.db.census == nil, "nothing collected while Community is off")
+FR.Params:Set("consent.community", true)
+fire("NAME_PLATE_UNIT_ADDED", "stranger")
+fire("PLAYER_TARGET_CHANGED")
+fire("PLAYER_LOGOUT")
+print("  ok   population census: nameplates/target, no names, own character, realm ids; Population tab and filters")
 
 -- optional: dump SavedVariables for the cross-language end-to-end test
 if os.getenv("FR_DUMP_SV") then

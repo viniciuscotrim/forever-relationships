@@ -2,7 +2,7 @@
 ## Title: Forever Relationships
 ## Notes: An augmented view of how you relate to the people you play with, from game data only. Type /fr
 ## Author: Vinicius
-## Version: 0.4.2
+## Version: 0.5.0
 ## Category: Social
 ## SavedVariables: ForeverRelationshipsDB
 ## SavedVariablesPerCharacter: ForeverRelationshipsCharDB
@@ -17,6 +17,7 @@ Core\EventLog.lua
 Relationship\Stats.lua
 Cloud\NetData.lua
 Cloud\Cloud.lua
+Cloud\Census.lua
 Core\Sessions.lua
 Core\Probe.lua
 Capture\Group.lua
@@ -32,6 +33,7 @@ UI\MainWindow.lua
 UI\CircleView.lua
 UI\RelationshipView.lua
 UI\ProfileView.lua
+UI\PopulationView.lua
 UI\EventLogView.lua
 UI\PrivacyView.lua
 UI\Tooltip.lua

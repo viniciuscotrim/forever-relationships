@@ -1,6 +1,6 @@
 **Optional.** Forever Relationships works fully without this app. It's needed for the cloud layers (encrypted backup, public profile, community, recommend me) and to deliver the feedback you write in game with `/fr feedback` (and bring the developer's replies back). It only sends what the layers you turned on in game allow.
 
-**Version 0.4.3:** the Mac app now includes encryption, so the **cloud backup works on Mac** (0.4.1 and 0.4.2 failed with "needs the 'cryptography' package"). Syncs right after each `/reload` or logout (that's when WoW saves your data) and again every hour. Mac: keeps starting with your computer even if you first opened it from Downloads. Works with addon 0.4.2.
+**Version 0.5.0:** brings the **realm population** to the addon's Population tab (`/fr population`, addon 0.5.0), refreshed every hour, even with every layer off. Syncs right after each `/reload` or logout and again every hour. The Mac app includes encryption, so the cloud backup works on Mac. Keeps starting with your computer even if you first opened it from Downloads.
 
 ### Install
 - **Mac (Apple Silicon and Intel, signed and notarized by Apple):** download `ForeverRelationshipsCompanion-macos-app.zip`, double-click it, drag **Forever Relationships Companion** into Applications and open it. It sets itself up to run in the background, shows your backup **recovery code** (save it in Passwords) and offers to link Battle.net. No Terminal needed.

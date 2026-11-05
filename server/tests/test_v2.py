@@ -172,5 +172,52 @@ class V2(unittest.TestCase):
             self.svc.sync({"uploaderId": "a" * 32, "protocol": 1})
 
 
+class Census(unittest.TestCase):
+    """Population census: characters seen nearby (Community layer), aggregated by realm type."""
+    def setUp(self):
+        self.store = Store(":memory:")
+        self.svc = Service(self.store, clock=lambda: NOW, hash_salt="k3y")
+
+    def body(self, census, consents=None, uid="a" * 32, realms=None):
+        return {"uploaderId": uid, "protocol": 2, "consents": consents if consents is not None else {"community": True},
+                "me": {"guid": ME}, "census": census, "realms": realms or {"1": "Pvp Realm", "2": "Normal Realm"}}
+
+    def seen(self, g, f="Horde", r="Orc", t=NOW - 60):
+        return {"g": g, "f": f, "r": r, "c": "Warrior", "l": 20, "t": t}
+
+    def test_population_by_type_faction_race_and_privacy(self):
+        census = [self.seen("Player-1-000000A0"), self.seen("Player-1-000000A1", r="Troll"),
+                  self.seen("Player-1-000000A2", f="Alliance", r="Human"),
+                  self.seen("Player-2-000000B0", f="Alliance", r="Gnome"),
+                  self.seen("Player-1-000000A0", t=NOW - 120),        # duplicate: counted once
+                  self.seen("Player-1-000000A3", t=NOW - 40 * 86400),  # too old: ignored
+                  self.seen("Player-1-000000A4", f="Neutral")]          # not a faction: ignored
+        self.svc.sync(self.body(census))
+        self.assertNotIn("Player-1-000000A0", "\n".join(str(tuple(r)) for r in self.store.q("SELECT * FROM census")))
+        self.assertEqual(self.svc.population()["types"], {}, "unclassified realms are not shown")
+        self.store.set_realm_type(1, "pvp"); self.store.set_realm_type(2, "pve"); self.svc._population = (0, None)
+        pop = self.svc.population()
+        self.assertEqual(pop["types"]["pvp"]["Horde"], {"total": 2, "races": {"Orc": 1, "Troll": 1}})
+        self.assertEqual(pop["types"]["pvp"]["Alliance"]["total"], 1)
+        self.assertEqual(pop["types"]["pve"]["Alliance"]["races"], {"Gnome": 1})
+        self.assertEqual(pop["realms"]["1"], {"name": "Pvp Realm", "type": "pvp"})
+        self.assertEqual(pop["updatedAt"], NOW)
+
+    def test_needs_community_and_honours_exclusions(self):
+        self.svc.sync(self.body([self.seen("Player-1-000000A0")], consents={"backup": True}))
+        self.assertEqual(self.store.q("SELECT count(*) FROM census", one=True)[0], 0)
+        self.store.forget_character(self.svc.pseudo("Player-1-000000A1"), NOW)
+        self.svc.sync(self.body([self.seen("Player-1-000000A0"), self.seen("Player-1-000000A1")]))
+        self.assertEqual(self.store.q("SELECT count(*) FROM census", one=True)[0], 1)
+        # turning Community off removes what this uploader contributed
+        self.svc.sync(self.body([], consents={"backup": True}))
+        self.assertEqual(self.store.q("SELECT count(*) FROM census", one=True)[0], 0)
+
+    def test_old_rows_expire(self):
+        self.svc.sync(self.body([self.seen("Player-1-000000A0")]))
+        self.store.cleanup(NOW + 91 * 86400)
+        self.assertEqual(self.store.q("SELECT count(*) FROM census", one=True)[0], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
