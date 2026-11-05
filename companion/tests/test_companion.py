@@ -347,6 +347,7 @@ class Legacy(unittest.TestCase):
                 tc.migrate_legacy(wow)
             self.assertTrue(os.path.exists(os.path.join(sv, old + ".lua")))
 
+@unittest.skipUnless(sys.platform == "darwin", "App Translocation is macOS only")
 class Translocation(unittest.TestCase):
     def test_autostart_points_at_the_real_app(self):
         with tempfile.TemporaryDirectory() as home:
