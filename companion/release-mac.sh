@@ -23,7 +23,21 @@ VENV="$(pwd)/../.venv-server"   # tests start the real server, which needs `cryp
 [ -x "$VENV/bin/python" ] || { python3 -m venv "$VENV" && "$VENV/bin/pip" install -q -r ../server/requirements.txt; }
 "$VENV/bin/python" -m unittest discover -s tests 2>&1 | tail -1
 # cryptography is REQUIRED: without it the app cannot encrypt the cloud backup
-python3 -m venv "$WORK/venv" && "$WORK/venv/bin/pip" install -q pyinstaller==6.11.1 -r ../server/requirements.txt
+python3 -m venv "$WORK/venv" && "$WORK/venv/bin/pip" install -q pyinstaller==6.11.1 -r ../server/requirements.txt "cffi==1.17.1"
+# cffi ships one wheel per CPU: fuse Intel + Apple Silicon into one universal2 extension
+SP=$("$WORK/venv/bin/python" -c 'import sysconfig; print(sysconfig.get_paths()["platlib"])')
+PYV=$("$WORK/venv/bin/python" -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+for so in "$SP"/_cffi_backend*.so; do
+  have=$(lipo -archs "$so")
+  case "$have" in *x86_64*arm64*|*arm64*x86_64*) continue ;; esac
+  if [ "$have" = arm64 ]; then plat=macosx_10_9_x86_64; else plat=macosx_11_0_arm64; fi
+  mkdir -p "$WORK/other"
+  "$WORK/venv/bin/pip" download -q --no-deps --only-binary=:all: --platform "$plat" --python-version "$PYV" \
+    --implementation cp -d "$WORK/other" "cffi==1.17.1"
+  (cd "$WORK/other" && unzip -oq cffi-*.whl "$(basename "$so")")
+  lipo -create "$so" "$WORK/other/$(basename "$so")" -output "$so.fat" && mv "$so.fat" "$so"
+  lipo -archs "$so"
+done
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict></dict></plist>\n' > "$WORK/ent.plist"
 cp fr_companion.py "$WORK/"
 
