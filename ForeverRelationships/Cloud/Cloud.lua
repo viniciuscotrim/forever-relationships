@@ -32,7 +32,8 @@ function Cloud:State()
     -- keep the identity of a v0.3 network participant if there was one
     c.uploaderId = (db.net and db.net.uploaderId) or nil
     if not c.uploaderId then
-      math.randomseed(math.floor((GetTime and GetTime() or 0) * 1000) + FR.Now())
+      -- math.randomseed does not exist in the WoW client (it seeds math.random itself)
+      if math.randomseed then math.randomseed(math.floor((GetTime and GetTime() or 0) * 1000) + FR.Now()) end
       c.uploaderId = RandomHex(32)
     end
   end

@@ -27,7 +27,9 @@ local function ItemIDFromLink(link)
 end
 
 local function QualityOf(link)
-  local q = link and select(3, GetItemInfo(link))
+  -- GetItemInfo moved to C_Item on current clients; the link colour is the fallback
+  local info = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+  local q = link and info and select(3, info(link))
   if q then return q end
   local hex = link and link:match("|c%x%x(%x%x%x%x%x%x)")
   local map = { ["9d9d9d"] = 0, ffffff = 1, ["1eff00"] = 2, ["0070dd"] = 3, a335ee = 4, ff8000 = 5 }

@@ -347,5 +347,16 @@ class Legacy(unittest.TestCase):
                 tc.migrate_legacy(wow)
             self.assertTrue(os.path.exists(os.path.join(sv, old + ".lua")))
 
+class Translocation(unittest.TestCase):
+    def test_autostart_points_at_the_real_app(self):
+        with tempfile.TemporaryDirectory() as home:
+            real = os.path.join(home, "Applications", "X.app", "Contents", "MacOS")
+            os.makedirs(real); open(os.path.join(real, "X"), "w").close()
+            moved = "/private/var/folders/aa/T/AppTranslocation/ABC/d/X.app/Contents/MacOS/X"
+            with mock.patch.dict(os.environ, {"HOME": home}):
+                self.assertEqual(tc.stable_executable(moved), os.path.join(real, "X"))
+            self.assertEqual(tc.stable_executable("/Applications/X.app/Contents/MacOS/X"), "/Applications/X.app/Contents/MacOS/X")
+
+
 if __name__ == "__main__":
     unittest.main()

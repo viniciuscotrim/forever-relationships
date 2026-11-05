@@ -21,7 +21,8 @@ end
 function FB:State()
   local f = FR.db.feedback
   if not f.installId then
-    math.randomseed(math.floor((GetTime and GetTime() or 0) * 1000) + FR.Now())
+    -- math.randomseed does not exist in the WoW client (it seeds math.random itself)
+    if math.randomseed then math.randomseed(math.floor((GetTime and GetTime() or 0) * 1000) + FR.Now()) end
     f.installId = RandomHex(32)   -- separate from the network identity, on purpose
   end
   f.outbox = f.outbox or {}

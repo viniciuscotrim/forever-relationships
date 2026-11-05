@@ -688,10 +688,25 @@ def migrate_legacy(wow):
 LABEL = "com.foreverrelationships.companion"
 
 
+def stable_executable(exe):
+    """macOS runs a downloaded app from a random read-only copy (App Translocation)
+    that disappears after a restart. Point autostart at the real app instead."""
+    if "/AppTranslocation/" not in exe or ".app/Contents/MacOS/" not in exe:
+        return exe
+    app, inner = exe.split(".app/Contents/MacOS/", 1)
+    name = os.path.basename(app) + ".app"
+    for base in ("/Applications", os.path.expanduser("~/Applications")):
+        candidate = os.path.join(base, name, "Contents", "MacOS", inner)
+        if os.path.exists(candidate):
+            return candidate
+    print("This app is running from a temporary copy. Move it to Applications and open it again.")
+    return exe
+
+
 def launch_command(extra_args):
     """The command that starts this companion, frozen executable or script."""
     if getattr(sys, "frozen", False):
-        return [sys.executable] + extra_args
+        return [stable_executable(sys.executable)] + extra_args
     py = sys.executable
     if platform.system() == "Windows":
         pyw = os.path.join(os.path.dirname(py), "pythonw.exe")

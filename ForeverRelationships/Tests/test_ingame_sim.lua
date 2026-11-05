@@ -8,6 +8,8 @@ local errors = {}
 -------------------------------------------------------------------------------
 -- Mock WoW API
 -------------------------------------------------------------------------------
+-- the WoW client has no math.randomseed, and GetItemInfo lives in C_Item
+math.randomseed = nil
 local clock = 1800000000
 local timers = {}
 local function advance(sec)
@@ -134,7 +136,7 @@ function GetTradePlayerItemLink() end
 function GetTradeTargetItemLink() end
 function GetTradePlayerItemInfo(i) if i == 7 then return "Bracers", 1, 1, 2, nil, "Enchant Bracer - Stamina" end end
 function GetTradeTargetItemInfo() end
-function GetItemInfo(link) return "Item", link, 3 end
+C_Item = { GetItemInfo = function(link) return "Item", link, 3 end }
 function GetChannelName() return 0 end
 
 -------------------------------------------------------------------------------
@@ -285,7 +287,13 @@ assert(FR.Cloud:CompanionStatus() == "ok" and FR.Cloud:CompanionVersion() == "0.
 assert(FR.Cloud:LinkText():find("linked, 2"), "battle.net link shown")
 ForeverRelationshipsNetData = { protocol = 2 }
 FR.Params:Set("consent.backup", false)
-print("  ok   welcome v2 and companion detection (off/waiting/missing/ok)")
+for _, k in ipairs({ "backup", "profile", "community", "recommend" }) do FR.Params:Set("consent." .. k, true) end
+fire("PLAYER_LOGOUT")
+local ob = FR.db.cloud.outbox
+assert(ob and ob.consents.backup and ob.consents.recommend and ob.me and ob.profile and ob.community, "logout writes the outbox for the companion")
+assert(FR.db.cloud.uploaderId and #FR.db.cloud.uploaderId == 32, "uploader id created without math.randomseed")
+for _, k in ipairs({ "backup", "profile", "community", "recommend" }) do FR.Params:Set("consent." .. k, false) end
+print("  ok   welcome v2, companion detection (off/waiting/missing/ok), outbox written at logout")
 
 -- Warlock summons, both directions
 party = { { guid = "Player-1-0000000A", name = "Tanky", class = "WARRIOR", level = 38 } }

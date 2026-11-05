@@ -77,7 +77,7 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 ### Good to know
 
 - Made for **WoW: Forever**. The interface is in English.
-- **Formerly Forever Relationships.** Your history carries over automatically when you update.
+- **Updating from an older version?** Your history carries over automatically.
 - **Early release.** If a game feature isn't available on your client, that part turns itself off safely instead of throwing errors.
 - **Feedback and bug reports: `/fr feedback` in game.** It's the only channel, so please don't use comments for bug reports. That way nothing gets lost.
 - **The companion app also delivers your feedback.** Without it, reports are saved and sent the first time it runs.
