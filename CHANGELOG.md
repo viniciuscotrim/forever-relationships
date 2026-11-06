@@ -1,3 +1,12 @@
+# Forever Relationships 0.5.1
+
+### New
+- **Your /played in the public profile.** *My profile* has a new item, "/played on this character", in hours and minutes. Like every profile item, it's off until you tick it. Others only ever see the /played of the character they're looking at.
+- **See other players' /played.** New tooltip and Relationship item, "Their /played". It shows a player's /played if they published it in their public profile, otherwise "not public". Pick it in *My profile › Tooltip*.
+- **/played of all your characters,** shown only to you, under the profile items. Each character counts from its last login with the addon.
+- The addon asks the game for /played a few seconds after login, without printing the usual chat line. A /played you type still shows as usual.
+- **Party welcome.** When a party forms, and whenever someone joins it later, the addon says in party chat: *"Welcome to party! Forever Relationships addon being used to eternize our time together!"* It posts at most once per player every 30 minutes and never in raids or invisible mode. If several members have the addon, only one posts. Turn it off in Privacy › Settings (`announce.party`).
+
 # Forever Relationships 0.5.0
 
 ### New

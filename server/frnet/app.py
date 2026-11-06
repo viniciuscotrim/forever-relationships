@@ -54,6 +54,7 @@ YEAR = 400 * 86400
 ME_TTL = 1800
 
 PROFILE_LABELS = {
+    "played": "/played on this character",
     "hours": "Hours played in groups", "people": "Different people played with", "dungeons": "Dungeons completed",
     "raids": "Raids completed", "kills": "Kills in groups", "quests": "Quests completed in groups",
     "help": "Times I helped other players", "crafts": "Crafts and enchants for others", "favorite": "Favorite dungeon",

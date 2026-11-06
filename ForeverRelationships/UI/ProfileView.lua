@@ -31,13 +31,16 @@ UI:RegisterView("profile", function(frame)
     view:Refresh()
   end)
   view.pubBtn:SetPoint("TOPLEFT", 6, -70 - #FR.Rel.PROFILE_ITEMS * 24 - 8)
+  -- /played of all your characters: only for you, never published
+  view.account = UI.Label(frame, "", "GameFontHighlightSmall")
+  view.account:SetPoint("TOPLEFT", 6, -70 - #FR.Rel.PROFILE_ITEMS * 24 - 38); view.account:SetWidth(390)
 
   -- right: tooltip fields (max 6)
   local ttTitle = UI.Label(frame, "Tooltip · choose up to 6", "GameFontNormal")
   ttTitle:SetPoint("TOPLEFT", 420, -30)
   view.tt = {}
   for i, f in ipairs(FR.Rel.FIELDS) do
-    local y = -52 - (i - 1) * 20
+    local y = -52 - (i - 1) * 19
     local b = UI.Button(frame, "", 44, 18)
     b:SetPoint("TOPLEFT", 420, y)
     local l = UI.Label(frame, f.label, "GameFontHighlightSmall"); l:SetPoint("TOPLEFT", 470, y - 3)
@@ -54,7 +57,7 @@ UI:RegisterView("profile", function(frame)
     view.tt[i] = { button = b, key = f.key }
   end
   local reset = UI.Button(frame, "Default 6", 90, 20, function() UI.SetTooltipFields(FR.Rel.DEFAULT_TOOLTIP); view:Refresh() end)
-  reset:SetPoint("TOPLEFT", 420, -52 - #FR.Rel.FIELDS * 20 - 6)
+  reset:SetPoint("TOPLEFT", 420, -52 - #FR.Rel.FIELDS * 19 - 6)
 
   function view:Refresh()
     local _, class = UnitClass("player")
@@ -66,6 +69,10 @@ UI:RegisterView("profile", function(frame)
       e.button:SetText(st[e.item.key] and "|cff66ff66On|r" or "|cffaaaaaaOff|r")
       e.value:SetText(tostring(e.item.value(m)))
     end
+    local total, n = FR.Played:Account()
+    self.account:SetText(n > 0 and ("/played, all your characters: |cffffffff%s|r (%d character%s; only you see this. Each counts from its last login with the addon.)")
+      :format(FR.FormatDuration(total), n, n == 1 and "" or "s")
+      or UI.MUTED .. "/played appears a few seconds after login." .. "|r")
     self.pubBtn:SetText(on and "|cff66ff66Public profile: ON|r" or "Publish my profile")
     self.pubState:SetText(on and "Ticked items are sent by the companion app. Others see them in your Relationship window."
       or UI.MUTED .. "Nothing is public. Tick items, then publish." .. "|r")

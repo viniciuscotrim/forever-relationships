@@ -95,6 +95,7 @@ local function QueueRefresh()
   C_Timer.After(0.5, function() pending = false; FR.Rel.Invalidate(); UI:RefreshCurrent() end)
 end
 FR:Listen("DATA_CHANGED", QueueRefresh)
+FR:Listen("PLAYED_UPDATED", QueueRefresh)
 FR:Listen("PARAMS_CHANGED", QueueRefresh)
 
 -- Settings panel entry (Settings API): a small canvas that opens the main window.

@@ -67,7 +67,8 @@ function Cloud:ProfileValues()
   local m = FR.Rel:Mine()
   local out = {}
   for _, item in ipairs(FR.Rel.PROFILE_ITEMS) do
-    if self:State().profileItems[item.key] then out[item.key] = item.value(m) end
+    local v = self:State().profileItems[item.key] and item.value(m)
+    if v ~= nil and v ~= false and v ~= "-" then out[item.key] = v end   -- "-" = not known yet
   end
   return out
 end

@@ -28,6 +28,8 @@ Forever Relationships is an augmented view of how you relate to the people you p
 - **My circle.** Everyone you've played with, sorted by time together, searchable by name or guild.
 - **Keep the good ones.** After you've spent real time together, it suggests adding the player as a friend, and offers a one-click invite when a past partner comes online. It only suggests; you always click.
 - **Realm population.** The *Population* tab shows the Horde/Alliance balance and every race, in numbers and percentages, for PvP or PvE realms (yours by default), with the date and time of the last update. It comes from the companion app and refreshes every hour.
+- **Says hello to your party.** When a party forms, and when someone joins, one line in party chat tells everyone the group uses Forever Relationships. If several members have the addon, only one of them posts. Turn it off in Settings (`announce.party`).
+- **Your /played, all characters.** *My profile* shows your total /played across your characters, for your eyes only. Publish one character's /played if you like, and see the /played others published in their tooltip.
 - **Works with Questie.** If your partner has Questie announcements on, shared quest completions are recorded too.
 
 ### Game facts only
@@ -45,7 +47,7 @@ Nobody can use it to badmouth anyone, because there is nothing to type.
 Everything above works on your computer, alone. If you want more, the welcome screen lets you turn on any of these:
 
 1. **Cloud backup.** Your history survives a reinstall, a new computer or a wiped WTF folder. It's encrypted on your computer before it leaves, and only you hold the key, as a recovery code you save in your password manager. Nobody else can read it, including us.
-2. **Public profile.** Show off the stats *you* pick about yourself, like hours in groups, dungeons completed or people met. Stats Blizzard confirms for your Battle.net-linked character get an *Official* badge; the others say *Recorded by the addon*.
+2. **Public profile.** Show off the stats *you* pick about yourself, like /played on that character, hours in groups, dungeons completed or people met. Stats Blizzard confirms for your Battle.net-linked character get an *Official* badge; the others say *Recorded by the addon*.
 3. **Community.** Share your group sessions and a population census (only faction, race, class and level of characters you see) for anonymous statistics. Names never leave your computer, every character code is pseudonymized on arrival, and results are only shown in aggregate.
 4. **Recommend me.** Get suggested to other players looking for company, and see suggestions yourself. Only players who also turned this on are ever suggested.
 

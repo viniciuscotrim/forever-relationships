@@ -139,6 +139,13 @@ function GetTradePlayerItemInfo(i) if i == 7 then return "Bracers", 1, 1, 2, nil
 function GetTradeTargetItemInfo() end
 C_Item = { GetItemInfo = function(link) return "Item", link, 3 end }
 function GetChannelName() return 0 end
+-- /played: the game answers RequestTimePlayed with TIME_PLAYED_MSG and prints a chat line
+local playedShown, partyChat, playedTotal = 0, {}, 360000
+function ChatFrame_DisplayTimePlayed() playedShown = playedShown + 1 end
+function SendChatMessage(msg, channel) table.insert(partyChat, { msg = msg, channel = channel }) end
+function UnitIsGroupLeader(u) return u == "player" end
+local fireEvent
+function RequestTimePlayed() C_Timer.After(1, function() fireEvent("TIME_PLAYED_MSG", playedTotal, 3600) end) end
 
 -------------------------------------------------------------------------------
 -- Load addon files in TOC order with a shared namespace
@@ -161,7 +168,10 @@ local mainFrame = _G.ForeverRelationshipsEventFrame
 local function fire(event, ...)
   local fn = mainFrame._scripts.OnEvent
   fn(mainFrame, event, ...)
+  -- the chat frames show /played after the addon saw the event
+  if event == "TIME_PLAYED_MSG" then ChatFrame_DisplayTimePlayed(...) end
 end
+fireEvent = fire
 
 -- surface any internal handler errors
 local origDebug = FR.Debug
@@ -190,6 +200,17 @@ party = {
 }
 fire("GROUP_ROSTER_UPDATE"); advance(1)
 assert(FR.Sessions:Active(), "session should start")
+-- /played was asked silently after login
+advance(10)
+assert(FR.Played:Hours() == 100 and playedShown == 0, "/played recorded silently: " .. tostring(FR.Played:Hours()) .. " shown " .. playedShown)
+fire("TIME_PLAYED_MSG", playedTotal + 60, 3660)   -- the player types /played: shown as usual
+assert(playedShown == 1, "a typed /played is still shown")
+FR.db.playedChars["Player-1-000000AA"] = { name = "Alt-Forever", total = 7200, t = clock - 86400 }
+local accTotal, accN = FR.Played:Account()
+assert(accN == 2 and accTotal >= playedTotal + 60 + 7200, "account /played sums every character")
+print("  ok   /played: asked silently at login, this character + all characters")
+-- party welcome: one line, after the leader's short delay
+assert(#partyChat == 1 and partyChat[1].channel == "PARTY" and partyChat[1].msg:find("Forever Relationships addon"), "party welcome when the party forms")
 -- peer HELLO & quest from Tanky (Forever Relationships user)
 fire("CHAT_MSG_ADDON", "ForeverRel", "1|HELLO|Player-1-0000000A;1;Q,A,E,P", "PARTY", "Tanky")
 advance(60)
@@ -378,6 +399,27 @@ FR.Rel.Invalidate()
 assert(FR.Rel:Compute("Player-1-0000000A").craftsByThem == before + 1, "crafted item gift counted")
 print("  ok   crafted item gift detected from the tooltip")
 
+-- a later party with Stabby: a new member joins and is welcomed; next time another member with the addon welcomes first
+party = { { guid = "Player-1-0000000C", name = "Stabby", class = "ROGUE", level = 31 } }
+fire("GROUP_ROSTER_UPDATE"); advance(30)
+assert(#partyChat == 2, "new party welcomed: " .. #partyChat)
+table.insert(party, { guid = "Player-1-0000000F", name = "Magey", class = "MAGE", level = 31 })
+fire("GROUP_ROSTER_UPDATE"); advance(30)
+assert(#partyChat == 3, "joiner welcomed: " .. #partyChat)
+table.insert(party, { guid = "Player-1-0000000D", name = "Healy", class = "PRIEST", level = 30 })
+fire("GROUP_ROSTER_UPDATE"); advance(1)
+fire("CHAT_MSG_ADDON", "ForeverRel", "1|WELCOME|Player-1-0000000C", "PARTY", "Stabby")
+advance(30)
+assert(#partyChat == 3, "no duplicate when another member already welcomed")
+FR.Params:Set("announce.party", false)
+table.insert(party, { guid = "Player-1-0000000E", name = "Shieldy", class = "WARRIOR", level = 30 })
+fire("GROUP_ROSTER_UPDATE"); advance(30)
+assert(#partyChat == 3, "setting off: no welcome")
+FR.Params:Set("announce.party", true)
+party = {}
+fire("GROUP_LEFT"); advance(5)
+print("  ok   party welcome: on forming and on join, one poster, setting respected")
+
 -- Cloud outbox: nothing without consent; with consent only what was chosen
 fire("PLAYER_LOGOUT")
 local ob = FR.db.cloud.outbox
@@ -385,10 +427,23 @@ assert(ob and not ob.profile and not ob.community and not ob.me, "no consent: no
 FR.Params:Set("consent.profile", true)
 FR.Cloud:State().profileItems.dungeons = true
 FR.Cloud:State().profileItems.hours = true
+FR.Cloud:State().profileItems.played = true
 FR.Params:Set("consent.community", true)
 fire("PLAYER_LOGOUT")
 ob = FR.db.cloud.outbox
 assert(ob.profile.dungeons == 1 and ob.profile.hours ~= nil and ob.profile.kills == nil, "profile: only ticked items")
+assert(type(ob.profile.played) == "string" and ob.profile.played:find("^1%d%dh %d+m$"), "profile: /played of this character only, hours and minutes: " .. tostring(ob.profile.played))
+-- their /played, from their public profile, as a tooltip / Relationship field
+local savedProfiles = ForeverRelationshipsNetData
+ForeverRelationshipsNetData = { protocol = 2, profiles = { ["Player-1-0000000A"] = { items = { { key = "played", label = "/played on this character", value = "321h 7m" } } } } }
+FR.Rel.Invalidate()
+assert(FR.Rel.FIELD_BY_KEY.played.value(FR.Rel:Compute("Player-1-0000000A")) == "321h 7m", "their /played shown")
+assert(FR.Rel.FIELD_BY_KEY.played.value(FR.Rel:Compute("Player-1-0000000C")) == "not public", "no profile: not public")
+FR.UI.SetTooltipFields({ "time", "played" })
+local ttl = FR.UI.TooltipLines("Player-1-0000000A")
+assert(ttl[2][1] == "Their /played" and ttl[2][2] == "321h 7m", "tooltip can show their /played")
+FR.UI.SetTooltipFields(FR.Rel.DEFAULT_TOOLTIP)
+ForeverRelationshipsNetData = savedProfiles
 assert(ob.me.race == "Undead" and ob.me.faction == "Horde" and ob.me.class == "Priest" and ob.me.locale == "ptBR", "own character")
 local sawDungeon = false
 for _, sess in ipairs(ob.community) do

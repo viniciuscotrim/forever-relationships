@@ -42,6 +42,7 @@ def("Social", "presence.levelRange", 5, "Level difference that still counts as a
 def("Social", "suggest.friendAfterSessions", 3, "Sessions together before suggesting to add a friend.", { min = 1 })
 def("Social", "suggest.regroupMinSessions", 2, "Sessions together before a 'they're online, invite?' toast.", { min = 1 })
 def("Social", "suggest.regroupCooldownMinutes", 60, "Minimum minutes between invite toasts for the same player.")
+def("Social", "announce.party", true, "Say in party chat that the group uses Forever Relationships when a party forms and when someone joins (one line; only one addon user posts).")
 -- Display
 def("Display", "tooltip.enabled", true, "Show your relationship in unit tooltips.")
 def("Display", "tooltip.lfgMarker", true, "Show a small marker on LFG listings whose leader you've played with.")

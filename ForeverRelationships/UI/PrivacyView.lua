@@ -15,7 +15,7 @@ UI.CONSENT_TEXT = {
   },
   profile = {
     "|cffffd100Public profile|r",
-    "Other Forever Relationships players will see the items YOU tick about yourself (e.g. hours in groups,",
+    "Other Forever Relationships players will see the items YOU tick about yourself (e.g. /played, hours in groups,",
     "dungeons completed). Items confirmed by Blizzard's API for your Battle.net-linked character are",
     "marked Official; the others say 'Recorded by the addon'. Untick or turn off anytime.",
   },
@@ -56,6 +56,8 @@ UI.DATA_INVENTORY = {
   "  Public profile: the items you tick about yourself.",
   "  Community: your group sessions + members' class/race/faction/level, pseudonymized on arrival.",
   "  Feedback: only what you write in /fr feedback (and optional diagnostics).",
+  "",
+  "|cffffd100Party chat|r: one welcome line when a party forms or someone joins (Settings: announce.party).",
   "",
   "|cffffd100Never|r",
   "  Chat text or message counts, notes or ratings about anyone, inferences about anyone.",

@@ -239,6 +239,8 @@ function Rel:Mine()
   local best, n = nil, 0
   for inst, c in pairs(m.instances) do if c > n then best, n = inst, c end end
   m.favorite = best
+  local played = FR.Played and FR.Played:Seconds()
+  m.played = played and FR.FormatDuration(played) or nil
   return m
 end
 
@@ -282,6 +284,12 @@ Rel.FIELDS = {
   { key = "ready", layer = "info", label = "Ready checks together", value = function(r) return tostring(r.readyChecks) end },
   { key = "hc", layer = "info", label = "Hardcore deaths in your group", value = function(r) return tostring(r.hcDeaths) end },
   { key = "guild", layer = "info", label = "Guild", value = function(r) return (r.guild and r.guild ~= "" and ("<" .. r.guild .. ">") or "none") .. (r.guildChanges > 0 and (" · " .. r.guildChanges .. " change" .. (r.guildChanges == 1 and "" or "s") .. " seen") or "") end },
+  { key = "played", layer = "info", label = "Their /played", value = function(r)
+      local prof = FR.Cloud and FR.Cloud:Profile(r.guid)
+      for _, it in ipairs(prof and prof.items or {}) do
+        if it.key == "played" then return tostring(it.value) end
+      end
+      return "not public" end },
   { key = "rank", layer = "knowledge", label = "In your circle", value = function(r) local n = Rel:Rank(r.guid); return n and ("#" .. n .. " by time together") or "-" end },
 }
 Rel.FIELD_BY_KEY = {}
@@ -291,6 +299,7 @@ Rel.MAX_TOOLTIP = 6
 
 -- Your own numbers that can be published (opt-in, item by item).
 Rel.PROFILE_ITEMS = {
+  { key = "played", label = "/played on this character", value = function(m) return m.played or "-" end },
   { key = "hours", label = "Hours played in groups", value = function(m) return math.floor(m.seconds / 3600) end },
   { key = "people", label = "Different people played with", value = function(m) return m.people end },
   { key = "dungeons", label = "Dungeons completed", value = function(m) return m.dungeons end },
