@@ -248,9 +248,9 @@ class Service:
         guids = [g for g in guids if isinstance(g, str) and GUID_RE.match(g)][:MAX_LOOKUPS]
         if not guids:
             return {}
-        if self.store.count_lookups(uploader, now // 86400, len(guids)) > LOOKUPS_PER_DAY:
-            return {}   # daily quota: bulk collection is slow and attributable
         by_hash = {self.pseudo(g): g for g in guids}
+        if self.store.count_lookups(uploader, now // 86400, list(by_hash)) > LOOKUPS_PER_DAY:
+            return {}   # daily quota of distinct characters: bulk collection is slow and attributable
         out = {}
         for h, (items_json, official_json) in self.store.profiles_for(by_hash.keys()).items():
             items = [{"key": k, "label": PROFILE_LABELS.get(k, k), "value": v, "official": False}

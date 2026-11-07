@@ -2,7 +2,7 @@
 local ADDON, FR = ...
 FR = FR or {}
 FR.name = ADDON or "ForeverRelationships"
-FR.version = "0.5.1"
+FR.version = "0.5.2"
 FR.SCHEMA = 2
 FR.PREFIX = "ForeverRel"
 
@@ -88,16 +88,28 @@ end
 
 -- "Name-Realm" normalisation. Realm defaults to the player's realm.
 function FR.FullName(name, realm)
-  if not name then return nil end
+  -- names can be secret values on current clients: never index or concatenate them
+  if name == nil or FR.IsSecret(name) or type(name) ~= "string" then return nil end
   if name:find("-", 1, true) then return name end
+  if FR.IsSecret(realm) or type(realm) ~= "string" then realm = nil end
   realm = (realm and realm ~= "") and realm or (GetNormalizedRealmName and GetNormalizedRealmName()) or ""
   if realm == "" then return name end
   return name .. "-" .. realm
 end
 
 function FR.ShortName(full)
-  if not full then return "?" end
+  if full == nil or FR.IsSecret(full) or type(full) ~= "string" then return "?" end
   return (full:gsub("%-.*$", ""))
+end
+
+-- The realm name players see. On WoW: Forever GetRealmName() can return an internal
+-- name ("CAMWOW US1 Realm 6 PvP"); the normalized name ("Gladesong") is the real one.
+function FR.RealmName()
+  local raw = GetRealmName and FR.Clean(GetRealmName()) or nil
+  local norm = GetNormalizedRealmName and FR.Clean(GetNormalizedRealmName()) or nil
+  if type(raw) == "string" and raw ~= "" and not raw:find("Realm %d") then return raw end
+  if type(norm) == "string" and norm ~= "" then return norm end
+  return raw
 end
 
 local function Join(...)
@@ -164,7 +176,7 @@ function FR:RecordError(msg, where)
   end
   for _, e in ipairs(store) do
     if e.msg == clean then
-      e.count, e.last = e.count + 1, FR.Now()
+      e.count, e.last, e.version = e.count + 1, FR.Now(), FR.version
       return
     end
   end
@@ -338,6 +350,11 @@ function FR:InitDB()
   self.cdb = ForeverRelationshipsCharDB
   self.Params:Bind(self.db.params, self.db.changeLog, FR.Now)
   self.Log:Bind(self.db)
+  -- errors from older versions were fixed or are reported again if they come back:
+  -- keep only this version's, so a feedback report shows what is broken now
+  local kept = {}
+  for _, e in ipairs(self.db.errors) do if e.version == FR.version then kept[#kept + 1] = e end end
+  self.db.errors = kept
   for _, e in ipairs(self._pendingErrors) do self:RecordError(e.msg, e.where) end
   self._pendingErrors = {}
 end

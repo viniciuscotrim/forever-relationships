@@ -59,10 +59,14 @@ end
 
 -- Others -> you: helpful auras from non-group players
 FR:On("UNIT_AURA", function(_, unit, info)
-  if unit ~= "player" or FR.InCombat() or type(info) ~= "table" or not info.addedAuras then return end
-  for _, aura in ipairs(info.addedAuras) do
-    local src, helpful = aura.sourceUnit, aura.isHelpful
-    if not FR.IsSecret(src) and not FR.IsSecret(helpful) and helpful and type(src) == "string" then
+  if unit ~= "player" or FR.InCombat() or FR.IsSecret(info) or type(info) ~= "table" then return end
+  local added = info.addedAuras
+  -- the aura list itself can be a secret value on current clients
+  if FR.IsSecret(added) or type(added) ~= "table" then return end
+  for _, aura in ipairs(added) do
+    local src, helpful
+    if not FR.IsSecret(aura) and type(aura) == "table" then src, helpful = aura.sourceUnit, aura.isHelpful end
+    if src ~= nil and not FR.IsSecret(src) and not FR.IsSecret(helpful) and helpful and type(src) == "string" then
       local guid = FR.Clean(UnitGUID(src))
       if guid and not InMyGroup(guid) and FR.SafeCall(UnitIsPlayer, src) then
         local n, r = UnitName(src)

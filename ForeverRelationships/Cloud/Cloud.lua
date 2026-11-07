@@ -59,7 +59,7 @@ function Cloud:OwnCharacter()
     guid = FR.playerGUID, name = FR.playerName, guild = FR.SafeCall(GetGuildInfo, "player") or "",
     class = Title(classFile), race = raceFile and (RACE_NAMES[raceFile] or raceFile) or nil,
     faction = FR.Clean((UnitFactionGroup("player"))), level = FR.Clean(UnitLevel("player")),
-    realm = GetRealmName and FR.Clean(GetRealmName()) or nil, locale = GetLocale and GetLocale() or nil,
+    realm = FR.RealmName(), locale = GetLocale and GetLocale() or nil,
   }
 end
 

@@ -104,6 +104,23 @@ class V2(unittest.TestCase):
         self.assertFalse(any(i["official"] for i in out["profiles"][A]["items"]))
         self.assertNotIn(C, out["profiles"])
 
+    def test_lookup_quota_counts_distinct_characters(self):
+        # the companion resyncs hourly with the same circle: repeats never exhaust the quota
+        from frnet import app as app_mod
+        self.svc.sync({"uploaderId": "b" * 32, "protocol": 2, "consents": {"profile": True}, "me": {"guid": B}, "profile": {"hours": 1}})
+        circle = [B] + ["Player-1-%08X" % i for i in range(99)]
+        for _ in range(60):
+            out = self.svc.sync({"uploaderId": "a" * 32, "protocol": 2, "consents": {"profile": True}, "me": {"guid": ME}, "lookups": circle})
+        self.assertIn(B, out["profiles"])
+        old = app_mod.LOOKUPS_PER_DAY
+        try:
+            app_mod.LOOKUPS_PER_DAY = 150
+            more = ["Player-2-%08X" % i for i in range(100)]
+            out = self.svc.sync({"uploaderId": "a" * 32, "protocol": 2, "consents": {"profile": True}, "me": {"guid": ME}, "lookups": [B] + more})
+            self.assertEqual(out["profiles"], {})   # 200 distinct characters today > 150
+        finally:
+            app_mod.LOOKUPS_PER_DAY = old
+
     def test_profile_disappears_when_turned_off(self):
         self.svc.sync({"uploaderId": "b" * 32, "protocol": 2, "consents": {"profile": True}, "me": {"guid": B}, "profile": {"hours": 1}})
         self.svc.sync({"uploaderId": "b" * 32, "protocol": 2, "consents": {"community": True}, "me": {"guid": B}})

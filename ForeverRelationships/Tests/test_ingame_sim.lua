@@ -189,9 +189,23 @@ end
 -- Scenario
 -------------------------------------------------------------------------------
 print("Forever Relationships in-game simulation")
+-- errors saved by an older version are dropped at load: reports show what is broken now
+ForeverRelationshipsDB = { errors = { { msg = "old: Cloud.lua:35 attempt to call a nil value", count = 34, version = "0.4.1" } } }
 fire("ADDON_LOADED", "ForeverRelationships")
 fire("PLAYER_LOGIN")
 advance(1)
+assert(#FR.db.errors == 0, "errors from older versions dropped")
+-- secret values (current clients): names and aura lists are never indexed
+assert(FR.FullName("SECRET") == nil and FR.ShortName("SECRET") == "?" and FR.FullName("Bob", "SECRET") == "Bob-Forever", "secret names")
+fire("UNIT_AURA", "player", { addedAuras = "SECRET" })
+fire("UNIT_AURA", "player", { addedAuras = { "SECRET", { sourceUnit = "SECRET", isHelpful = true } } })
+-- WoW: Forever's GetRealmName() can be internal ("CAMWOW US1 Realm 6 PvP"): the normalized name is used
+local realGRN = GetRealmName
+GetRealmName = function() return "CAMWOW US1 Realm 6 PvP" end
+assert(FR.RealmName() == "Forever", "internal realm name replaced")
+GetRealmName = realGRN
+assert(FR.RealmName() == "Forever", "normal realm name kept")
+print("  ok   old errors dropped, secret names/auras safe, real realm name")
 
 -- form a party of 3
 party = {

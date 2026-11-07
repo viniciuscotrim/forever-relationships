@@ -90,7 +90,7 @@ UI:RegisterView("population", function(frame)
     self.rtype = self.rtype or mine or "pvp"
     Mark(self.typeButtons, self.rtype)
     Mark(self.factionButtons, self.faction)
-    local realmName = GetRealmName and FR.Clean(GetRealmName()) or "your realm"
+    local realmName = FR.RealmName() or "your realm"
     self.realm:SetText(UI.MUTED .. "Your realm: " .. tostring(realmName) .. (mine and (" (" .. TYPE_LABEL[mine] .. ")") or " (type not set yet)") .. "|r")
 
     local s = C:Summary(self.rtype, self.faction)

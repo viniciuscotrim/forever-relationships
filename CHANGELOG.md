@@ -1,3 +1,11 @@
+# Forever Relationships 0.5.2
+
+### Fixed
+- Two errors on the current client: a player name the game hides (a "secret value") and a hidden aura list. Both are now skipped safely.
+- **Feedback reports show only current errors.** Errors from older versions, already fixed, are no longer kept and sent with every report.
+- **Your realm shows its real name** (for example *Gladesong*) instead of the game's internal name ("CAMWOW US1 Realm 6 PvP") in the Population tab, the census and your public details.
+- Server: public profiles of people in your circle no longer stop arriving late in the day. The hourly resync used to count the same players again each time against the daily limit.
+
 # Forever Relationships 0.5.1
 
 ### New

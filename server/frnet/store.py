@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS community_members (
 CREATE INDEX IF NOT EXISTS cm_member ON community_members (member_h);
 CREATE TABLE IF NOT EXISTS optout (guid_h TEXT PRIMARY KEY, at INTEGER);
 CREATE TABLE IF NOT EXISTS lookups (uploader TEXT, day INTEGER, n INTEGER, PRIMARY KEY (uploader, day));
+CREATE TABLE IF NOT EXISTS lookup_seen (uploader TEXT, day INTEGER, h TEXT, PRIMARY KEY (uploader, day, h));
 CREATE TABLE IF NOT EXISTS backups (id TEXT PRIMARY KEY, token_hash TEXT, size INTEGER, created_at INTEGER, updated_at INTEGER);
 CREATE TABLE IF NOT EXISTS links (uploader TEXT PRIMARY KEY, account TEXT, region TEXT, linked_at INTEGER);
 CREATE TABLE IF NOT EXISTS owned (guid_h TEXT PRIMARY KEY, account TEXT, name TEXT, realm_slug TEXT, region TEXT, verified_at INTEGER);
@@ -152,6 +153,7 @@ class Store:
         self.ex([("DELETE FROM profiles WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM participants WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM lookups WHERE uploader = ?", (uploader,)),
+                 ("DELETE FROM lookup_seen WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM census WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM links WHERE uploader = ?", (uploader,)),
                  ("DELETE FROM uploaders WHERE id = ?", (uploader,))])
@@ -183,10 +185,14 @@ class Store:
                 out[r[0]] = (r[1], r[2])
         return out
 
-    def count_lookups(self, uploader, day, n):
-        self.q("INSERT INTO lookups (uploader, day, n) VALUES (?, ?, ?) ON CONFLICT(uploader, day) DO UPDATE SET n = n + excluded.n",
+    def count_lookups(self, uploader, day, hashes):
+        """Distinct characters this uploader looked up today. The companion resyncs every
+        hour with the same circle, so repeats are free; only new characters count."""
+        self.ex([("INSERT OR IGNORE INTO lookup_seen (uploader, day, h) VALUES (?, ?, ?)", (uploader, day, h)) for h in hashes])
+        n = self.q("SELECT count(*) FROM lookup_seen WHERE uploader = ? AND day = ?", (uploader, day), one=True)[0]
+        self.q("INSERT INTO lookups (uploader, day, n) VALUES (?, ?, ?) ON CONFLICT(uploader, day) DO UPDATE SET n = excluded.n",
                (uploader, day, n), commit=True)
-        return self.q("SELECT n FROM lookups WHERE uploader = ? AND day = ?", (uploader, day), one=True)[0]
+        return n
 
     # -- community ---------------------------------------------------------------------
     def add_session(self, uploader, s, members, now):
@@ -228,6 +234,7 @@ class Store:
     def cleanup(self, now):
         self.forget_sessions("b < ?", (now - COMMUNITY_RETENTION,))
         self.q("DELETE FROM census WHERE seen_at < ?", (now - CENSUS_RETENTION,), commit=True)
+        self.q("DELETE FROM lookup_seen WHERE day < ?", (now // 86400 - 1,), commit=True)
         for r in self.q("SELECT id FROM backups WHERE updated_at < ?", (now - BACKUP_RETENTION,)):
             self.delete_backup(r[0])
 
