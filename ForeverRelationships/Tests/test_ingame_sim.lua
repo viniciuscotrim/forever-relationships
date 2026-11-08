@@ -195,7 +195,8 @@ end
 -------------------------------------------------------------------------------
 print("Forever Relationships in-game simulation")
 -- errors saved by an older version are dropped at load: reports show what is broken now
-ForeverRelationshipsDB = { errors = { { msg = "old: Cloud.lua:35 attempt to call a nil value", count = 34, version = "0.4.1" } } }
+-- the mock client is ptBR (GetLocale); the scenario asserts English texts, so pin English (/fr language enUS)
+ForeverRelationshipsDB = { ui = { locale = "enUS" }, errors = { { msg = "old: Cloud.lua:35 attempt to call a nil value", count = 34, version = "0.4.1" } } }
 fire("ADDON_LOADED", "ForeverRelationships")
 fire("PLAYER_LOGIN")
 advance(1)
@@ -589,6 +590,12 @@ assert(not af:IsShown(), "alert off")
 FR.Params:Set("nearby.alert", true)
 FR.HandleSlash("alert"); FR.HandleSlash("alert reset")
 GetInstanceInfo = realInstance
+assert(not mainFrame._events.COMBAT_LOG_EVENT_UNFILTERED, "never register the combat log (reserved to the Blizzard UI)")
+fire("ADDON_ACTION_FORBIDDEN", "ForeverRelationships", "SomeProtected()")
+local sawBlock = false
+for _, e in ipairs(FR.db.errors) do if e.msg:find("ADDON_ACTION_FORBIDDEN: SomeProtected") then sawBlock = true end end
+assert(sawBlock, "a blocked action is recorded for feedback")
+FR.db.errors = {}
 print("  ok   rivals: crossings, battles, victories (seen/honor), deaths, percentages; nearby alert for rivals and friends")
 -- groups: automatic, manual, custom
 local G = FR.Groups
@@ -622,8 +629,13 @@ print("  ok   groups: automatic from facts, add/remove by hand, custom groups, C
 -- language switch
 FR.HandleSlash("language ptBR")
 assert(FR.db.ui.locale == "ptBR", "language saved for the next /reload")
-FR:SetLocale("ptBR"); assert(FR.L["Rivals"] ~= nil, "lookup works")
-FR.db.ui.locale = nil; FR:SetLocale(nil)
+FR:SetLocale("ptBR")
+assert(FR.L["Rivals"] == "Rivais" and FR.Plural(2, "%d day", "%d days") == "2 dias", "Portuguese texts")
+assert(FR.Rivals:Summary(rv):find("Batalhas 3"), "rival summary in Portuguese")
+FR.UI.SelectTab("circle"); FR.UI.SelectTab("privacy"); FR.UI.ShowSettings()
+FR:SetLocale("deDE"); assert(FR.L["Groups"] == "Gruppen", "German")
+FR:SetLocale("xxXX"); assert(FR.L["Rivals"] == "Rivais", "unknown code falls back to the game's language")
+FR.db.ui.locale = "enUS"; FR:SetLocale("enUS"); assert(FR.L["Rivals"] == "Rivals", "English")
 
 -- optional: load companion-written NetData and check profiles / suggestions
 if os.getenv("FR_NETDATA") then

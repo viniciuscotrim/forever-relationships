@@ -2,7 +2,7 @@
 local ADDON, FR = ...
 FR = FR or {}
 FR.name = ADDON or "ForeverRelationships"
-FR.version = "0.6.0"
+FR.version = "0.6.1"
 FR.SCHEMA = 2
 FR.PREFIX = "ForeverRel"
 
@@ -251,8 +251,16 @@ if CreateFrame then
   end)
 end
 
+-- Events only the Blizzard UI may register on this client: registering one makes the
+-- game block the addon ("only available to the Blizzard UI"), even inside pcall.
+FR.RESERVED_EVENTS = { COMBAT_LOG_EVENT_UNFILTERED = true, COMBAT_LOG_EVENT = true }
+
 function FR:On(event, fn, capture)
   if not self.frame then return false end
+  if self.RESERVED_EVENTS[event] then
+    if capture then self:CaptureUnavailable(capture, event, "reserved to the Blizzard UI") end
+    return false
+  end
   if not self._handlers[event] then
     local ok = pcall(self.frame.RegisterEvent, self.frame, event)
     if not ok then
@@ -379,6 +387,16 @@ if FR.frame then
     FR.playerName = FR.FullName(UnitName("player"))
     FR:Fire("LOGIN")
   end)
+end
+
+-- If the game ever blocks one of our calls, record which one: it then shows up in
+-- /fr feedback diagnostics instead of only in the game's "disable this addon" dialog.
+if FR.frame then
+  for _, ev in ipairs({ "ADDON_ACTION_FORBIDDEN", "ADDON_ACTION_BLOCKED" }) do
+    FR:On(ev, function(event, addon, func)
+      if addon == FR.name then FR:RecordError(event .. ": " .. tostring(func), "blocked") end
+    end)
+  end
 end
 
 _G.ForeverRelationships = FR -- exposed for /dump and other addons (read-only use)

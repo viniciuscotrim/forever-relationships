@@ -1,3 +1,12 @@
+# Forever Relationships 0.6.1
+
+### Fixed
+- **"Blocked from an action only available to the Blizzard UI".** 0.6.0 listened to the combat log, which this client reserves to the Blizzard UI, so the game offered to disable the addon. The addon no longer touches the combat log. Rival battles, victories and deaths still count from targets and combat, honorable kills and your deaths.
+- If the game ever blocks an action again, the addon records which one, and `/fr feedback` sends it with the report.
+
+### New
+- **Translations: Português (Brasil), Español (España), Español (México), Français, Deutsch.** The addon follows your game's language; `/fr language <code>` picks another one (then `/reload`). Italian, Russian, Korean and Chinese come in the next update.
+
 # Forever Relationships 0.6.0
 
 ### New

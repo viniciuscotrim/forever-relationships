@@ -4,9 +4,8 @@
 --   crossed, battles, wins, deaths, first, lastSeen, lastBattle, lastZone }
 -- Sources (each one disables itself if the client hides it):
 --   crossed: nameplates, mouseover, target (a new crossing after rivals.crossingGapMinutes apart)
---   battles: while you are in combat, an enemy player who targets you or whom you target, both in combat;
---            or damage between you and them in the combat log, if the client allows the combat log
---   wins:    an enemy you fought dies, an honorable kill of them, or your killing blow (combat log)
+--   battles: while you are in combat, an enemy player who targets you or whom you target, both in combat
+--   wins:    an enemy you fought dies, or an honorable kill of them
 --   deaths:  you die while fighting them (the enemy you fought most recently)
 local _, FR = ...
 
@@ -16,7 +15,6 @@ FR.Rivals = Rivals
 FR:RegisterCapture("rivalsSeen", "Opposite-faction players you cross", "NAME_PLATE_UNIT_ADDED, UPDATE_MOUSEOVER_UNIT, PLAYER_TARGET_CHANGED")
 FR:RegisterCapture("rivalsCombat", "Fights with opposite-faction players", "PLAYER_REGEN_DISABLED, UnitAffectingCombat, UnitIsUnit")
 FR:RegisterCapture("rivalsHonor", "Honorable kills", "CHAT_MSG_COMBAT_HONOR_GAIN")
-FR:RegisterCapture("rivalsLog", "Combat log (when the client allows it)", "COMBAT_LOG_EVENT_UNFILTERED")
 
 local MAX_RIVALS = 5000
 local CONTACT_DEATH = 20   -- seconds: you died "while fighting them" if they were in contact this recently
@@ -197,53 +195,8 @@ FR:On("CHAT_MSG_COMBAT_HONOR_GAIN", function(_, msg)
   if guid then Rivals:Win(guid, Rivals:Get(guid), "honor") end
 end, "rivalsHonor")
 
--------------------------------------------------------------------------------
--- Combat log, when the client allows it (most precise source)
--------------------------------------------------------------------------------
-local TYPE_PLAYER = COMBATLOG_OBJECT_TYPE_PLAYER or 0x400
-local HOSTILE = COMBATLOG_OBJECT_REACTION_HOSTILE or 0x40
-local band = bit and bit.band
-
-local function HostilePlayer(guid, flags)
-  return type(guid) == "string" and guid:find("^Player%-") and band and type(flags) == "number"
-    and band(flags, TYPE_PLAYER) ~= 0 and band(flags, HOSTILE) ~= 0
-end
-
--- Make sure a combat-log enemy has an entry, even if we never saw them on screen.
-function Rivals:FromLog(guid, name)
-  local r = self:Get(guid)
-  if r then return r end
-  local _, class, _, race, _, pname, prealm = FR.SafeCall(GetPlayerInfoByGUID, guid)
-  local u = { guid = guid, name = FR.FullName(FR.Clean(pname) or FR.Clean(name), FR.Clean(prealm)), class = FR.Clean(class), race = FR.Clean(race) }
-  if not u.name then return nil end
-  local mine = MyFaction()
-  u.faction = mine == "Alliance" and "Horde" or mine == "Horde" and "Alliance" or nil
-  return self:Touch(u)
-end
-
-local function OnCombatLog()
-  if not CombatLogGetCurrentEventInfo then return FR:CaptureUnavailable("rivalsLog", "CombatLogGetCurrentEventInfo", "API not present") end
-  local _, sub, _, srcGUID, srcName, srcFlags, _, dstGUID, dstName, dstFlags = FR.SafeCall(CombatLogGetCurrentEventInfo)
-  if not sub or FR.IsSecret(srcGUID) or FR.IsSecret(dstGUID) or FR.IsSecret(srcFlags) or FR.IsSecret(dstFlags) then return end
-  local me = FR.playerGUID
-  if sub == "UNIT_DIED" then
-    if HostilePlayer(dstGUID, dstFlags) and episode.foes[dstGUID] and Clock() - episode.foes[dstGUID] <= CONTACT_WIN then
-      Rivals:Win(dstGUID, Rivals:Get(dstGUID), "log")
-    end
-    return
-  end
-  if sub == "PARTY_KILL" then
-    if srcGUID == me and HostilePlayer(dstGUID, dstFlags) then Rivals:Win(dstGUID, Rivals:FromLog(dstGUID, dstName), "log") end
-    return
-  end
-  if not (sub:find("_DAMAGE$") or sub:find("_MISSED$")) then return end
-  if srcGUID == me and HostilePlayer(dstGUID, dstFlags) then
-    Rivals:Contact(dstGUID, Rivals:FromLog(dstGUID, FR.Clean(dstName)))
-  elseif dstGUID == me and HostilePlayer(srcGUID, srcFlags) then
-    Rivals:Contact(srcGUID, Rivals:FromLog(srcGUID, FR.Clean(srcName)))
-  end
-end
-FR:On("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog, "rivalsLog")
+-- No combat log: on this client registering COMBAT_LOG_EVENT_UNFILTERED is reserved
+-- to the Blizzard UI and makes the game block the addon (0.6.0 did it; fixed in 0.6.1).
 
 -------------------------------------------------------------------------------
 -- Sightings

@@ -106,7 +106,8 @@ def locale_table(code):
 
 
 def placeholders(s):
-    return sorted(re.findall(r'%[-+0-9.]*[sdif%]', s))
+    # same placeholders in the same order: Lua's string.format has no positional arguments
+    return re.findall(r'%[-+0-9.]*[sdif%]', s)
 
 
 def check():
@@ -121,7 +122,9 @@ def check():
         if missing:
             problems.append("%s: %d keys missing, e.g. %r" % (code, len(missing), missing[0]))
         for k, v in t.items():
-            if k in ks and placeholders(k) != placeholders(v):
+            if k not in ks:
+                problems.append("%s: stale key no longer used: %r" % (code, k))
+            elif placeholders(k) != placeholders(v):
                 problems.append("%s: placeholders differ in %r -> %r" % (code, k, v))
             if "|r" in k and v.count("|r") != k.count("|r"):
                 problems.append("%s: color codes differ in %r" % (code, k))
