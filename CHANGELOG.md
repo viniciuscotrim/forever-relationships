@@ -1,3 +1,23 @@
+# Forever Relationships 0.6.0
+
+### New
+- **Nearby alert.** When someone you have history with comes into view (nameplates, mouseover or target), a pop-up shows who it is and what you've done together. It is on by default and plays a sound. Drag it anywhere; the position is saved.
+  - `/fr alert` shows a sample to place it, `/fr alert reset` puts it back, and `/fr alert range` sets the game's nameplate distance to the maximum it allows.
+  - Friendly players are only seen from afar with friendly nameplates on (Shift+V).
+  - The same player alerts at most once every 30 minutes, never in instances or for your own group. Settings: `nearby.alert`, `nearby.alertRivals`, `nearby.alertCooldownMinutes`, `nearby.alertSeconds`, `nearby.alertSound`.
+- **Rivals (the other faction).** Opposite-faction players are counted by what happens between you, not by time:
+  - times your paths crossed (a new crossing after 15 minutes apart);
+  - battles: you are both in combat and one of you targets the other, or the combat log shows damage between you when the client allows it;
+  - victories: a rival you fought dies, or you get an honorable kill of them;
+  - deaths: you die while fighting them.
+  - Each number comes with its percentage (battles of crossings, victories and deaths of battles), plus each rival's share of all your crossings, battles, victories and deaths. See them in the new **Rivals** list in the Circle, on the rival's Relationship page and in their tooltip (`tooltip.rivals`).
+- **Groups.** Every player in the Circle has a **Groups** button.
+  - Built-in groups fill themselves from what the game recorded: *Quest Helper* (quests or help together), *Dungeon Buddy* (dungeons completed), *Raid Champion* (raids completed) and *Rival* (opposite-faction players you fought). The thresholds are in Settings.
+  - Add anyone to any group, remove someone from an automatic group (that choice sticks), and create, rename or delete your own groups.
+  - Filter the Circle by group (click the group button; right-click shows everyone). Groups can also be picked as a tooltip item.
+  - Groups stay on your computer and are never sent.
+- **Ready for every language WoW supports** (English, German, Spanish for Spain and Mexico, French, Italian, Korean, Portuguese, Russian, Simplified and Traditional Chinese). Every interface text now goes through translation files. The translations themselves arrive in an update; until then the addon shows English. `/fr language <code>` picks a language other than the game's.
+
 # Forever Relationships 0.5.2
 
 ### Fixed

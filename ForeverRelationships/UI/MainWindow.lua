@@ -1,6 +1,7 @@
 -- Main window (/fr) with six tabs: Circle, Relationship, My profile, Population, Event log, Privacy.
 local _, FR = ...
 local UI = FR.UI
+local L = FR.L
 
 UI.TABS = {
   { key = "circle", label = "Circle" },
@@ -35,8 +36,8 @@ local function SelectTab(key)
     UI.views[key] = v
   end
   if v then v.frame:Show(); if v.Refresh then v:Refresh() end end
-  main.viewMark:SetText(key == "population" and "|cff888888Census of Forever Relationships players|r"
-    or "|cff888888What the game recorded while you played together|r")
+  main.viewMark:SetText("|cff888888" .. (key == "population" and L["Census of Forever Relationships players"]
+    or L["What the game recorded while you played together"]) .. "|r")
 end
 UI.SelectTab = SelectTab
 
@@ -50,14 +51,14 @@ function UI:Build()
   main.tabButtons = {}
   local prev
   for _, t in ipairs(UI.TABS) do
-    local b = UI.Button(main, t.label, 104, 22, function() SelectTab(t.key) end)
+    local b = UI.Button(main, L[t.label], 104, 22, function() SelectTab(t.key) end)
     if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 12, -30) end
     main.tabButtons[t.key] = b
     prev = b
   end
-  local fb = UI.Button(main, "Feedback", 90, 22, function() UI.ShowFeedback() end)
+  local fb = UI.Button(main, L["Feedback"], 90, 22, function() UI.ShowFeedback() end)
   fb:SetPoint("TOPRIGHT", -12, -30)
-  UI.Tooltip(fb, "Feedback", { "Report a bug or suggest an idea without leaving the game. Replies show up here too." })
+  UI.Tooltip(fb, L["Feedback"], { L["Report a bug or suggest an idea without leaving the game. Replies show up here too."] })
   main.viewMark = UI.Label(main, "", "GameFontNormalSmall")
   main.viewMark:SetPoint("TOPRIGHT", -36, -7)
 
@@ -103,9 +104,9 @@ FR:Listen("LOGIN", function()
   if not (Settings and Settings.RegisterCanvasLayoutCategory) then return end
   local panel = CreateFrame("Frame")
   local t = UI.Label(panel, "Forever Relationships", "GameFontNormalLarge"); t:SetPoint("TOPLEFT", 16, -16)
-  local d = UI.Label(panel, "An augmented view of how you relate to the people you play with. Type /fr.", "GameFontHighlight")
+  local d = UI.Label(panel, L["An augmented view of how you relate to the people you play with. Type /fr."], "GameFontHighlight")
   d:SetPoint("TOPLEFT", t, "BOTTOMLEFT", 0, -8)
-  local b = UI.Button(panel, "Open Forever Relationships", 180, 24, function()
+  local b = UI.Button(panel, L["Open Forever Relationships"], 180, 24, function()
     if SettingsPanel then HideUIPanel(SettingsPanel) end
     UI:Open("privacy")
   end)

@@ -15,6 +15,18 @@ end
 
 UI.NONDEFAULT_MARK = "|cffff9933*|r"
 
+-- Our StaticPopup dialogs: English text in the definition, translated once the
+-- language is known (after SavedVariables load, so /fr language applies).
+function UI.Popup(name, def)
+  def.en = def.text
+  StaticPopupDialogs[name] = def
+end
+FR:Listen("DB_READY", function()
+  for name, d in pairs(StaticPopupDialogs) do
+    if type(name) == "string" and name:find("^FOREVERRELATIONSHIPS_") and d.en then d.text = FR.L[d.en] end
+  end
+end)
+
 -- Selected tooltip fields (account-wide), at most FR.Rel.MAX_TOOLTIP
 function UI.TooltipFields()
   local f = FR.db.ui and FR.db.ui.tooltipFields
@@ -144,9 +156,9 @@ function UI.ShowText(title, text)
     eb:SetScript("OnTextChanged", function(self, user) if user then self:SetText(f.text or "") end end) -- read-only
     sf:SetScrollChild(eb)
     f.edit = eb
-    local sel = UI.Button(f, "Select all", 110, 22, function() eb:SetFocus(); eb:HighlightText() end)
+    local sel = UI.Button(f, FR.L["Select all"], 110, 22, function() eb:SetFocus(); eb:HighlightText() end)
     sel:SetPoint("BOTTOMLEFT", 12, 8)
-    local hint = UI.Label(f, "Select all, then Ctrl+C / Cmd+C to copy.", "GameFontDisableSmall")
+    local hint = UI.Label(f, FR.L["Select all, then Ctrl+C / Cmd+C to copy."], "GameFontDisableSmall")
     hint:SetPoint("LEFT", sel, "RIGHT", 10, 0)
     textWindow = f
   end

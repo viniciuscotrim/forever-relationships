@@ -2,7 +2,7 @@
 local ADDON, FR = ...
 FR = FR or {}
 FR.name = ADDON or "ForeverRelationships"
-FR.version = "0.5.2"
+FR.version = "0.6.0"
 FR.SCHEMA = 2
 FR.PREFIX = "ForeverRel"
 
@@ -65,11 +65,12 @@ function FR.FormatDuration(sec)
 end
 
 function FR.FormatAgo(t)
-  if not t then return "never" end
+  local L = FR.L or setmetatable({}, { __index = function(_, k) return k end })
+  if not t then return L["never"] end
   local d = FR.Now() - t
-  if d < 3600 then return string.format("%dm ago", math.floor(d / 60)) end
-  if d < 86400 then return string.format("%dh ago", math.floor(d / 3600)) end
-  return string.format("%dd ago", math.floor(d / 86400))
+  if d < 3600 then return L["%dm ago"]:format(math.floor(d / 60)) end
+  if d < 86400 then return L["%dh ago"]:format(math.floor(d / 3600)) end
+  return L["%dd ago"]:format(math.floor(d / 86400))
 end
 
 function FR.FormatDate(t)
@@ -348,6 +349,7 @@ function FR:InitDB()
   self:Migrate(ForeverRelationshipsDB, ForeverRelationshipsCharDB)
   self.db = ForeverRelationshipsDB
   self.cdb = ForeverRelationshipsCharDB
+  if self.SetLocale then self:SetLocale(self.db.ui and self.db.ui.locale) end
   self.Params:Bind(self.db.params, self.db.changeLog, FR.Now)
   self.Log:Bind(self.db)
   -- errors from older versions were fixed or are reported again if they come back:

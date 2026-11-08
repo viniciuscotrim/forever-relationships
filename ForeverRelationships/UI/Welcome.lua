@@ -3,6 +3,7 @@
 -- plain-language consent. Everything that leaves your computer starts OFF.
 local _, FR = ...
 local UI = FR.UI
+local L = FR.L
 
 local CHOICES = {
   { key = "consent.backup", label = "Cloud backup", note = "Keep your history even after reinstalling. Encrypted: only you can read it.", text = "backup" },
@@ -14,38 +15,36 @@ local CHOICES = {
 local frame
 local function Build()
   local f = UI.Window("ForeverRelationshipsWelcome", 580, 470, "DIALOG")
-  UI.Label(f, "Welcome to Forever Relationships", "GameFontNormalLarge"):SetPoint("TOP", 0, -30)
+  UI.Label(f, L["Welcome to Forever Relationships"], "GameFontNormalLarge"):SetPoint("TOP", 0, -30)
   local intro = UI.Label(f,
-    "Forever Relationships shows how you've related to the people around you: time together, dungeons completed, "
-    .. "kills, trades, help, quests. It only uses what the game itself records while you play together. "
-    .. "No chat, no opinions, no scores.\n\nHover a player to see your history with them, or right-click and choose Relationship. "
-    .. "On this computer it works right away. Everything below is optional, starts off, and needs the free companion app.",
+    L["Forever Relationships shows how you've related to the people around you: time together, dungeons completed, kills, trades, help, quests. It only uses what the game itself records while you play together. No chat, no opinions, no scores."]
+    .. "\n\n" .. L["Hover a player to see your history with them, or right-click and choose Relationship. On this computer it works right away. Everything below is optional, starts off, and needs the free companion app."],
     "GameFontHighlight")
   intro:SetPoint("TOPLEFT", 20, -56); intro:SetWidth(540)
   f.rows = {}
   for i, c in ipairs(CHOICES) do
     local y = -186 - (i - 1) * 46
     local b = UI.Button(f, "", 64, 22); b:SetPoint("TOPLEFT", 20, y)
-    local l = UI.Label(f, c.label, "GameFontHighlight"); l:SetPoint("TOPLEFT", 94, y - 1)
-    local n = UI.Label(f, c.note, "GameFontDisableSmall"); n:SetPoint("TOPLEFT", 94, y - 16); n:SetWidth(380)
-    local d = UI.Button(f, "Details", 70, 20, function() UI.ShowText(c.label, UI.CONSENT_TEXT[c.text]) end)
+    local l = UI.Label(f, L[c.label], "GameFontHighlight"); l:SetPoint("TOPLEFT", 94, y - 1)
+    local n = UI.Label(f, L[c.note], "GameFontDisableSmall"); n:SetPoint("TOPLEFT", 94, y - 16); n:SetWidth(380)
+    local d = UI.Button(f, L["Details"], 70, 20, function() UI.ShowText(L[c.label], UI.CONSENT_TEXT[c.text]) end)
     d:SetPoint("TOPLEFT", 490, y)
     b:SetScript("OnClick", function()
       FR.Params:Set(c.key, not FR.Params:Get(c.key))
-      if FR.Params:Get(c.key) then UI.ShowText(c.label, UI.CONSENT_TEXT[c.text]) end
+      if FR.Params:Get(c.key) then UI.ShowText(L[c.label], UI.CONSENT_TEXT[c.text]) end
       f:Refresh()
     end)
     f.rows[i] = { button = b, key = c.key }
   end
-  local fb = UI.Label(f, "Found a bug or have an idea? Type /fr feedback. You never need to leave the game.", "GameFontHighlightSmall")
+  local fb = UI.Label(f, L["Found a bug or have an idea? Type /fr feedback. You never need to leave the game."], "GameFontHighlightSmall")
   fb:SetPoint("BOTTOMLEFT", 20, 46)
-  local done = UI.Button(f, "Done", 120, 24, function() f:Hide() end); done:SetPoint("BOTTOMRIGHT", -16, 14)
-  local open = UI.Button(f, "Open Forever Relationships", 160, 24, function() f:Hide(); UI:Open("circle") end)
+  local done = UI.Button(f, L["Done"], 120, 24, function() f:Hide() end); done:SetPoint("BOTTOMRIGHT", -16, 14)
+  local open = UI.Button(f, L["Open Forever Relationships"], 160, 24, function() f:Hide(); UI:Open("circle") end)
   open:SetPoint("RIGHT", done, "LEFT", -8, 0)
-  local comp = UI.Button(f, "Companion app", 130, 24, function() UI.ShowText("Companion app", FR.Cloud:SetupText()) end)
+  local comp = UI.Button(f, L["Companion app"], 130, 24, function() UI.ShowText(L["Companion app"], FR.Cloud:SetupText()) end)
   comp:SetPoint("BOTTOMLEFT", 16, 14)
   function f:Refresh()
-    for _, r in ipairs(self.rows) do r.button:SetText(FR.Params:Get(r.key) and "|cff66ff66On|r" or "|cffaaaaaaOff|r") end
+    for _, r in ipairs(self.rows) do r.button:SetText(FR.Params:Get(r.key) and ("|cff66ff66" .. FR.L["On"] .. "|r") or ("|cffaaaaaa" .. FR.L["Off"] .. "|r")) end
   end
   return f
 end

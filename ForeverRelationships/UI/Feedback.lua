@@ -5,6 +5,7 @@
 -- a one-click, pre-filled report.
 local _, FR = ...
 local UI = FR.UI
+local L = FR.L
 
 local FB = {}
 FR.Feedback = FB
@@ -73,9 +74,9 @@ end
 
 function FB:Submit(kind, text, withDiag)
   text = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-  if text == "" and kind ~= "bug" then return false, "Please write a few words." end
+  if text == "" and kind ~= "bug" then return false, L["Please write a few words."] end
   local f = self:State()
-  if #f.outbox >= MAX_OUTBOX then return false, "Too many reports are waiting to be sent. Is the companion app running?" end
+  if #f.outbox >= MAX_OUTBOX then return false, L["Too many reports are waiting to be sent. Is the companion app running?"] end
   local report = {
     id = f.installId:sub(1, 8) .. "-" .. FR.Now() .. "-" .. RandomHex(4),
     t = FR.Now(), kind = kind, text = text:sub(1, MAX_TEXT), version = FR.version,
@@ -94,22 +95,24 @@ function FB:StatusOf(id)
 end
 
 local STATUS_TEXT = {
-  received = "|cff66ccffReceived|r", planned = "|cffffd100Planned|r", fixed = "|cff66ff66Fixed|r",
-  done = "|cff66ff66Done|r", wontfix = "|cffaaaaaaWon't do|r", duplicate = "|cffaaaaaaDuplicate|r",
+  received = { "66ccff", "Received" }, planned = { "ffd100", "Planned" }, fixed = { "66ff66", "Fixed" },
+  done = { "66ff66", "Done" }, wontfix = { "aaaaaa", "Won't do" }, duplicate = { "aaaaaa", "Duplicate" },
 }
 
 function FB:StatusText(report)
   local s = self:StatusOf(report.id)
-  if s then return STATUS_TEXT[s.status] or ("|cff66ccff" .. tostring(s.status) .. "|r"), s.reply end
-  return "|cffff9933Waiting to be sent|r", nil
+  if s then
+    local t = STATUS_TEXT[s.status]
+    return t and ("|cff" .. t[1] .. L[t[2]] .. "|r") or ("|cff66ccff" .. tostring(s.status) .. "|r"), s.reply
+  end
+  return "|cffff9933" .. L["Waiting to be sent"] .. "|r", nil
 end
 
 function FB:DeliveryNote()
   if FR.Cloud and FR.Cloud:CompanionSeen() then
-    return "|cff66ff66Sent automatically the next time you log out or /reload.|r"
+    return "|cff66ff66" .. L["Sent automatically the next time you log out or /reload."] .. "|r"
   end
-  return "|cffff9933Addons can't use the internet: your report is saved on this computer and sent automatically as soon as the free "
-    .. "Forever Relationships companion app runs here (setup: /fr cloud). Status and replies show up in this window.|r"
+  return "|cffff9933" .. L["Addons can't use the internet: your report is saved on this computer and sent automatically as soon as the free Forever Relationships companion app runs here (setup: /fr cloud). Status and replies show up in this window."] .. "|r"
 end
 
 -------------------------------------------------------------------------------
@@ -119,14 +122,14 @@ local win
 
 local function Build()
   local f = UI.Window("ForeverRelationshipsFeedback", 600, 470, "DIALOG")
-  UI.Label(f, "Send feedback to the Forever Relationships developer", "GameFontNormalLarge"):SetPoint("TOP", 0, -28)
-  local sub = UI.Label(f, "This is the one place for bug reports and ideas. You never need to leave the game.", "GameFontHighlightSmall")
+  UI.Label(f, L["Send feedback to the Forever Relationships developer"], "GameFontNormalLarge"):SetPoint("TOP", 0, -28)
+  local sub = UI.Label(f, L["This is the one place for bug reports and ideas. You never need to leave the game."], "GameFontHighlightSmall")
   sub:SetPoint("TOP", 0, -48)
 
   f.kind = "bug"
-  f.bugBtn = UI.Button(f, "Something's broken", 160, 22, function() f.kind = "bug"; f:Refresh() end)
+  f.bugBtn = UI.Button(f, L["Something's broken"], 160, 22, function() f.kind = "bug"; f:Refresh() end)
   f.bugBtn:SetPoint("TOPLEFT", 20, -70)
-  f.ideaBtn = UI.Button(f, "Idea / suggestion", 160, 22, function() f.kind = "idea"; f:Refresh() end)
+  f.ideaBtn = UI.Button(f, L["Idea / suggestion"], 160, 22, function() f.kind = "idea"; f:Refresh() end)
   f.ideaBtn:SetPoint("LEFT", f.bugBtn, "RIGHT", 6, 0)
 
   local bg = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -150,16 +153,16 @@ local function Build()
   f.withDiag = true
   f.diagBtn = UI.Button(f, "", 190, 20, function() f.withDiag = not f.withDiag; f:Refresh() end)
   f.diagBtn:SetPoint("TOPLEFT", bg, "BOTTOMLEFT", 0, -6)
-  local see = UI.Button(f, "What's included?", 130, 20, function() UI.ShowText("Diagnostics sent with your report", FB:DiagnosticsText()) end)
+  local see = UI.Button(f, L["What's included?"], 130, 20, function() UI.ShowText(L["Diagnostics sent with your report"], FB:DiagnosticsText()) end)
   see:SetPoint("LEFT", f.diagBtn, "RIGHT", 6, 0)
-  UI.Tooltip(see, "Diagnostics", { "Addon and client versions, which features are unavailable on your client, recent Forever Relationships errors, and simple counts. Never names, notes, chat or anything about other players." })
+  UI.Tooltip(see, L["Diagnostics"], { L["Addon and client versions, which features are unavailable on your client, recent Forever Relationships errors, and simple counts. Never names, notes, chat or anything about other players."] })
 
-  f.send = UI.Button(f, "Send", 100, 24, function()
+  f.send = UI.Button(f, L["Send"], 100, 24, function()
     local ok, res = FB:Submit(f.kind, f.edit:GetText(), f.withDiag)
     if not ok then FR.Print(res); return end
     f.edit:SetText(""); f.edit:ClearFocus(); f.hint:Show()
-    FR.Print("Thanks! Feedback saved. " .. (FR.Cloud:CompanionSeen() and "It will be sent on your next logout or /reload."
-      or "It will be sent when the companion app runs (/fr cloud)."))
+    FR.Print(L["Thanks! Feedback saved."] .. " " .. (FR.Cloud:CompanionSeen() and L["It will be sent on your next logout or /reload."]
+      or L["It will be sent when the companion app runs (/fr cloud)."]))
     f:Refresh()
   end)
   f.send:SetPoint("TOPRIGHT", bg, "BOTTOMRIGHT", 0, -22)
@@ -173,31 +176,31 @@ local function Build()
     row:SetScript("OnEnter", function(self)
       if not self.report then return end
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:SetText(self.report.kind == "bug" and "Bug report" or "Idea", 1, 1, 1)
-      GameTooltip:AddLine(self.report.text ~= "" and self.report.text or "(no text, diagnostics only)", 0.9, 0.9, 0.9, true)
+      GameTooltip:SetText(self.report.kind == "bug" and L["Bug report"] or L["Idea"], 1, 1, 1)
+      GameTooltip:AddLine(self.report.text ~= "" and self.report.text or L["(no text, diagnostics only)"], 0.9, 0.9, 0.9, true)
       local st, reply = FB:StatusText(self.report)
-      GameTooltip:AddLine("Status: " .. st)
-      if reply then GameTooltip:AddLine("Reply: " .. reply, 0.4, 1, 0.4, true) end
+      GameTooltip:AddLine(L["Status: %s"]:format(st))
+      if reply then GameTooltip:AddLine(L["Reply: %s"]:format(reply), 0.4, 1, 0.4, true) end
       GameTooltip:Show()
     end)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end, function(row, r)
     row.report = r
     local st, reply = FB:StatusText(r)
-    row.text:SetText(string.format("%s  %s  %s", date("%m-%d", r.t), r.kind == "bug" and "|cffff9933Bug|r" or "|cff66ccffIdea|r",
-      (r.text ~= "" and r.text or "(diagnostics only)"):gsub("\n", " ")))
-    row.status:SetText(st .. (reply and " |cff66ff66(reply)|r" or ""))
+    row.text:SetText(string.format("%s  %s  %s", date("%m-%d", r.t), r.kind == "bug" and ("|cffff9933" .. L["Bug"] .. "|r") or ("|cff66ccff" .. L["Idea"] .. "|r"),
+      (r.text ~= "" and r.text or L["(diagnostics only)"]):gsub("\n", " ")))
+    row.status:SetText(st .. (reply and (" |cff66ff66(" .. L["reply"] .. ")|r") or ""))
   end)
   f.list:SetPoint("TOPLEFT", 16, -348)
   f.list:SetSize(570, 110)
 
   function f:Refresh()
-    self.bugBtn:SetText(self.kind == "bug" and "|cffffd100> Something's broken|r" or "Something's broken")
-    self.ideaBtn:SetText(self.kind == "idea" and "|cffffd100> Idea / suggestion|r" or "Idea / suggestion")
-    self.hint:SetText(self.kind == "bug" and "What happened, and what did you expect? (Diagnostics are attached, so a short note is enough.)"
-      or "What would you like Forever Relationships to do differently?")
+    self.bugBtn:SetText(self.kind == "bug" and ("|cffffd100> " .. L["Something's broken"] .. "|r") or L["Something's broken"])
+    self.ideaBtn:SetText(self.kind == "idea" and ("|cffffd100> " .. L["Idea / suggestion"] .. "|r") or L["Idea / suggestion"])
+    self.hint:SetText(self.kind == "bug" and L["What happened, and what did you expect? (Diagnostics are attached, so a short note is enough.)"]
+      or L["What would you like Forever Relationships to do differently?"])
     if self.edit:GetText() ~= "" or self.edit:HasFocus() then self.hint:Hide() else self.hint:Show() end
-    self.diagBtn:SetText(self.withDiag and "|cff66ff66Include diagnostics: On|r" or "Include diagnostics: Off")
+    self.diagBtn:SetText(self.withDiag and ("|cff66ff66" .. L["Include diagnostics: On"] .. "|r") or L["Include diagnostics: Off"])
     self.note:SetText(FB:DeliveryNote())
     local items = {}
     local outbox = FB:State().outbox
@@ -208,7 +211,7 @@ local function Build()
 end
 
 function UI.ShowFeedback(kind, prefill)
-  if FR.InCombat() then FR.Print("Feedback opens after combat."); return end
+  if FR.InCombat() then FR.Print(L["Feedback opens after combat."]); return end
   win = win or Build()
   win.kind = kind or win.kind
   if prefill then win.edit:SetText(prefill) end
@@ -227,8 +230,8 @@ FR:Listen("ERROR_RECORDED", function(e)
   local function offer()
     if FR.InCombat() then C_Timer.After(5, offer); return end
     UI.Toast({
-      text = "Forever Relationships hit an error. Send a report so it gets fixed? The error details are attached for you.",
-      yesLabel = "Report it",
+      text = L["Forever Relationships hit an error. Send a report so it gets fixed? The error details are attached for you."],
+      yesLabel = L["Report it"],
       onYes = function() UI.ShowFeedback("bug", "") end,
     })
   end

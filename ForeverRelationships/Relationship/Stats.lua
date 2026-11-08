@@ -253,44 +253,56 @@ local function dur(s) return FR.FormatDuration and FR.FormatDuration(s) or tostr
 local function ago(t) return FR.FormatAgo and FR.FormatAgo(t) or tostring(t) end
 local function gold(c) return FR.FormatGold and FR.FormatGold(c) or tostring(c) end
 local function sumHelp(h) return h.buff + h.rez + h.summon + h.portal end
+local L = FR.L
+local function P(n, one, many) return FR.Plural(n, one, many) end
+local HELP_WORDS = {
+  buff = { "%d buff", "%d buffs" }, rez = { "%d resurrection", "%d resurrections" },
+  summon = { "%d summon", "%d summons" }, portal = { "%d portal", "%d portals" },
+}
 local function helpText(h)
   local bits = {}
   for _, k in ipairs({ "buff", "rez", "summon", "portal" }) do
-    if h[k] > 0 then bits[#bits + 1] = h[k] .. " " .. (k == "rez" and "rez" or k) .. (h[k] > 1 and "s" or "") end
+    if h[k] > 0 then bits[#bits + 1] = P(h[k], HELP_WORDS[k][1], HELP_WORDS[k][2]) end
   end
-  return #bits > 0 and table.concat(bits, ", ") or "none"
+  return #bits > 0 and table.concat(bits, ", ") or L["none"]
 end
 
--- layer: "info" (facts) or "knowledge" (patterns for you)
+-- layer: "info" (facts) or "knowledge" (patterns for you). Labels are English keys:
+-- show them with FR.L[f.label].
 Rel.FIELDS = {
-  { key = "time", layer = "knowledge", label = "Time together", value = function(r) return dur(r.seconds) .. " in " .. r.sessions .. " session" .. (r.sessions == 1 and "" or "s") end },
-  { key = "last", layer = "info", label = "Last together", value = function(r) return r.last and (ago(r.last) .. ", " .. r.lastWhere) or "never" end },
-  { key = "days", layer = "knowledge", label = "Days together", value = function(r) return r.days .. " day" .. (r.days == 1 and "" or "s") end },
-  { key = "completed", layer = "info", label = "Completed together", value = function(r) return r.dungeons .. " dungeon" .. (r.dungeons == 1 and "" or "s") .. ", " .. r.raids .. " raid" .. (r.raids == 1 and "" or "s") end },
+  { key = "time", layer = "knowledge", label = "Time together", value = function(r) return L["%s in %s"]:format(dur(r.seconds), P(r.sessions, "%d session", "%d sessions")) end },
+  { key = "last", layer = "info", label = "Last together", value = function(r) return r.last and (ago(r.last) .. ", " .. r.lastWhere) or L["never"] end },
+  { key = "days", layer = "knowledge", label = "Days together", value = function(r) return P(r.days, "%d day", "%d days") end },
+  { key = "completed", layer = "info", label = "Completed together", value = function(r) return P(r.dungeons, "%d dungeon", "%d dungeons") .. ", " .. P(r.raids, "%d raid", "%d raids") end },
   { key = "kills", layer = "info", label = "Kills together", value = function(r) return tostring(r.kills) end },
-  { key = "trades", layer = "info", label = "Trades", value = function(r) return r.trades .. (r.trades > 0 and (" (gave " .. gold(r.goldGiven) .. ", got " .. gold(r.goldReceived) .. ")") or "") end },
-  { key = "first", layer = "info", label = "First together", value = function(r) return r.first and (date("%Y-%m-%d", r.first) .. ", " .. r.firstWhere) or "never" end },
-  { key = "rhythm", layer = "knowledge", label = "You usually play together", value = function(r) return r.typicalTime or "-" end },
+  { key = "trades", layer = "info", label = "Trades", value = function(r) return r.trades .. (r.trades > 0 and (" " .. L["(gave %s, got %s)"]:format(gold(r.goldGiven), gold(r.goldReceived))) or "") end },
+  { key = "first", layer = "info", label = "First together", value = function(r) return r.first and (date("%Y-%m-%d", r.first) .. ", " .. r.firstWhere) or L["never"] end },
+  { key = "rhythm", layer = "knowledge", label = "You usually play together", value = function(r) return r.typicalTime and L[r.typicalTime] or "-" end },
   { key = "levelGap", layer = "knowledge", label = "Typical level difference", value = function(r)
       if not r.levelGap then return "-" end
-      if r.levelGap == 0 then return "same level" end
-      return (r.levelGap > 0 and ("+" .. r.levelGap .. " above you") or (-r.levelGap .. " below you")) end },
+      if r.levelGap == 0 then return L["same level"] end
+      return r.levelGap > 0 and L["+%d above you"]:format(r.levelGap) or L["%d below you"]:format(-r.levelGap) end },
   { key = "zones", layer = "knowledge", label = "Places in common", value = function(r) return #r.zones > 0 and table.concat(r.zones, ", ") or "-" end },
   { key = "quests", layer = "info", label = "Quests completed together", value = function(r) return tostring(r.quests) end },
   { key = "helpReceived", layer = "info", label = "Help you received", value = function(r) return helpText(r.helpReceived) end, total = function(r) return sumHelp(r.helpReceived) end },
   { key = "helpGiven", layer = "info", label = "Help you gave", value = function(r) return helpText(r.helpGiven) end, total = function(r) return sumHelp(r.helpGiven) end },
-  { key = "crafts", layer = "info", label = "Crafts and enchants", value = function(r) return ("by them: %d, by you: %d"):format(r.craftsByThem, r.craftsByMe) end },
+  { key = "crafts", layer = "info", label = "Crafts and enchants", value = function(r) return L["by them: %d, by you: %d"]:format(r.craftsByThem, r.craftsByMe) end },
   { key = "loot", layer = "info", label = "Items they looted with you", value = function(r) return tostring(r.loot) end },
   { key = "ready", layer = "info", label = "Ready checks together", value = function(r) return tostring(r.readyChecks) end },
   { key = "hc", layer = "info", label = "Hardcore deaths in your group", value = function(r) return tostring(r.hcDeaths) end },
-  { key = "guild", layer = "info", label = "Guild", value = function(r) return (r.guild and r.guild ~= "" and ("<" .. r.guild .. ">") or "none") .. (r.guildChanges > 0 and (" · " .. r.guildChanges .. " change" .. (r.guildChanges == 1 and "" or "s") .. " seen") or "") end },
+  { key = "guild", layer = "info", label = "Guild", value = function(r)
+      return (r.guild and r.guild ~= "" and ("<" .. r.guild .. ">") or L["none"])
+        .. (r.guildChanges > 0 and (" · " .. P(r.guildChanges, "%d change seen", "%d changes seen")) or "") end },
   { key = "played", layer = "info", label = "Their /played", value = function(r)
       local prof = FR.Cloud and FR.Cloud:Profile(r.guid)
       for _, it in ipairs(prof and prof.items or {}) do
         if it.key == "played" then return tostring(it.value) end
       end
-      return "not public" end },
-  { key = "rank", layer = "knowledge", label = "In your circle", value = function(r) local n = Rel:Rank(r.guid); return n and ("#" .. n .. " by time together") or "-" end },
+      return L["not public"] end },
+  { key = "groups", layer = "knowledge", label = "Groups", value = function(r)
+      local s = FR.Groups and FR.Groups:Label(r.guid) or ""
+      return s ~= "" and s or "-" end },
+  { key = "rank", layer = "knowledge", label = "In your circle", value = function(r) local n = Rel:Rank(r.guid); return n and L["#%d by time together"]:format(n) or "-" end },
 }
 Rel.FIELD_BY_KEY = {}
 for _, f in ipairs(Rel.FIELDS) do Rel.FIELD_BY_KEY[f.key] = f end

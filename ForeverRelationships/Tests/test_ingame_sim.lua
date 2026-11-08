@@ -68,7 +68,8 @@ function hooksecurefunc() end
 function issecretvalue(v) return v == "SECRET" end
 function GetServerTime() return clock end
 function GetTime() return clock end
-function InCombatLockdown() return false end
+local inCombat = false
+function InCombatLockdown() return inCombat end
 function GetBuildInfo() return "1.60.1", "70755", "Nov 2026", 16001 end
 function GetNormalizedRealmName() return "Forever" end
 function FauxScrollFrame_GetOffset() return 0 end
@@ -127,7 +128,11 @@ function GetLocale() return "ptBR" end
 function UnitLevel(u) local x = U(u); return x and x.level end
 function UnitIsConnected(u) return U(u) ~= nil end
 function UnitIsPlayer(u) return U(u) ~= nil end
-function UnitIsDeadOrGhost() return false end
+function UnitIsDeadOrGhost(u) local x = U(u); return x and x.dead or false end
+function UnitExists(u) return U(u) ~= nil end
+function UnitAffectingCombat(u) local x = U(u); return x and x.combat or false end
+function UnitIsUnit(a, b) local x, y = U(a), U(b); return x ~= nil and x == y end
+COMBAT_HONOR_GAIN = "%s dies, honorable kill Rank: %s (Estimated Honor Points: %d)"
 function GetGuildInfo(u) return u == "player" and "Mine" or "Other Guild" end
 function GetInstanceInfo() return "Test Keep", "party" end
 function GetRealZoneText() return "Test Keep" end
@@ -532,6 +537,93 @@ if os.getenv("FR_DUMP_SV") then
   f:close()
   print("  dumped SavedVariables to " .. os.getenv("FR_DUMP_SV"))
 end
+
+-- Rivals: an opposite-faction player crossed, fought, beaten, and beating me
+local realInstance = GetInstanceInfo
+GetInstanceInfo = function() return "Elwynn Forest", "none" end
+local paly = { guid = "Player-1-000000E1", name = "Lightbro", class = "PALADIN", level = 30, race = "Human", faction = "Alliance" }
+units.nameplate1 = paly
+fire("NAME_PLATE_UNIT_ADDED", "nameplate1"); advance(60)
+fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+local rv = FR.Rivals:Get(paly.guid)
+assert(rv and rv.crossed == 1 and rv.battles == 0 and rv.faction == "Alliance", "first crossing")
+assert(not (FR.UI.NearbyAlert.frame and FR.UI.NearbyAlert.frame:IsShown()), "no alert for a rival never fought")
+advance(16 * 60); fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+assert(rv.crossed == 2, "a new crossing after the gap")
+-- fight 1: we fight, he dies -> victory (the honor message for the same kill is not counted twice)
+inCombat = true; paly.combat = true; units.nameplate1target = units.player
+fire("PLAYER_REGEN_DISABLED"); advance(2)
+assert(rv.battles == 1, "battle: both in combat, he targets me")
+paly.dead = true; advance(1)
+fire("CHAT_MSG_COMBAT_HONOR_GAIN", "Lightbro dies, honorable kill Rank: Knight (Estimated Honor Points: 12)")
+assert(rv.wins == 1, "victory once: " .. rv.wins)
+inCombat = false; fire("PLAYER_REGEN_ENABLED"); advance(120)
+-- fight 2: he kills me
+paly.dead = false; inCombat = true
+fire("PLAYER_REGEN_DISABLED"); advance(2)
+fire("PLAYER_DEAD"); inCombat = false; fire("PLAYER_REGEN_ENABLED"); advance(120)
+assert(rv.battles == 2 and rv.deaths == 1, "death while fighting him")
+-- fight 3: honorable kill only
+inCombat = true; fire("PLAYER_REGEN_DISABLED"); advance(2)
+units.nameplate1target = nil; paly.combat = false
+fire("CHAT_MSG_COMBAT_HONOR_GAIN", "Lightbro dies, honorable kill Rank: Knight (Estimated Honor Points: 12)")
+inCombat = false; fire("PLAYER_REGEN_ENABLED"); advance(120)
+assert(rv.battles == 3 and rv.wins == 2, "honorable kill counts as a victory")
+local summary = FR.Rivals:Summary(rv)
+assert(summary:find("Battles 3") and summary:find("Won 2 %(67%%%)") and summary:find("Lost 1 %(33%%%)"), summary)
+local info, know = FR.Rivals:Rows(rv)
+assert(#info == 6 and know[3][2] == "100%", "share of all your victories")
+-- nearby alert: the rival I fought, then a friend; one alert per player per cooldown
+FR.UI.NearbyAlert.last = {}
+fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+local af = FR.UI.NearbyAlert.frame
+assert(af and af:IsShown() and af.name:GetText():find("Lightbro") and af.line:GetText():find("Battles 3"), "rival alert")
+af:Hide(); fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+assert(not af:IsShown(), "cooldown: no second alert")
+units.nameplate2 = { guid = "Player-1-0000000A", name = "Tanky", class = "WARRIOR", level = 38 }
+fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+assert(af:IsShown() and af.name:GetText():find("Tanky") and af.line:GetText():find("together"), "friend alert: " .. tostring(af.line:GetText()))
+af:Hide(); FR.UI.NearbyAlert.last = {}
+FR.Params:Set("nearby.alert", false); fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+assert(not af:IsShown(), "alert off")
+FR.Params:Set("nearby.alert", true)
+FR.HandleSlash("alert"); FR.HandleSlash("alert reset")
+GetInstanceInfo = realInstance
+print("  ok   rivals: crossings, battles, victories (seen/honor), deaths, percentages; nearby alert for rivals and friends")
+-- groups: automatic, manual, custom
+local G = FR.Groups
+assert(G:Has(paly.guid, "rival"), "rival group is automatic")
+assert(not G:Has("Player-1-0000000A", "dungeonBuddy"), "one dungeon is not enough for Dungeon Buddy")
+G:Set("Player-1-0000000A", "dungeonBuddy", true)
+assert(G:Has("Player-1-0000000A", "dungeonBuddy"), "added by hand")
+local raiders = assert(G:Create("Raiders"))
+assert(G:Create("raiders") == nil, "no duplicate names")
+G:Set("Player-1-0000000A", raiders, true)
+assert(G:Label("Player-1-0000000A") == "Dungeon Buddy, Raiders", G:Label("Player-1-0000000A"))
+G:Set(paly.guid, "rival", false)
+assert(not G:Has(paly.guid, "rival") and G:Auto(paly.guid).rival, "removed from an automatic group, and it sticks")
+FR.Params:Set("groups.questHelper", 999)
+assert(not G:Has("Player-1-0000000A", "questHelper"), "threshold from settings (high)")
+FR.Params:Set("groups.questHelper", 1)
+local tr = FR.Rel:Compute("Player-1-0000000A")
+local trHelp = 0; for _, n in pairs(tr.helpReceived) do trHelp = trHelp + n end
+assert(G:Has("Player-1-0000000A", "questHelper") == (tr.quests + trHelp >= 1), "threshold from settings (low)")
+FR.Params:Reset("groups.questHelper")
+assert(G:Rename(raiders, "Raid team") and G:Name(raiders) == "Raid team", "rename")
+FR.UI.SelectTab("circle"); FR.UI.views.circle.mode = "rivals"; FR.UI.views.circle:Refresh()
+FR.UI.views.circle.group = raiders; FR.UI.views.circle.mode = "circle"; FR.UI.views.circle:Refresh()
+FR.UI.GroupPicker:Open("Player-1-0000000A"); FR.UI.GroupPicker:Open(nil)
+FR.UI:OpenPlayer(paly.guid)
+assert(FR.UI.views.relationship.header:GetText():find("Lightbro"), "rival Relationship page")
+FR.HandleSlash("player Lightbro"); FR.HandleSlash("groups")
+assert(G:Delete(raiders) and not G:Label("Player-1-0000000A"):find("Raid team"), "delete a group")
+FR.UI.views.circle.group = nil
+print("  ok   groups: automatic from facts, add/remove by hand, custom groups, Circle filter, rival page")
+-- language switch
+FR.HandleSlash("language ptBR")
+assert(FR.db.ui.locale == "ptBR", "language saved for the next /reload")
+FR:SetLocale("ptBR"); assert(FR.L["Rivals"] ~= nil, "lookup works")
+FR.db.ui.locale = nil; FR:SetLocale(nil)
 
 -- optional: load companion-written NetData and check profiles / suggestions
 if os.getenv("FR_NETDATA") then

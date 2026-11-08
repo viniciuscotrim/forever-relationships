@@ -3,6 +3,7 @@
 -- Nothing appears during combat.
 local _, FR = ...
 local UI = FR.UI
+local L = FR.L
 
 local DAY = 86400
 
@@ -21,7 +22,7 @@ local function BuildToast()
   f.title = UI.Label(f, "Forever Relationships", "GameFontNormalSmall"); f.title:SetPoint("TOPLEFT", 10, -8)
   f.text = UI.Label(f, "", "GameFontHighlight"); f.text:SetPoint("TOPLEFT", 10, -24); f.text:SetWidth(340)
   f.yes = UI.Button(f, "", 110, 20); f.yes:SetPoint("BOTTOMLEFT", 10, 8)
-  f.no = UI.Button(f, "Not now", 90, 20); f.no:SetPoint("LEFT", f.yes, "RIGHT", 6, 0)
+  f.no = UI.Button(f, L["Not now"], 90, 20); f.no:SetPoint("LEFT", f.yes, "RIGHT", 6, 0)
   f:Hide()
   return f
 end
@@ -74,8 +75,8 @@ FR:Listen("SESSION_END", function(s)
       if n >= FR.Params:Get("suggest.friendAfterSessions") and not IsFriend(m.guid)
         and not (dismissed and FR.Now() - dismissed < 30 * DAY) then
         UI.Toast({
-          text = string.format("You've grouped with %s %d times. Add as a friend?", FR.ShortName(m.name), n),
-          yesLabel = "Add friend",
+          text = L["You've grouped with %s %d times. Add as a friend?"]:format(FR.ShortName(m.name), n),
+          yesLabel = L["Add friend"],
           onYes = function() C_FriendList.AddFriend(FR.ShortName(m.name), "Forever Relationships") end,
           onNo = function() FR.cdb.suggestDismissed[m.guid] = FR.Now() end,
         })
@@ -95,8 +96,8 @@ local function MaybeRegroup(guid, name, zone)
   if lastToast[guid] and FR.Now() - lastToast[guid] < cd then return end
   lastToast[guid] = FR.Now()
   UI.Toast({
-    text = string.format("%s is in %s. Invite?", FR.ShortName(name), zone or "the world"),
-    yesLabel = "Invite",
+    text = L["%s is in %s. Invite?"]:format(FR.ShortName(name), zone or L["the world"]),
+    yesLabel = L["Invite"],
     onYes = function()
       local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
       if invite then invite(name) end

@@ -9,6 +9,7 @@ local Announce = {}
 FR.Announce = Announce
 
 Announce.TEXT = "Welcome to party! Forever Relationships addon being used to eternize our time together!"
+-- in your language when it has a translation (party members usually share your client's language)
 
 local REPEAT = 30 * 60   -- the same player is not welcomed again within this many seconds
 local MIN_GAP = 20       -- seconds between two of our lines; joiners in between are batched
@@ -48,7 +49,7 @@ local function Flush()
   wipe(pending)
   if not any or not Announce:Enabled() or not Announce:InParty() then return end
   if now - claimedAt < CLAIM then return end   -- another member already welcomed them
-  pcall(SendChatMessage, Announce.TEXT, "PARTY")
+  pcall(SendChatMessage, FR.L[Announce.TEXT], "PARTY")
   lastSent = now
   if FR.Protocol and FR.playerGUID then FR.Protocol:SendGroup("WELCOME", { FR.playerGUID }) end
 end

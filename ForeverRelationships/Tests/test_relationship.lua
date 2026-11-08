@@ -8,7 +8,7 @@ FR.FormatAgo = function() return "ago" end
 FR.FormatGold = function(c) return c .. "c" end
 date = os.date
 local function load(path) assert(loadfile(root .. path))("ForeverRelationships", FR) end
-load("Core/Params.lua"); load("Core/EventLog.lua"); load("Relationship/Stats.lua")
+load("Locales/Locale.lua"); load("Core/Params.lua"); load("Core/EventLog.lua"); load("Relationship/Stats.lua")
 
 local passed, failed = 0, 0
 local function test(name, fn)

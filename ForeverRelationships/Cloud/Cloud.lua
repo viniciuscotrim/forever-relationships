@@ -7,6 +7,7 @@
 --   community -> your group sessions with members' game-visible attributes, for
 --                anonymous statistics; the server pseudonymizes every identifier
 local _, FR = ...
+local L = FR.L
 
 local Cloud = {}
 FR.Cloud = Cloud
@@ -194,30 +195,28 @@ Cloud.STATUS_TEXT = {
 
 function Cloud:LinkText()
   local linked, chars = self:Linked()
-  if linked == nil then return "unknown until the companion syncs" end
-  if not linked then return "not linked (needed for Official profile items)" end
-  return string.format("linked, %d Forever character(s) verified", chars)
+  if linked == nil then return L["unknown until the companion syncs"] end
+  if not linked then return L["not linked (needed for Official profile items)"] end
+  return L["linked, %d Forever character(s) verified"]:format(chars)
 end
 
 function Cloud:SetupText()
   return {
-    "|cffffd100Forever Relationships companion app|r",
+    "|cffffd100" .. L["Forever Relationships companion app"] .. "|r",
     "",
-    "WoW addons cannot use the internet. The free companion app does it for Forever Relationships:",
-    "your encrypted cloud backup, your public profile, community statistics, and /fr feedback.",
+    L["WoW addons cannot use the internet. The free companion app does it for Forever Relationships: your encrypted cloud backup, your public profile, community statistics, and /fr feedback."],
     "",
-    "1. Download it from:  https://" .. Cloud.DOWNLOAD_URL,
-    "   Mac: open Forever Relationships Companion.app. It installs itself and offers the Battle.net link.",
-    "   Windows: put ForeverRelationshipsCompanion-windows.exe in a permanent folder, then in a terminal there:",
+    L["1. Download it from: %s"]:format("https://" .. Cloud.DOWNLOAD_URL),
+    "   " .. L["Mac: open Forever Relationships Companion.app. It installs itself and offers the Battle.net link."],
+    "   " .. L["Windows: put ForeverRelationshipsCompanion-windows.exe in a permanent folder, then in a terminal there:"],
     "     ForeverRelationshipsCompanion-windows.exe --install",
-    "     ForeverRelationshipsCompanion-windows.exe --link --region us      (eu / kr / tw for other regions)",
-    "2. Cloud backup: the companion shows a RECOVERY CODE once. Save it in your Passwords app.",
-    "   Without the code nobody, not even us, can recover your backup.",
-    "3. In game, /reload.",
+    "     ForeverRelationshipsCompanion-windows.exe --link --region us      (eu / kr / tw)",
+    L["2. Cloud backup: the companion shows a RECOVERY CODE once. Save it in your Passwords app. Without the code nobody, not even us, can recover your backup."],
+    L["3. In game, /reload."],
     "",
-    "Status: " .. Cloud.STATUS_TEXT[self:CompanionStatus()],
+    L["Status:"] .. " " .. L[Cloud.STATUS_TEXT[self:CompanionStatus()]],
     "Battle.net: " .. self:LinkText(),
-    "Without the companion, everything local in Forever Relationships works normally.",
+    L["Without the companion, everything local in Forever Relationships works normally."],
   }
 end
 
@@ -237,7 +236,7 @@ FR:Listen("LOGIN", function()
   C_Timer.After(12, function()
     local st = Cloud:CompanionStatus()
     if st == "missing" or st == "stale" then
-      FR.Print("|cffff9933Cloud:|r " .. Cloud.STATUS_TEXT[st] .. " Type |cffffffff/fr cloud|r for setup.")
+      FR.Print("|cffff9933" .. L["Cloud:"] .. "|r " .. L[Cloud.STATUS_TEXT[st]] .. " " .. L["Type /fr cloud for setup."])
     end
   end)
 end)

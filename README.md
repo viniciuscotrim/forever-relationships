@@ -26,6 +26,9 @@ Forever Relationships is an augmented view of how you relate to the people you p
   - **Information:** the facts the game recorded, such as group time, places, completed content, kills, trades, buffs, resurrections, summons and portals, ready checks, loot, and Hardcore deaths you witnessed together.
   - **Knowledge:** patterns computed for you from those facts. Examples: when you usually play together, your favorite zones together, and where they rank in your circle.
 - **My circle.** Everyone you've played with, sorted by time together, searchable by name or guild.
+- **Know who's coming.** When someone you have history with comes into view, a pop-up tells you who it is and what you've done together, even from nameplate distance. Drag it anywhere; turn it off in Settings (`nearby.alert`). `/fr alert` shows a sample to place it.
+- **Rivals.** Players of the other faction are counted too, but not by time together: how often your paths crossed, how many battles you fought, your victories and your deaths, each with its percentage, plus how each rival compares with all your rivals. Fought rivals can trigger the pop-up as well.
+- **Groups.** Sort the people in your circle into groups. *Quest Helper*, *Dungeon Buddy*, *Raid Champion* and *Rival* fill themselves from what the game recorded; add or remove anyone by hand, and create your own groups. Filter the Circle by group. Groups stay on your computer.
 - **Keep the good ones.** After you've spent real time together, it suggests adding the player as a friend, and offers a one-click invite when a past partner comes online. It only suggests; you always click.
 - **Realm population.** The *Population* tab shows the Horde/Alliance balance and every race, in numbers and percentages, for PvP or PvE realms (yours by default), with the date and time of the last update. It comes from the companion app and refreshes every hour.
 - **Says hello to your party.** When a party forms, and when someone joins, one line in party chat tells everyone the group uses Forever Relationships. If several members have the addon, only one of them posts. Turn it off in Settings (`announce.party`).
@@ -36,11 +39,11 @@ Forever Relationships is an augmented view of how you relate to the people you p
 
 Forever Relationships records **information** (what happened) and **knowledge** (patterns in it). It never records opinions:
 - no scores, ratings, likes or dislikes;
-- no notes about anyone;
+- no notes about anyone (group names are your own labels and never leave your computer);
 - no chat text;
 - no guesses about anyone's intentions.
 
-Nobody can use it to badmouth anyone, because there is nothing to type.
+Nobody can use it to badmouth anyone: nothing you type is ever shared.
 
 ### Four optional layers, all off by default
 

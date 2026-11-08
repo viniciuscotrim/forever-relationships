@@ -2,13 +2,14 @@
 -- item, about YOU only) and the choice of the 6 tooltip items.
 local _, FR = ...
 local UI = FR.UI
+local L = FR.L
 
 UI:RegisterView("profile", function(frame)
   local view = {}
   local header = UI.Label(frame, "", "GameFontNormalLarge"); header:SetPoint("TOPLEFT", 6, -4)
 
   -- left: your numbers + public profile checklist
-  local pubTitle = UI.Label(frame, "Your numbers · tick what others may see", "GameFontNormal")
+  local pubTitle = UI.Label(frame, L["Your numbers · tick what others may see"], "GameFontNormal")
   pubTitle:SetPoint("TOPLEFT", 6, -30)
   view.pubState = UI.Label(frame, "", "GameFontHighlightSmall"); view.pubState:SetPoint("TOPLEFT", 6, -48); view.pubState:SetWidth(380)
   view.items = {}
@@ -16,7 +17,7 @@ UI:RegisterView("profile", function(frame)
     local y = -70 - (i - 1) * 24
     local b = UI.Button(frame, "", 44, 20)
     b:SetPoint("TOPLEFT", 6, y)
-    local l = UI.Label(frame, item.label, "GameFontHighlight"); l:SetPoint("TOPLEFT", 58, y - 3); l:SetWidth(220)
+    local l = UI.Label(frame, L[item.label], "GameFontHighlight"); l:SetPoint("TOPLEFT", 58, y - 3); l:SetWidth(220)
     local v = UI.Label(frame, "", "GameFontHighlight"); v:SetPoint("TOPLEFT", 282, y - 3); v:SetWidth(110)
     b:SetScript("OnClick", function()
       local st = FR.Cloud:State().profileItems
@@ -27,7 +28,7 @@ UI:RegisterView("profile", function(frame)
   end
   view.pubBtn = UI.Button(frame, "", 210, 22, function()
     FR.Params:Set("consent.profile", not FR.Params:Get("consent.profile"))
-    if FR.Params:Get("consent.profile") then UI.ShowText("Public profile", UI.CONSENT_TEXT.profile) end
+    if FR.Params:Get("consent.profile") then UI.ShowText(L["Public profile"], UI.CONSENT_TEXT.profile) end
     view:Refresh()
   end)
   view.pubBtn:SetPoint("TOPLEFT", 6, -70 - #FR.Rel.PROFILE_ITEMS * 24 - 8)
@@ -36,19 +37,19 @@ UI:RegisterView("profile", function(frame)
   view.account:SetPoint("TOPLEFT", 6, -70 - #FR.Rel.PROFILE_ITEMS * 24 - 38); view.account:SetWidth(390)
 
   -- right: tooltip fields (max 6)
-  local ttTitle = UI.Label(frame, "Tooltip · choose up to 6", "GameFontNormal")
+  local ttTitle = UI.Label(frame, L["Tooltip · choose up to 6"], "GameFontNormal")
   ttTitle:SetPoint("TOPLEFT", 420, -30)
   view.tt = {}
   for i, f in ipairs(FR.Rel.FIELDS) do
-    local y = -52 - (i - 1) * 19
+    local y = -52 - (i - 1) * 18
     local b = UI.Button(frame, "", 44, 18)
     b:SetPoint("TOPLEFT", 420, y)
-    local l = UI.Label(frame, f.label, "GameFontHighlightSmall"); l:SetPoint("TOPLEFT", 470, y - 3)
+    local l = UI.Label(frame, L[f.label], "GameFontHighlightSmall"); l:SetPoint("TOPLEFT", 470, y - 3)
     b:SetScript("OnClick", function()
       local cur, out, found = UI.TooltipFields(), {}, false
       for _, k in ipairs(cur) do if k == f.key then found = true else out[#out + 1] = k end end
       if not found then
-        if #out >= FR.Rel.MAX_TOOLTIP then FR.Print("The tooltip shows at most 6 items. Untick one first."); return end
+        if #out >= FR.Rel.MAX_TOOLTIP then FR.Print(L["The tooltip shows at most 6 items. Untick one first."]); return end
         out[#out + 1] = f.key
       end
       UI.SetTooltipFields(out)
@@ -56,29 +57,29 @@ UI:RegisterView("profile", function(frame)
     end)
     view.tt[i] = { button = b, key = f.key }
   end
-  local reset = UI.Button(frame, "Default 6", 90, 20, function() UI.SetTooltipFields(FR.Rel.DEFAULT_TOOLTIP); view:Refresh() end)
-  reset:SetPoint("TOPLEFT", 420, -52 - #FR.Rel.FIELDS * 19 - 6)
+  local reset = UI.Button(frame, L["Default 6"], 90, 20, function() UI.SetTooltipFields(FR.Rel.DEFAULT_TOOLTIP); view:Refresh() end)
+  reset:SetPoint("TOPLEFT", 420, -52 - #FR.Rel.FIELDS * 18 - 6)
 
   function view:Refresh()
     local _, class = UnitClass("player")
-    header:SetText(UI.ClassColored(FR.playerName or "You", class))
+    header:SetText(UI.ClassColored(FR.playerName or L["You"], class))
     local m = FR.Rel:Mine()
     local st = FR.Cloud:State().profileItems
     local on = FR.Params:Get("consent.profile")
     for _, e in ipairs(self.items) do
-      e.button:SetText(st[e.item.key] and "|cff66ff66On|r" or "|cffaaaaaaOff|r")
+      e.button:SetText(st[e.item.key] and ("|cff66ff66" .. FR.L["On"] .. "|r") or ("|cffaaaaaa" .. FR.L["Off"] .. "|r"))
       e.value:SetText(tostring(e.item.value(m)))
     end
     local total, n = FR.Played:Account()
-    self.account:SetText(n > 0 and ("/played, all your characters: |cffffffff%s|r (%d character%s; only you see this. Each counts from its last login with the addon.)")
-      :format(FR.FormatDuration(total), n, n == 1 and "" or "s")
-      or UI.MUTED .. "/played appears a few seconds after login." .. "|r")
-    self.pubBtn:SetText(on and "|cff66ff66Public profile: ON|r" or "Publish my profile")
-    self.pubState:SetText(on and "Ticked items are sent by the companion app. Others see them in your Relationship window."
-      or UI.MUTED .. "Nothing is public. Tick items, then publish." .. "|r")
+    self.account:SetText(n > 0 and (L["/played, all your characters: |cffffffff%s|r (%s; only you see this. Each counts from its last login with the addon.)"]
+      :format(FR.FormatDuration(total), FR.Plural(n, "%d character", "%d characters")))
+      or UI.MUTED .. L["/played appears a few seconds after login."] .. "|r")
+    self.pubBtn:SetText(on and ("|cff66ff66" .. L["Public profile: ON"] .. "|r") or L["Publish my profile"])
+    self.pubState:SetText(on and L["Ticked items are sent by the companion app. Others see them in your Relationship window."]
+      or UI.MUTED .. L["Nothing is public. Tick items, then publish."] .. "|r")
     local chosen = {}
     for _, k in ipairs(UI.TooltipFields()) do chosen[k] = true end
-    for _, e in ipairs(self.tt) do e.button:SetText(chosen[e.key] and "|cff66ff66On|r" or "|cffaaaaaaOff|r") end
+    for _, e in ipairs(self.tt) do e.button:SetText(chosen[e.key] and ("|cff66ff66" .. FR.L["On"] .. "|r") or ("|cffaaaaaa" .. FR.L["Off"] .. "|r")) end
   end
   return view
 end)

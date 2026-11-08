@@ -10,7 +10,7 @@ function UI.TooltipLines(guid)
   local lines = {}
   for _, key in ipairs(UI.TooltipFields()) do
     local f = FR.Rel.FIELD_BY_KEY[key]
-    if f then lines[#lines + 1] = { f.label, f.value(r) } end
+    if f then lines[#lines + 1] = { FR.L[f.label], f.value(r) } end
   end
   return lines
 end
@@ -23,8 +23,17 @@ local function AddToUnitTooltip(tooltip)
   local guid = FR.Clean(UnitGUID(unit))
   if not guid or guid == FR.playerGUID then return end
   local lines = UI.TooltipLines(guid)
-  if not lines then return end
-  tooltip:AddLine("|cffe8b94aYour relationship|r")
+  if not lines then
+    local rv = FR.Params:Get("tooltip.rivals") and FR.Rivals and FR.Rivals:Get(guid)
+    if rv and (rv.battles > 0 or rv.crossed > 1) then
+      tooltip:AddLine("|cffff5555" .. FR.L["Your rivalry"] .. "|r")
+      tooltip:AddLine(FR.Rivals:Summary(rv), 1, 1, 1, true)
+      local groups = FR.Groups:Label(guid)
+      if groups ~= "" then tooltip:AddLine(UI.MUTED .. groups .. "|r") end
+    end
+    return
+  end
+  tooltip:AddLine("|cffe8b94a" .. FR.L["Your relationship"] .. "|r")
   for _, l in ipairs(lines) do tooltip:AddDoubleLine(l[1], l[2], 0.6, 0.62, 0.7, 1, 1, 1) end
 end
 
@@ -48,7 +57,7 @@ FR:Listen("LOGIN", function()
       local lines = leader and UI.TooltipLines(FR.Sessions:GUIDByName(leader))
       if not lines then return end
       tooltip:AddLine(" ")
-      tooltip:AddLine("|cffe8b94aYou and the leader|r")
+      tooltip:AddLine("|cffe8b94a" .. FR.L["You and the leader"] .. "|r")
       for _, l in ipairs(lines) do tooltip:AddDoubleLine(l[1], l[2], 0.6, 0.62, 0.7, 1, 1, 1) end
       tooltip:Show()
     end)

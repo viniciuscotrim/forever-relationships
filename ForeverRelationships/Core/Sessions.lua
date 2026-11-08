@@ -37,6 +37,14 @@ local function GroupUnits()
 end
 Sessions.GroupUnits = GroupUnits
 
+-- Is this player in my group right now?
+function Sessions:InGroupWith(guid)
+  local s = self:Active()
+  local m = s and guid and s.members[guid]
+  local iv = m and m.intervals[#m.intervals]
+  return iv ~= nil and iv.leave == nil
+end
+
 local function ReadUnit(unit)
   local guid = FR.Clean(UnitGUID(unit))
   if not guid or not guid:find("^Player%-") then return nil end
