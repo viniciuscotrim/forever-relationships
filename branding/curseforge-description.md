@@ -76,6 +76,7 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 
 `/fr` opens the window (`/forever` works too). Other useful commands:
 - `/fr feedback`: report a bug or suggest an idea, without leaving the game
+- `/fr translate`: suggest a better translation in your language
 - `/fr population`: realm population by faction and race
 - `/fr privacy`: your layers, the companion app and your data
 - `/fr player <name>`: your relationship with a player
@@ -83,7 +84,7 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 
 ### Good to know
 
-- Made for **WoW: Forever**. The interface is in English.
+- Made for **WoW: Forever**. Available in every language WoW supports: English, Deutsch, Español (España and México), Français, Italiano, 한국어, Português (Brasil), Русский, 简体中文 and 繁體中文. It follows your game's language; `/fr language <code>` picks another. Spotted a clumsy translation? `/fr translate` sends a better one from inside the game.
 - **Updating from an older version?** Your history carries over automatically.
 - **Early release.** If a game feature isn't available on your client, that part turns itself off safely instead of throwing errors.
 - **Feedback and bug reports: `/fr feedback` in game.** It's the only channel, so please don't use comments for bug reports. That way nothing gets lost.

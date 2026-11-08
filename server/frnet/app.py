@@ -330,8 +330,8 @@ class Service:
             fid, kind = it.get("id"), it.get("kind")
             if not (isinstance(fid, str) and FEEDBACK_ID_RE.match(fid)):
                 raise BadRequest("bad feedback id")
-            if kind not in ("bug", "idea"):
-                raise BadRequest("kind must be bug or idea")
+            if kind not in ("bug", "idea", "translation"):
+                raise BadRequest("kind must be bug, idea or translation")
             diag = it.get("diag")
             diag_json = json.dumps(diag)[:8192] if isinstance(diag, (dict, list)) else None
             if self.store.feedback_recent_count(install, now - 86400) >= FEEDBACK_PER_DAY:

@@ -1,5 +1,6 @@
 // Forever Relationships Cockpit. Vanilla JS, no external code (strict CSP).
 "use strict";
+const KIND_LABEL = { bug: "Bug", idea: "Idea", translation: "Translation" };
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -364,7 +365,7 @@ function drawFeedback() {
   $("#tbl-fb tbody").replaceChildren(...rows.map(f => {
     const tr = el("tr", { class: selectedFb === f.id ? "sel" : "" },
       el("td", { text: dayFmt.format(new Date(f.received_at * 1000)) }),
-      el("td", {}, el("span", { class: "tag " + f.kind, text: f.kind === "bug" ? "Bug" : "Idea" })),
+      el("td", {}, el("span", { class: "tag " + f.kind, text: KIND_LABEL[f.kind] || f.kind })),
       el("td", { text: (f.text || "(diagnostics only)").slice(0, 110) }),
       el("td", { text: f.version || "" }),
       el("td", { class: "status", text: (STATUS_LABEL[f.status] || f.status) + (f.reply ? " · replied" : "") }));
@@ -393,7 +394,7 @@ function showFeedback(f) {
   } });
   const note = el("p", { class: "muted" });
   box.replaceChildren(
-    el("h3", { text: (f.kind === "bug" ? "Bug" : "Idea") + " · " + dtFmt.format(new Date(f.received_at * 1000)) }),
+    el("h3", { text: (KIND_LABEL[f.kind] || f.kind) + " · " + dtFmt.format(new Date(f.received_at * 1000)) }),
     el("p", { text: f.text || "(no text, diagnostics only)" }),
     diag ? el("pre", { text: diag }) : null,
     el("label", { text: "Status" }), el("div", { class: "row" }, sel),

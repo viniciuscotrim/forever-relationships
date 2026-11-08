@@ -23,6 +23,7 @@ local HELP = {
   "/fr groups - create, rename or delete your groups",
   "/fr language <code> - language of the addon (enUS, deDE, esES, esMX, frFR, itIT, koKR, ptBR, ruRU, zhCN, zhTW; auto = the game's)",
   "/fr feedback - report a bug or suggest an idea (right here in game)",
+  "/fr translate - suggest a better translation for a text in your language",
   "/fr player <name> - open your Relationship with a player",
   "/fr privacy - layers, consents and what is recorded",
   "/fr cloud - companion app, backup and Battle.net status",
@@ -70,8 +71,9 @@ local function Handle(msg)
   elseif cmd == "population" or cmd == "pop" then UI:Open("population")
   elseif cmd == "cloud" or cmd == "network" then UI.ShowText(L["Companion app"], FR.Cloud:SetupText())
   elseif cmd == "welcome" then UI.ShowWelcome()
-  elseif cmd == "feedback" or cmd == "bug" or cmd == "idea" then
-    UI.ShowFeedback(cmd == "idea" and "idea" or (cmd == "bug" and "bug" or nil), rest ~= "" and rest or nil)
+  elseif cmd == "feedback" or cmd == "bug" or cmd == "idea" or cmd == "translate" or cmd == "translation" then
+    local kind = (cmd == "idea" and "idea") or (cmd == "bug" and "bug") or ((cmd == "translate" or cmd == "translation") and "translation") or nil
+    UI.ShowFeedback(kind, rest ~= "" and rest or nil)
   elseif cmd == "invisible" then
     FR.Presence:SetInvisible(not FR.db.invisible)
     FR.Print(FR.db.invisible and L["Invisible mode ON: nothing is broadcast."] or L["Invisible mode off."])

@@ -636,6 +636,12 @@ FR.UI.SelectTab("circle"); FR.UI.SelectTab("privacy"); FR.UI.ShowSettings()
 FR:SetLocale("deDE"); assert(FR.L["Groups"] == "Gruppen", "German")
 FR:SetLocale("xxXX"); assert(FR.L["Rivals"] == "Rivais", "unknown code falls back to the game's language")
 FR.db.ui.locale = "enUS"; FR:SetLocale("enUS"); assert(FR.L["Rivals"] == "Rivals", "English")
+-- translation suggestions: a feedback kind of their own, tagged with the language
+FR.HandleSlash("translate")
+local okTr, rep = FR.Feedback:Submit("translation", "Rivals should read Opponents", false)
+assert(okTr and rep.kind == "translation" and rep.text == "[enUS] Rivals should read Opponents", "translation suggestion: " .. tostring(rep and rep.text))
+for code in pairs(FR._locales) do FR:SetLocale(code); FR.UI.ShowFeedback("translation"); FR.UI.SelectTab("circle"); FR.UI.SelectTab("relationship") end
+FR:SetLocale("enUS")
 
 -- optional: load companion-written NetData and check profiles / suggestions
 if os.getenv("FR_NETDATA") then

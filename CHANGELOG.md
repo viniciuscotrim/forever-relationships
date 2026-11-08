@@ -1,3 +1,9 @@
+# Forever Relationships 0.6.2
+
+### New
+- **Every language WoW supports.** Italiano, Русский, 한국어, 简体中文 and 繁體中文 join Português (Brasil), Español (España and México), Français and Deutsch. Everything is translated: windows, tooltips, settings, privacy texts, commands and the party welcome line. The addon follows your game's language; `/fr language <code>` picks another one (then `/reload`).
+- **Suggest a better translation.** The feedback window has a third button, *Better translation*, and `/fr translate` opens it directly. Copy the text as you see it and write how it should read; your language is added to the report for you. Replies show up in the same window.
+
 # Forever Relationships 0.6.1
 
 ### Fixed

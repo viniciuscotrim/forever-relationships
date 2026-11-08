@@ -31,6 +31,7 @@ for suite in server companion; do
   rm -f "$LOG"
 done
 python3 "$HERE/tools/sync_docs.py" --check
+python3 "$HERE/tools/locale_keys.py" --check   # every language has every text, same placeholders in the same order
 rsync -a --delete --exclude Tests "$HERE/ForeverRelationships/" "$DEST/"
 # the addon's previous folder name, so both don't load
 OLD="$(dirname "$DEST")/Trust""Advisor"

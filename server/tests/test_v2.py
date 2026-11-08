@@ -184,6 +184,12 @@ class V2(unittest.TestCase):
         res = self.svc.feedback({"installId": "f" * 32, "items": [{"id": "ffffffff-1-ab", "kind": "bug", "text": "x"}]})
         self.assertEqual(res["statuses"], {"ffffffff-1-ab": {"status": "received"}})
 
+    def test_feedback_translation_kind(self):
+        res = self.svc.feedback({"installId": "f" * 32, "items": [{"id": "ffffffff-2-ab", "kind": "translation", "text": "[ptBR] Rivais -> Rivais ok"}]})
+        self.assertEqual(res["statuses"]["ffffffff-2-ab"]["status"], "received")
+        with self.assertRaises(BadRequest):
+            self.svc.feedback({"installId": "f" * 32, "items": [{"id": "ffffffff-3-ab", "kind": "spam", "text": "x"}]})
+
     def test_protocol_version_enforced(self):
         with self.assertRaises(BadRequest):
             self.svc.sync({"uploaderId": "a" * 32, "protocol": 1})

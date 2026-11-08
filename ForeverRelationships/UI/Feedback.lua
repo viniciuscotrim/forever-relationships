@@ -75,6 +75,8 @@ end
 function FB:Submit(kind, text, withDiag)
   text = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
   if text == "" and kind ~= "bug" then return false, L["Please write a few words."] end
+  -- a translation suggestion always says which language it is about
+  if kind == "translation" and not text:find("^%[%a%a%u%u%]") then text = "[" .. FR.locale .. "] " .. text end
   local f = self:State()
   if #f.outbox >= MAX_OUTBOX then return false, L["Too many reports are waiting to be sent. Is the companion app running?"] end
   local report = {
@@ -131,6 +133,8 @@ local function Build()
   f.bugBtn:SetPoint("TOPLEFT", 20, -70)
   f.ideaBtn = UI.Button(f, L["Idea / suggestion"], 160, 22, function() f.kind = "idea"; f:Refresh() end)
   f.ideaBtn:SetPoint("LEFT", f.bugBtn, "RIGHT", 6, 0)
+  f.trBtn = UI.Button(f, L["Better translation"], 160, 22, function() f.kind = "translation"; f:Refresh() end)
+  f.trBtn:SetPoint("LEFT", f.ideaBtn, "RIGHT", 6, 0)
 
   local bg = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
   bg:SetPoint("TOPLEFT", 20, -100); bg:SetSize(560, 130)
@@ -176,7 +180,7 @@ local function Build()
     row:SetScript("OnEnter", function(self)
       if not self.report then return end
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:SetText(self.report.kind == "bug" and L["Bug report"] or L["Idea"], 1, 1, 1)
+      GameTooltip:SetText(self.report.kind == "bug" and L["Bug report"] or self.report.kind == "translation" and L["Translation suggestion"] or L["Idea"], 1, 1, 1)
       GameTooltip:AddLine(self.report.text ~= "" and self.report.text or L["(no text, diagnostics only)"], 0.9, 0.9, 0.9, true)
       local st, reply = FB:StatusText(self.report)
       GameTooltip:AddLine(L["Status: %s"]:format(st))
@@ -187,7 +191,7 @@ local function Build()
   end, function(row, r)
     row.report = r
     local st, reply = FB:StatusText(r)
-    row.text:SetText(string.format("%s  %s  %s", date("%m-%d", r.t), r.kind == "bug" and ("|cffff9933" .. L["Bug"] .. "|r") or ("|cff66ccff" .. L["Idea"] .. "|r"),
+    row.text:SetText(string.format("%s  %s  %s", date("%m-%d", r.t), r.kind == "bug" and ("|cffff9933" .. L["Bug"] .. "|r") or r.kind == "translation" and ("|cffc79cff" .. L["Translation"] .. "|r") or ("|cff66ccff" .. L["Idea"] .. "|r"),
       (r.text ~= "" and r.text or L["(diagnostics only)"]):gsub("\n", " ")))
     row.status:SetText(st .. (reply and (" |cff66ff66(" .. L["reply"] .. ")|r") or ""))
   end)
@@ -197,7 +201,9 @@ local function Build()
   function f:Refresh()
     self.bugBtn:SetText(self.kind == "bug" and ("|cffffd100> " .. L["Something's broken"] .. "|r") or L["Something's broken"])
     self.ideaBtn:SetText(self.kind == "idea" and ("|cffffd100> " .. L["Idea / suggestion"] .. "|r") or L["Idea / suggestion"])
-    self.hint:SetText(self.kind == "bug" and L["What happened, and what did you expect? (Diagnostics are attached, so a short note is enough.)"]
+    self.trBtn:SetText(self.kind == "translation" and ("|cffffd100> " .. L["Better translation"] .. "|r") or L["Better translation"])
+    self.hint:SetText(self.kind == "translation" and L["Which text reads wrong, and how should it read? Copy the text as you see it. Your language (%s) is added for you."]:format(FR.LOCALE_NAMES[FR.locale] or FR.locale)
+      or self.kind == "bug" and L["What happened, and what did you expect? (Diagnostics are attached, so a short note is enough.)"]
       or L["What would you like Forever Relationships to do differently?"])
     if self.edit:GetText() ~= "" or self.edit:HasFocus() then self.hint:Hide() else self.hint:Show() end
     self.diagBtn:SetText(self.withDiag and ("|cff66ff66" .. L["Include diagnostics: On"] .. "|r") or L["Include diagnostics: Off"])

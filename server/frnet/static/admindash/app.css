@@ -88,6 +88,7 @@ svg { display: block; max-width: 100%; height: auto; overflow: visible; }
 .tag { border-radius: 6px; padding: 1px 7px; font-size: 12px; border: 1px solid var(--line); white-space: nowrap; }
 .tag.bug { color: var(--serious); border-color: var(--serious); }
 .tag.idea { color: var(--series-1); border-color: var(--series-1); }
+.tag.translation { color: var(--series-3, #a78bfa); border-color: var(--series-3, #a78bfa); }
 .status { white-space: nowrap; }
 .filters { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .filters input { min-width: 220px; }
