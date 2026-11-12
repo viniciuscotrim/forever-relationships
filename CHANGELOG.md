@@ -1,3 +1,10 @@
+# Forever Relationships 0.7.0
+
+### New
+- **Invite macro.** `/fr macro`, or *Invite macro* in Settings, opens a ready macro. *Create macro* saves it in your general macros and puts it on your cursor: drop it on an action bar. Mouse over a player (or target one) and click to invite them; Shift+click asks to join their group. *Copy* selects the text so you can share it. It works without the addon too.
+- **Ding!** When you level up, the addon says "Ding! I've reached level X!" in party chat and guild chat, in your language. Each one has its own switch in Settings (`announce.dingParty`, `announce.dingGuild`). Nothing is posted in invisible mode.
+- **Settings on the first screen.** The main window (`/fr`) has a **Settings** button next to *Feedback*, and `/fr settings` opens it directly. Before, it was hidden at the bottom of the Privacy tab.
+
 # Forever Relationships 0.6.3
 
 ### Fixed

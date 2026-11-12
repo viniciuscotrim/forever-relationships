@@ -25,6 +25,8 @@ local HELP = {
   "/fr feedback - report a bug or suggest an idea (right here in game)",
   "/fr translate - suggest a better translation for a text in your language",
   "/fr player <name> - open your Relationship with a player",
+  "/fr settings - every option of the addon",
+  "/fr macro - the invite / join-group macro (one click to create it)",
   "/fr privacy - layers, consents and what is recorded",
   "/fr cloud - companion app, backup and Battle.net status",
   "/fr population - realm population by faction and race (PvP / PvE)",
@@ -67,6 +69,8 @@ local function Handle(msg)
       for _, c in ipairs(FR.LOCALES) do list[#list + 1] = c .. " (" .. FR.LOCALE_NAMES[c] .. ")" end
       FR.Print(L["Languages: %s"]:format(table.concat(list, ", ")))
     end
+  elseif cmd == "settings" or cmd == "options" then UI:Open(); UI.ShowSettings()
+  elseif cmd == "macro" or cmd == "invite" then UI.ShowMacro()
   elseif cmd == "privacy" or cmd == "config" then UI:Open("privacy")
   elseif cmd == "population" or cmd == "pop" then UI:Open("population")
   elseif cmd == "cloud" or cmd == "network" then UI.ShowText(L["Companion app"], FR.Cloud:SetupText())

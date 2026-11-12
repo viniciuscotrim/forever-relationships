@@ -39,6 +39,8 @@ Forever Relationships is an augmented view of how you relate to the people you p
 - **Keep the good ones.** After you've spent real time together, it suggests adding the player as a friend, and offers a one-click invite when a past partner comes online. It only suggests; you always click.
 - **Realm population.** The *Population* tab shows the Horde/Alliance balance and every race, in numbers and percentages, for PvP or PvE realms (yours by default), with the date and time of the last update. It comes from the companion app and refreshes every hour.
 - **Says hello to your party.** When a party forms, and when someone joins, one line in party chat tells everyone the group uses Forever Relationships. If several members have the addon, only one of them posts. Turn it off in Settings (`announce.party`).
+- **Ding!** When you level up, one line in party and guild chat: "Ding! I've reached level 30!", in your language. Turn each one off in Settings (`announce.dingParty`, `announce.dingGuild`).
+- **Invite macro, ready to use.** `/fr macro` (or Settings › Invite macro) creates it in one click and puts it on your cursor. Mouse over a player and click to invite them; Shift+click asks to join their group. You can also copy the text to share it.
 - **Your /played, all characters.** *My profile* shows your total /played across your characters, for your eyes only. Publish one character's /played if you like, and see the /played others published in their tooltip.
 - **Works with Questie.** If your partner has Questie announcements on, shared quest completions are recorded too.
 
@@ -78,6 +80,8 @@ The cloud layers need the free **companion app**, because WoW addons can't use t
 - `/fr feedback`: report a bug or suggest an idea, without leaving the game
 - `/fr translate`: suggest a better translation in your language
 - `/fr population`: realm population by faction and race
+- `/fr settings`: every option (also the **Settings** button at the top of `/fr`)
+- `/fr macro`: the invite / join-group macro
 - `/fr privacy`: your layers, the companion app and your data
 - `/fr player <name>`: your relationship with a player
 - `/fr help`: every command

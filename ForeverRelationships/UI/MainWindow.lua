@@ -51,14 +51,18 @@ function UI:Build()
   main.tabButtons = {}
   local prev
   for _, t in ipairs(UI.TABS) do
-    local b = UI.Button(main, L[t.label], 104, 22, function() SelectTab(t.key) end)
+    local b = UI.Button(main, L[t.label], 98, 22, function() SelectTab(t.key) end)
     if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 12, -30) end
     main.tabButtons[t.key] = b
     prev = b
   end
-  local fb = UI.Button(main, L["Feedback"], 90, 22, function() UI.ShowFeedback() end)
+  local fb = UI.Button(main, L["Feedback"], 86, 22, function() UI.ShowFeedback() end)
   fb:SetPoint("TOPRIGHT", -12, -30)
   UI.Tooltip(fb, L["Feedback"], { L["Report a bug or suggest an idea without leaving the game. Replies show up here too."] })
+  local st = UI.Button(main, "|cffffd100" .. L["Settings"] .. "|r", 86, 22, function() UI.ShowSettings() end)
+  st:SetPoint("RIGHT", fb, "LEFT", -6, 0)
+  UI.Tooltip(st, L["Settings"], { L["Every option: alerts, chat lines, tooltips, groups and history. Also the invite macro."] })
+  main.settingsButton = st
   main.viewMark = UI.Label(main, "", "GameFontNormalSmall")
   main.viewMark:SetPoint("TOPRIGHT", -36, -7)
 

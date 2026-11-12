@@ -442,7 +442,39 @@ table.insert(party, { guid = "Player-1-0000000E", name = "Shieldy", class = "WAR
 fire("GROUP_ROSTER_UPDATE"); advance(30)
 assert(#partyChat == 3, "setting off: no welcome")
 FR.Params:Set("announce.party", true)
-party = {}
+-- Ding! party and guild lines on level up, in the addon's language; settings and invisible mode
+local inGuild = true
+function IsInGuild() return inGuild end
+local n0 = #partyChat
+fire("PLAYER_LEVEL_UP", 31)
+assert(#partyChat == n0 + 2 and partyChat[n0 + 1].channel == "PARTY" and partyChat[n0 + 2].channel == "GUILD"
+  and partyChat[n0 + 1].msg == "Ding! I've reached level 31!", "ding in party and guild")
+FR.Params:Set("announce.dingGuild", false); fire("PLAYER_LEVEL_UP", 32)
+assert(#partyChat == n0 + 3 and partyChat[n0 + 3].channel == "PARTY", "guild ding off")
+FR.Params:Set("announce.dingGuild", true); FR.db.invisible = true; fire("PLAYER_LEVEL_UP", 33)
+assert(#partyChat == n0 + 3, "invisible: no ding"); FR.db.invisible = false
+FR:SetLocale("ptBR"); fire("PLAYER_LEVEL_UP", 34)
+assert(partyChat[#partyChat].msg == "Ding! Cheguei ao nível 34!", "ding translated"); FR:SetLocale("enUS")
+party = {}; fire("PLAYER_LEVEL_UP", 35)
+assert(#partyChat == n0 + 6 and partyChat[#partyChat].channel == "GUILD", "solo: guild only")
+inGuild = false
+print("  ok   ding: party and guild lines, settings, invisible mode, translated")
+-- invite macro: created once (then updated), put on the cursor, never in combat, fits a macro
+local macros, picked = {}, nil
+function GetMacroIndexByName(n) for i, m in ipairs(macros) do if m.name == n then return i end end return 0 end
+function GetNumMacros() return #macros, 0 end
+function CreateMacro(n, icon, body) macros[#macros + 1] = { name = n, body = body }; return #macros end
+function EditMacro(i, n, icon, body) macros[i].body = body; return i end
+function PickupMacro(i) picked = i end
+assert(#FR.UI.Macro.BODY <= 255, "macro fits 255 characters")
+local okM = FR.UI.Macro:Create()
+assert(okM and #macros == 1 and macros[1].name == "FR Invite" and picked == 1, "macro created and on the cursor")
+assert(FR.UI.Macro:Create() and #macros == 1, "existing macro updated, not duplicated")
+local realICL = InCombatLockdown; InCombatLockdown = function() return true end
+assert(not FR.UI.Macro:Create(), "no macro in combat"); InCombatLockdown = realICL
+FR.HandleSlash("macro"); FR.HandleSlash("settings")
+assert(FR.UI.Build and FR.UI:Build().settingsButton, "Settings button on the main window")
+print("  ok   invite macro: create, update, combat, /fr macro, Settings on the first screen")
 fire("GROUP_LEFT"); advance(5)
 print("  ok   party welcome: on forming and on join, one poster, setting respected")
 

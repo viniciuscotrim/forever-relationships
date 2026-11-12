@@ -75,6 +75,28 @@ end
 
 FR:Listen("MEMBER_JOINED", function(guid) Announce:Joined(guid) end)
 
+-- Ding! One line in party and/or guild chat when you level up (announce.dingParty / dingGuild).
+function Announce:DingChannels()
+  if FR.db and FR.db.invisible then return {} end
+  local out = {}
+  if FR.Params:Get("announce.dingParty") and IsInGroup then
+    if LE_PARTY_CATEGORY_HOME and IsInGroup(LE_PARTY_CATEGORY_HOME) then out[#out + 1] = "PARTY"
+    elseif LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then out[#out + 1] = "INSTANCE_CHAT"
+    elseif not LE_PARTY_CATEGORY_HOME and IsInGroup() then out[#out + 1] = "PARTY" end
+  end
+  if FR.Params:Get("announce.dingGuild") and IsInGuild and IsInGuild() then out[#out + 1] = "GUILD" end
+  return out
+end
+
+function Announce:Ding(level)
+  level = tonumber(FR.Clean(level))
+  if not level or level < 2 then return end
+  local text = FR.L["Ding! I've reached level %d!"]:format(level)
+  for _, channel in ipairs(self:DingChannels()) do pcall(SendChatMessage, text, channel) end
+end
+
+FR:On("PLAYER_LEVEL_UP", function(_, level) Announce:Ding(level) end)
+
 if FR.Protocol then
   FR.Protocol.schema.WELCOME = { function(v) return type(v) == "string" and v:find("^Player%-%d+%-%x+$") ~= nil end }
   FR.Protocol.handlers.WELCOME = function(_, _, _, real)

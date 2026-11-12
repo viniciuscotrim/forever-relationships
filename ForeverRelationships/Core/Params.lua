@@ -43,6 +43,8 @@ def("Social", "suggest.friendAfterSessions", 3, "Sessions together before sugges
 def("Social", "suggest.regroupMinSessions", 2, "Sessions together before a 'they're online, invite?' toast.", { min = 1 })
 def("Social", "suggest.regroupCooldownMinutes", 60, "Minimum minutes between invite toasts for the same player.")
 def("Social", "announce.party", true, "Say in party chat that the group uses Forever Relationships when a party forms and when someone joins (one line; only one addon user posts).")
+def("Social", "announce.dingParty", true, "Say \"Ding! I've reached level X!\" in party chat when you level up.")
+def("Social", "announce.dingGuild", true, "Say \"Ding! I've reached level X!\" in guild chat when you level up.")
 -- Nearby alert (pop-up when someone you have history with comes into view)
 def("Nearby", "nearby.alert", true, "Show a pop-up when someone you have history with comes into view (nameplates, mouseover, target).")
 def("Nearby", "nearby.alertRivals", true, "Also alert for opposite-faction players you have fought.")

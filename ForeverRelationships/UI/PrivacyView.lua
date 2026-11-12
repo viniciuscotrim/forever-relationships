@@ -63,6 +63,7 @@ local INVENTORY = {
   "",
   { head = "Party chat" },
   "One welcome line when a party forms or someone joins (Settings: announce.party).",
+  "One \"Ding!\" line in party and guild chat when you level up (Settings: announce.dingParty, announce.dingGuild).",
   "",
   { head = "Never" },
   "Chat text or message counts, notes or ratings about anyone, inferences about anyone.",
@@ -145,8 +146,11 @@ end)
 local settingsWin
 function UI.ShowSettings()
   if not settingsWin then
-    local f = UI.Window("ForeverRelationshipsSettings", 620, 440, "DIALOG")
+    local f = UI.Window("ForeverRelationshipsSettings", 620, 466, "DIALOG")
     UI.Label(f, L["Settings"], "GameFontHighlight"):SetPoint("TOP", 0, -5)
+    local mb = UI.Button(f, L["Invite macro"], 140, 22, function() UI.ShowMacro() end)
+    mb:SetPoint("TOPLEFT", 12, -28)
+    UI.Tooltip(mb, L["Invite macro"], { L["Click it with the mouse over a player (or with a target) to invite them. Shift+click asks to join their group."] })
     f.list = UI.List(f, 22, 17, function(row)
       row.key = UI.Label(row, "", "GameFontHighlightSmall"); row.key:SetPoint("LEFT", 4, 0); row.key:SetWidth(330); row.key:SetWordWrap(false)
       row.edit = UI.EditBox(row, 70, 18); row.edit:SetPoint("LEFT", 346, 0)
@@ -169,7 +173,7 @@ function UI.ShowSettings()
       elseif not row.edit:HasFocus() then row.edit:SetText(tostring(v)) end
       row.reset:SetEnabled(not FR.Params:IsDefault(d.key))
     end)
-    f.list:SetPoint("TOPLEFT", 12, -30); f.list:SetPoint("BOTTOMRIGHT", -12, 12)
+    f.list:SetPoint("TOPLEFT", 12, -56); f.list:SetPoint("BOTTOMRIGHT", -12, 12)
     settingsWin = f
   end
   local items = {}
