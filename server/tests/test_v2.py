@@ -226,6 +226,31 @@ class Census(unittest.TestCase):
         self.assertEqual(pop["realms"]["1"], {"name": "Pvp Realm", "type": "pvp"})
         self.assertEqual(pop["updatedAt"], NOW)
 
+    def test_only_own_realm_is_named_and_typed(self):
+        # 0.6.2 sent name parts ("Sludge-Enjoyer") as realm names for other realms: ignored
+        self.svc.sync(self.body([self.seen("Player-2-000000B0")], realms={"1": "Gladesong", "2": "Enjoyer"}))
+        self.assertEqual(tuple(self.store.q("SELECT name, type FROM realms WHERE id = 2", one=True)), (None, None))
+        self.assertEqual(tuple(self.store.q("SELECT name, type FROM realms WHERE id = 1", one=True)), ("Gladesong", None))
+        body = self.body([], realms={"1": "Gladesong"}); body["me"]["realmType"] = "pvp"
+        self.svc.sync(body)
+        self.assertEqual(self.store.q("SELECT type FROM realms WHERE id = 1", one=True)[0], "pvp")
+        # older clients: type read from the internal name; never overrides the admin's choice
+        self.svc.sync(self.body([], uid="b" * 32, realms={"1": "CAMWOW US1 Realm 6 PvE"}))
+        self.assertEqual(tuple(self.store.q("SELECT name, type FROM realms WHERE id = 1", one=True)), ("CAMWOW US1 Realm 6 PvE", "pvp"))
+        self.store.q("UPDATE realms SET type = NULL", commit=True)
+        self.svc.sync(self.body([], uid="b" * 32, realms={"1": "CAMWOW US1 Realm 6 PvE"}))
+        self.assertEqual(self.store.q("SELECT type FROM realms WHERE id = 1", one=True)[0], "pve")
+
+    def test_bad_realm_names_forgotten_once(self):
+        import tempfile, os
+        path = os.path.join(tempfile.mkdtemp(), "db.sqlite3")
+        st = Store(path); st.q("DELETE FROM admin_kv", commit=True)
+        st.q("INSERT INTO realms (id, name) VALUES (5, 'Enjoyer')", commit=True); st.db.close()
+        st = Store(path)
+        self.assertIsNone(st.q("SELECT name FROM realms WHERE id = 5", one=True)[0])
+        st.q("UPDATE realms SET name = 'Gladesong'", commit=True); st.db.close()
+        self.assertEqual(Store(path).q("SELECT name FROM realms WHERE id = 5", one=True)[0], "Gladesong", "only once")
+
     def test_needs_community_and_honours_exclusions(self):
         self.svc.sync(self.body([self.seen("Player-1-000000A0")], consents={"backup": True}))
         self.assertEqual(self.store.q("SELECT count(*) FROM census", one=True)[0], 0)

@@ -1,3 +1,10 @@
+# Forever Relationships 0.6.3
+
+### Fixed
+- **Population: wrong realm names.** On WoW: Forever the part after the dash in a character's name ("Sludge-Enjoyer") is part of the name, not a realm. The census used it as the name of other players' realms, so realms showed up as "Mike", "Tank" or "Bundy". Only your own realm is named now, and the wrong names were removed from the server.
+- **Your realm's name in your public details** is the real one (*Gladesong*) again, instead of the internal "CAMWOW US1 Realm 6 PvP" that the game returns at logout.
+- **Realm type (PvP / PvE) is set automatically** for your realm, from what the game itself reports. Realms no longer wait for someone to classify them before showing up in the Population tab.
+
 # Forever Relationships 0.6.2
 
 ### New

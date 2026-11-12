@@ -2,7 +2,7 @@
 local ADDON, FR = ...
 FR = FR or {}
 FR.name = ADDON or "ForeverRelationships"
-FR.version = "0.6.2"
+FR.version = "0.6.3"
 FR.SCHEMA = 2
 FR.PREFIX = "ForeverRel"
 
@@ -103,14 +103,26 @@ function FR.ShortName(full)
   return (full:gsub("%-.*$", ""))
 end
 
--- The realm name players see. On WoW: Forever GetRealmName() can return an internal
+-- The realm name players see. On WoW: Forever GetRealmName() returns an internal
 -- name ("CAMWOW US1 Realm 6 PvP"); the normalized name ("Gladesong") is the real one.
+-- GetNormalizedRealmName() is empty very early and at logout, so the first good answer
+-- is kept (primed at PLAYER_LOGIN) and reused when the outbox is written at logout.
+local realmNameCache
 function FR.RealmName()
   local raw = GetRealmName and FR.Clean(GetRealmName()) or nil
   local norm = GetNormalizedRealmName and FR.Clean(GetNormalizedRealmName()) or nil
-  if type(raw) == "string" and raw ~= "" and not raw:find("Realm %d") then return raw end
-  if type(norm) == "string" and norm ~= "" then return norm end
-  return raw
+  if type(raw) == "string" and raw ~= "" and not raw:find("Realm %d") then realmNameCache = raw
+  elseif type(norm) == "string" and norm ~= "" then realmNameCache = norm end
+  return realmNameCache or raw
+end
+
+-- "pvp" / "pve" when the internal realm name says so ("CAMWOW US1 Realm 6 PvP"), else nil.
+function FR.RealmType()
+  local raw = GetRealmName and FR.Clean(GetRealmName()) or nil
+  if type(raw) ~= "string" then return nil end
+  if raw:find("%f[%a]PvP%f[%A]") then return "pvp" end
+  if raw:find("%f[%a]PvE%f[%A]") or raw:find("%f[%a]Normal%f[%A]") then return "pve" end
+  return nil
 end
 
 local function Join(...)
@@ -385,6 +397,7 @@ if FR.frame then
   FR:On("PLAYER_LOGIN", function()
     FR.playerGUID = UnitGUID("player")
     FR.playerName = FR.FullName(UnitName("player"))
+    FR.RealmName()   -- prime the cache while the normalized name is available
     FR:Fire("LOGIN")
   end)
 end

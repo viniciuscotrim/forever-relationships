@@ -196,11 +196,20 @@ class Service:
             if h not in rows or rows[h]["t"] < t:
                 rows[h] = {"h": h, "realm": rid, "race": _word(c.get("r")), "faction": faction, "class": _word(c.get("c")),
                            "level": _int(c.get("l"), 1, 100), "t": t}
-        names = body.get("realms") if isinstance(body.get("realms"), dict) else {}
-        for k, v in list(names.items())[:200]:
-            if str(k).isdigit() and int(k) <= 999999:
-                realms[int(k)] = _word(v, 48)
-        self.store.add_census(uploader, list(rows.values()), realms, now)
+        # Only the uploader's own realm can be named (and typed): on WoW: Forever the second value of
+        # UnitName() is part of the character name, which 0.6.2 and older sent as realm names.
+        me = body.get("me") if isinstance(body.get("me"), dict) else {}
+        own = int(me["guid"].split("-")[1]) if isinstance(me.get("guid"), str) and GUID_RE.match(me["guid"]) else None
+        types = {}
+        if own is not None and own <= 999999:
+            names = body.get("realms") if isinstance(body.get("realms"), dict) else {}
+            realms[own] = _word(names.get(str(own)), 48)
+            internal = re.search(r"\bRealm \d+ (PvP|PvE)\b", str(names.get(str(own)) or ""))
+            if me.get("realmType") in ("pvp", "pve"):
+                types[own] = me["realmType"]
+            elif internal:   # 0.6.2 clients send the internal name ("CAMWOW US1 Realm 6 PvP")
+                types[own] = internal.group(1).lower()
+        self.store.add_census(uploader, list(rows.values()), realms, now, types)
         return len(rows)
 
     def population(self):

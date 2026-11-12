@@ -307,7 +307,8 @@ class EndToEnd(unittest.TestCase):
         census = self.service.store.q("SELECT * FROM census")
         self.assertGreaterEqual(len(census), 3)
         self.assertNotIn("Player-", "\n".join(str(tuple(r)) for r in census))
-        self.assertEqual(self.service.store.q("SELECT name FROM realms WHERE id = 2", one=True)[0], "Other Realm")
+        self.assertEqual(self.service.store.q("SELECT name FROM realms WHERE id = 1", one=True)[0], "Forever")   # own realm only
+        self.assertIsNone(self.service.store.q("SELECT name FROM realms WHERE id = 2", one=True)[0])
         self.service.store.set_realm_type(1, "pvp")
         self.service.store.set_realm_type(2, "pve")
         self.service._population = (0, None)

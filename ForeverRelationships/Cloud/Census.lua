@@ -30,7 +30,7 @@ end
 local function Store()
   local c = FR.db.census
   if type(c) ~= "table" then
-    c = { seen = {}, realms = {}, count = 0 }
+    c = { seen = {}, count = 0 }
     FR.db.census = c
   end
   return c
@@ -62,9 +62,8 @@ function Census:Observe(unit)
   e.r = FR.Clean(raceFile) or e.r
   e.c = FR.Clean(classFile) or e.c
   if type(level) == "number" and level > 0 then e.l = level end
-  local _, realm = FR.SafeCall(UnitName, unit)   -- only set for characters from another realm
-  realm = FR.Clean(realm)
-  if type(realm) == "string" and realm ~= "" then s.realms[tostring(realmId)] = realm end
+  -- No realm names from UnitName: on WoW: Forever its second value is part of the
+  -- character's name ("Sludge-Enjoyer"), not a realm. Only your own realm is named.
   if s.count > self.MAX then self:Prune() end
 end
 
@@ -95,8 +94,8 @@ function Census:Outbox(me)
   end
   table.sort(list, function(a, b) return a.t > b.t end)
   while #list > self.SEND do list[#list] = nil end
+  s.realms = nil   -- 0.6.2 and older stored name parts here as realm names
   local realms = {}
-  for k, v in pairs(s.realms) do realms[k] = v end
   local ownRealm = self.RealmId(FR.playerGUID)
   if me and ownRealm and (me.faction == "Alliance" or me.faction == "Horde") then
     list[#list + 1] = { g = FR.playerGUID, f = me.faction, r = me.race, c = me.class, l = me.level, t = now }

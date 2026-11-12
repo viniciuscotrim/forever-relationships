@@ -96,6 +96,11 @@ class Store:
             if cols and "kind" not in cols:
                 self.db.execute("DROP TABLE oauth_states")
             self.db.executescript(SCHEMA)
+            # addon 0.6.2 and older sent the second part of character names ("Sludge-Enjoyer")
+            # as realm names: forget them once; uploaders re-send their own realm's real name
+            if not self.db.execute("SELECT 1 FROM admin_kv WHERE k = 'realm_names_v2'").fetchone():
+                self.db.execute("UPDATE realms SET name = NULL")
+                self.db.execute("INSERT INTO admin_kv (k, v) VALUES ('realm_names_v2', '1')")
             self.db.commit()
 
     def q(self, sql, args=(), one=False, commit=False):
@@ -211,10 +216,13 @@ class Store:
             return True
 
     # -- population census ---------------------------------------------------------------
-    def add_census(self, uploader, rows, realms, now):
-        """rows: [{h, realm, race, faction, class, level, t}]; realms: {id: name or None}."""
-        stmts = [("INSERT INTO realms (id, name, type, first_seen) VALUES (?, ?, NULL, ?) "
-                  "ON CONFLICT(id) DO UPDATE SET name = COALESCE(excluded.name, realms.name)", (rid, name, now))
+    def add_census(self, uploader, rows, realms, now, types=None):
+        """rows: [{h, realm, race, faction, class, level, t}]; realms: {id: name or None};
+        types: {id: "pvp"/"pve"} read by the game itself (never overrides the admin's choice)."""
+        types = types or {}
+        stmts = [("INSERT INTO realms (id, name, type, first_seen) VALUES (?, ?, ?, ?) "
+                  "ON CONFLICT(id) DO UPDATE SET name = COALESCE(excluded.name, realms.name), "
+                  "type = COALESCE(realms.type, excluded.type)", (rid, name, types.get(rid), now))
                  for rid, name in realms.items()]
         stmts += [("INSERT INTO census (h, realm, race, faction, class, level, seen_at, uploader) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
                    "ON CONFLICT(h) DO UPDATE SET realm = excluded.realm, race = COALESCE(excluded.race, census.race), "

@@ -209,8 +209,14 @@ fire("UNIT_AURA", "player", { addedAuras = { "SECRET", { sourceUnit = "SECRET", 
 local realGRN = GetRealmName
 GetRealmName = function() return "CAMWOW US1 Realm 6 PvP" end
 assert(FR.RealmName() == "Forever", "internal realm name replaced")
+assert(FR.RealmType() == "pvp", "realm type from the internal name")
+local realGNRN = GetNormalizedRealmName
+GetNormalizedRealmName = function() return "" end   -- empty at logout
+assert(FR.RealmName() == "Forever", "realm name cached for the logout outbox")
+GetNormalizedRealmName = realGNRN
 GetRealmName = realGRN
 assert(FR.RealmName() == "Forever", "normal realm name kept")
+assert(FR.RealmType() == nil, "no type from a plain realm name")
 print("  ok   old errors dropped, secret names/auras safe, real realm name")
 
 -- form a party of 3
@@ -491,7 +497,8 @@ local elf = byG["Player-2-000000C1"]
 assert(elf and elf.r == "Night Elf" and elf.f == "Alliance" and elf.c == "Druid" and elf.l == 22, "nameplate sighting")
 assert(byG["Player-1-000000C2"] and byG["Player-1-000000C2"].f == "Horde", "target sighting")
 assert(byG[FR.playerGUID] and byG[FR.playerGUID].r == "Undead", "own character counted")
-assert(ob.realms["2"] == "Other Realm" and ob.realms["1"] == "Forever", "realm names by id")
+assert(ob.realms["2"] == nil and ob.realms["1"] == "Forever", "only your own realm is named (UnitName's 2nd value is part of the name on Forever)")
+assert(ob.me.realmType == nil, "no realm type from a plain realm name")
 -- Population tab from the companion's NetData
 local savedND = ForeverRelationshipsNetData
 ForeverRelationshipsNetData = { protocol = 2, population = { updatedAt = FR.Now(), windowDays = 30,
