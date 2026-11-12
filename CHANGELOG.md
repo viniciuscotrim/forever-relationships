@@ -1,3 +1,9 @@
+# Forever Relationships 0.7.1
+
+### Fixed
+- **Windows open on top.** A window you open (for example *Invite macro* from Settings) now always shows in front of the ones already open, instead of hiding behind them. Clicking a window also brings it to the front.
+- **Invite macro checked against the game's API.** WoW: Forever, like other Classic-based clients, can invite (`C_PartyInfo.InviteUnit`) but has no "ask to join their group" function. The macro is now built for your client: where asking to join isn't possible it only invites, and the window says so. It is also simpler to read (plain `if ... then ... end`).
+
 # Forever Relationships 0.7.0
 
 ### New

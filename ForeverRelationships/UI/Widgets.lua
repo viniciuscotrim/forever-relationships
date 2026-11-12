@@ -133,6 +133,11 @@ function UI.Window(name, w, h, strata)
   f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
   f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
   f:SetClampedToScreen(true)
+  -- Every window lives in the same strata, so the one opened (or clicked) last is on top:
+  -- Show() raises it even when it was already open behind another window.
+  f:SetToplevel(true)
+  local show = f.Show
+  f.Show = function(self, ...) show(self, ...); self:Raise() end
   if name then tinsert(UISpecialFrames, name) end
   return f
 end
@@ -141,7 +146,7 @@ end
 local textWindow
 function UI.ShowText(title, text)
   if not textWindow then
-    local f = UI.Window("ForeverRelationshipsTextWindow", 640, 420, "DIALOG")
+    local f = UI.Window("ForeverRelationshipsTextWindow", 640, 420, "HIGH")
     f.title = UI.Label(f, "", "GameFontHighlight")
     f.title:SetPoint("TOP", 0, -5)
     local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")

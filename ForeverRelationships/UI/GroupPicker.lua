@@ -12,7 +12,7 @@ local ROWS, ROW_H = 10, 22
 
 function Picker:Build()
   if self.frame then return self.frame end
-  local f = UI.Window("ForeverRelationshipsGroupPicker", 330, 120 + ROWS * ROW_H, "DIALOG")
+  local f = UI.Window("ForeverRelationshipsGroupPicker", 330, 120 + ROWS * ROW_H, "HIGH")
   f.title = UI.Label(f, "", "GameFontHighlight"); f.title:SetPoint("TOP", 0, -5)
   f.hint = UI.Label(f, L["Automatic groups fill themselves from what the game recorded."], "GameFontDisableSmall")
   f.hint:SetPoint("TOPLEFT", 12, -30); f.hint:SetWidth(300)

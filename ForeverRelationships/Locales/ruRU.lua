@@ -495,4 +495,5 @@ FR:RegisterLocale("ruRU", {
   ["/fr settings - every option of the addon"] = "/fr settings - все настройки аддона",
   ["/fr macro - the invite / join-group macro (one click to create it)"] = "/fr macro - макрос приглашения / запроса на вступление в группу (создаётся одним кликом)",
   ["Ding! I've reached level %d!"] = "Динь! Я достиг %d уровня!",
+  ["Click it with the mouse over a player (or with a target) to invite them. This game version can't ask to join someone else's group."] = "Нажмите его, наведя мышь на игрока (или выбрав цель), чтобы пригласить его. В этой версии игры нельзя попроситься в чужую группу.",
 })

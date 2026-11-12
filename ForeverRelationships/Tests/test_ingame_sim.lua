@@ -466,13 +466,56 @@ function GetNumMacros() return #macros, 0 end
 function CreateMacro(n, icon, body) macros[#macros + 1] = { name = n, body = body }; return #macros end
 function EditMacro(i, n, icon, body) macros[i].body = body; return i end
 function PickupMacro(i) picked = i end
-assert(#FR.UI.Macro.BODY <= 255, "macro fits 255 characters")
+-- the macro text itself: valid Lua, fits a macro, and does the right thing on both kinds of client
+local function RunMacro(body, env)
+  assert(#body <= 255, "macro fits 255 characters: " .. #body)
+  assert(body:sub(1, 5) == "/run ", "macro is a /run line")
+  local fn = assert(loadstring(body:sub(6)))   -- syntax check, like the game's /run
+  setfenv(fn, env); fn()
+end
+local function MacroEnv(partyInfo, mouseover, target, shift)
+  local calls = {}
+  local env = {
+    C_PartyInfo = partyInfo and {
+      InviteUnit = function(n) calls[#calls + 1] = "invite " .. n end,
+      RequestInviteFromUnit = partyInfo == "live" and function(n) calls[#calls + 1] = "request " .. n end or nil,
+    } or nil,
+    InviteUnit = function(n) calls[#calls + 1] = "legacy " .. n end,
+    UnitExists = function(u) return (u == "mouseover" and mouseover) or (u == "target" and target) and true or false end,
+    UnitIsPlayer = function(u) local x = (u == "mouseover" and mouseover) or (u == "target" and target) return x and x ~= "npc" or false end,
+    GetUnitName = function(u, full) return (u == "mouseover" and mouseover) or (u == "target" and target) or nil end,
+    IsShiftKeyDown = function() return shift end,
+  }
+  return env, calls
+end
+local realPI = C_PartyInfo
+for _, client in ipairs({ "live", "classic", false }) do
+  C_PartyInfo = client and MacroEnv(client).C_PartyInfo or nil
+  local body = FR.UI.Macro:Body()
+  local env, calls = MacroEnv(client, "Sludge-Enjoyer", "Boba-One", false); RunMacro(body, env)
+  assert(calls[1] == ((client and "invite " or "legacy ") .. "Sludge-Enjoyer") and #calls == 1, tostring(client) .. ": click invites the mouseover player")
+  env, calls = MacroEnv(client, nil, "Boba-One", false); RunMacro(body, env)
+  assert(calls[1] == ((client and "invite " or "legacy ") .. "Boba-One"), tostring(client) .. ": no mouseover -> target")
+  env, calls = MacroEnv(client, "npc", nil, false); RunMacro(body, env)
+  assert(#calls == 0, tostring(client) .. ": NPCs are ignored")
+  env, calls = MacroEnv(client, nil, nil, false); RunMacro(body, env)
+  assert(#calls == 0, tostring(client) .. ": nothing under the mouse, no target")
+  env, calls = MacroEnv(client, "Sludge-Enjoyer", nil, true); RunMacro(body, env)
+  if client == "live" then assert(calls[1] == "request Sludge-Enjoyer" and #calls == 1, "live: Shift+click asks to join")
+  else assert(calls[1] and calls[1]:find("Sludge%-Enjoyer") and #calls == 1, tostring(client) .. ": no join request API, Shift+click still invites") end
+  assert(FR.UI.Macro:CanRequest() == (client == "live"), "how-to text follows the client")
+end
+C_PartyInfo = realPI
 local okM = FR.UI.Macro:Create()
 assert(okM and #macros == 1 and macros[1].name == "FR Invite" and picked == 1, "macro created and on the cursor")
 assert(FR.UI.Macro:Create() and #macros == 1, "existing macro updated, not duplicated")
 local realICL = InCombatLockdown; InCombatLockdown = function() return true end
 assert(not FR.UI.Macro:Create(), "no macro in combat"); InCombatLockdown = realICL
-FR.HandleSlash("macro"); FR.HandleSlash("settings")
+FR.HandleSlash("settings"); FR.HandleSlash("macro")
+local raised = {}
+for _, n in ipairs({ "ForeverRelationshipsSettings", "ForeverRelationshipsMacro" }) do _G[n].Raise = function() raised[#raised + 1] = n end end
+FR.HandleSlash("settings"); FR.HandleSlash("macro")
+assert(raised[#raised] == "ForeverRelationshipsMacro" and raised[#raised - 1] == "ForeverRelationshipsSettings", "the window opened last is raised to the top")
 assert(FR.UI.Build and FR.UI:Build().settingsButton, "Settings button on the main window")
 print("  ok   invite macro: create, update, combat, /fr macro, Settings on the first screen")
 fire("GROUP_LEFT"); advance(5)

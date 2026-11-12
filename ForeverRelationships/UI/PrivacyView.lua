@@ -146,11 +146,11 @@ end)
 local settingsWin
 function UI.ShowSettings()
   if not settingsWin then
-    local f = UI.Window("ForeverRelationshipsSettings", 620, 466, "DIALOG")
+    local f = UI.Window("ForeverRelationshipsSettings", 620, 466, "HIGH")
     UI.Label(f, L["Settings"], "GameFontHighlight"):SetPoint("TOP", 0, -5)
     local mb = UI.Button(f, L["Invite macro"], 140, 22, function() UI.ShowMacro() end)
     mb:SetPoint("TOPLEFT", 12, -28)
-    UI.Tooltip(mb, L["Invite macro"], { L["Click it with the mouse over a player (or with a target) to invite them. Shift+click asks to join their group."] })
+    UI.Tooltip(mb, L["Invite macro"], function() return { UI.Macro:HowTo() } end)
     f.list = UI.List(f, 22, 17, function(row)
       row.key = UI.Label(row, "", "GameFontHighlightSmall"); row.key:SetPoint("LEFT", 4, 0); row.key:SetWidth(330); row.key:SetWordWrap(false)
       row.edit = UI.EditBox(row, 70, 18); row.edit:SetPoint("LEFT", 346, 0)

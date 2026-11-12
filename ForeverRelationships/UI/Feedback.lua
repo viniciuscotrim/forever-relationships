@@ -123,7 +123,7 @@ end
 local win
 
 local function Build()
-  local f = UI.Window("ForeverRelationshipsFeedback", 600, 470, "DIALOG")
+  local f = UI.Window("ForeverRelationshipsFeedback", 600, 470, "HIGH")
   UI.Label(f, L["Send feedback to the Forever Relationships developer"], "GameFontNormalLarge"):SetPoint("TOP", 0, -28)
   local sub = UI.Label(f, L["This is the one place for bug reports and ideas. You never need to leave the game."], "GameFontHighlightSmall")
   sub:SetPoint("TOP", 0, -48)

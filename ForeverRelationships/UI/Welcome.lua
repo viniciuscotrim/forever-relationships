@@ -14,7 +14,7 @@ local CHOICES = {
 
 local frame
 local function Build()
-  local f = UI.Window("ForeverRelationshipsWelcome", 580, 470, "DIALOG")
+  local f = UI.Window("ForeverRelationshipsWelcome", 580, 470, "HIGH")
   UI.Label(f, L["Welcome to Forever Relationships"], "GameFontNormalLarge"):SetPoint("TOP", 0, -30)
   local intro = UI.Label(f,
     L["Forever Relationships shows how you've related to the people around you: time together, dungeons completed, kills, trades, help, quests. It only uses what the game itself records while you play together. No chat, no opinions, no scores."]

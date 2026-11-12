@@ -495,4 +495,5 @@ FR:RegisterLocale("koKR", {
   ["/fr settings - every option of the addon"] = "/fr settings - 애드온의 모든 옵션",
   ["/fr macro - the invite / join-group macro (one click to create it)"] = "/fr macro - 초대 / 파티 참여 요청 매크로 (클릭 한 번으로 생성)",
   ["Ding! I've reached level %d!"] = "띵! %d레벨 달성!",
+  ["Click it with the mouse over a player (or with a target) to invite them. This game version can't ask to join someone else's group."] = "플레이어에게 마우스를 올리고(또는 대상을 잡고) 클릭하면 초대해요. 이 게임 버전에서는 다른 사람의 파티에 참여를 요청할 수 없어요.",
 })

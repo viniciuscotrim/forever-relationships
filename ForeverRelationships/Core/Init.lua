@@ -2,7 +2,7 @@
 local ADDON, FR = ...
 FR = FR or {}
 FR.name = ADDON or "ForeverRelationships"
-FR.version = "0.7.0"
+FR.version = "0.7.1"
 FR.SCHEMA = 2
 FR.PREFIX = "ForeverRel"
 

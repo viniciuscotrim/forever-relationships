@@ -495,4 +495,5 @@ FR:RegisterLocale("zhCN", {
   ["/fr settings - every option of the addon"] = "/fr settings - 插件的所有选项",
   ["/fr macro - the invite / join-group macro (one click to create it)"] = "/fr macro - 邀请 / 申请入队宏（一键创建）",
   ["Ding! I've reached level %d!"] = "叮！我升到 %d 级了！",
+  ["Click it with the mouse over a player (or with a target) to invite them. This game version can't ask to join someone else's group."] = "鼠标指向玩家（或选中目标）时点击即可邀请。此游戏版本无法申请加入他人的队伍。",
 })
